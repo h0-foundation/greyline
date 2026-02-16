@@ -1,0 +1,16 @@
+{
+	"title": "Moscow Rules (Adapted)",
+	"description": "Operational security principles adapted from Cold War tradecraft",
+	"rules": [
+		"Assume nothing.",
+		"Never go against your gut.",
+		"Everyone is potentially under opposition control.",
+		"Do not look back; you are never completely alone.",
+		"Go with the flow; blend in.",
+		"Vary your pattern and stay within your cover.",
+		"Lull them into a sense of complacency.",
+		"Do not harass the opposition.",
+		"Pick the time and place for action.",
+		"Keep your options open."
+	]
+}
