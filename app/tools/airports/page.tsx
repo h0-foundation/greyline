@@ -6,7 +6,7 @@ export default function AirportsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Airports"
-        description="Search the offline airport database by name, city, IATA, or ICAO code. Codes, location, and elevation — no connection needed."
+        description="Plan air egress from any place — the nearest scheduled-service airports ranked by distance, bearing, and drive time, with an overland-dispersion check — or search 85,000+ airports by name or code. Fully offline."
       />
       <AirportsBrowser />
     </div>
