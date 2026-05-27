@@ -53,6 +53,23 @@ export function CommandMenu({
             </CommandItem>
           ))}
         </CommandGroup>
+        <CommandGroup heading="Tools">
+          {[
+            ["Airports", "/tools/airports"],
+            ["Visa checker", "/tools/visa"],
+            ["EXIF stripper", "/tools/exif"],
+            ["Currency", "/tools/currency"],
+            ["Weather", "/tools/weather"],
+            ["Advisories", "/tools/advisories"],
+            ["Self-doxxing audit", "/tools/self-doxxing"],
+            ["Data sources", "/about/data-sources"],
+            ["Your data (backup)", "/settings/data"],
+          ].map(([label, href]) => (
+            <CommandItem key={href} value={label} onSelect={() => run(() => router.push(href))}>
+              <span>{label}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
         <CommandGroup heading="Appearance">
           <CommandItem value="theme light" onSelect={() => run(() => setTheme("light"))}>
             <Sun />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MotionConfig } from "motion/react";
 import {
   Sheet,
   SheetContent,
@@ -29,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex min-h-svh">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex">
@@ -62,5 +64,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
     </div>
+    </MotionConfig>
   );
 }
