@@ -70,34 +70,34 @@ export function TripsClient({ initialTrips }: { initialTrips: TripRow[] }) {
           action={<Button onClick={() => setOpen(true)}><Plus className="size-4" /> New trip</Button>}
         />
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ul className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
           {initialTrips.map((t, i) => (
             <motion.li
               key={t.id}
-              initial={reduce ? false : { opacity: 0, y: 8 }}
+              initial={reduce ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22, delay: reduce ? 0 : Math.min(i, 10) * 0.03, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.2, delay: reduce ? 0 : Math.min(i, 14) * 0.022, ease: [0.16, 1, 0.3, 1] }}
+              className="border-b border-border last:border-b-0"
             >
               <Link
                 href={`/trips/${t.id}`}
-                className="group flex h-full flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="group relative flex items-center gap-4 py-3.5 pl-5 pr-4 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-display text-lg font-semibold text-foreground group-hover:text-accent-text">
-                    {t.name}
-                  </h2>
-                  <Badge variant={STATUS_VARIANT[t.status] ?? "secondary"} className="capitalize">
-                    {t.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                  <span className="font-mono text-xs tabular-nums">
-                    {formatTripDate(t.start_date, t.end_date, t.date_precision as DatePrecision) ?? "No dates set"}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-accent-text">
-                    Open <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                  </span>
-                </div>
+                {/* accent left-edge bar on hover */}
+                <span className="absolute inset-y-0 left-0 w-0.5 origin-top scale-y-0 bg-primary transition-transform duration-200 group-hover:scale-y-100" />
+                <span className="w-8 shrink-0 font-mono text-xs tabular-nums text-faint">
+                  {String(initialTrips.length - i).padStart(3, "0")}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-medium text-foreground group-hover:text-accent-text">
+                  {t.name}
+                </span>
+                <span className="hidden w-44 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground sm:block">
+                  {formatTripDate(t.start_date, t.end_date, t.date_precision as DatePrecision) ?? "—"}
+                </span>
+                <Badge variant={STATUS_VARIANT[t.status] ?? "secondary"} className="hidden shrink-0 capitalize sm:inline-flex">
+                  {t.status}
+                </Badge>
+                <ArrowRight className="size-4 shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-accent-text" />
               </Link>
             </motion.li>
           ))}
