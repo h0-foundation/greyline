@@ -49,9 +49,15 @@ export const CONNECTIONS: ConnectionMeta[] = [
   },
   {
     id: "adsb",
-    label: "Aircraft tracking",
-    description: "Nearby aircraft positions for situational awareness.",
+    label: "Live aircraft (ADS-B)",
+    description: "Real-time aircraft positions near a point, for the map OSINT layer.",
     host: "api.adsb.lol",
+  },
+  {
+    id: "usgs",
+    label: "Earthquakes (USGS)",
+    description: "Live global earthquakes (M2.5+, past day) for the map OSINT layer.",
+    host: "earthquake.usgs.gov",
   },
   // ip-api intentionally omitted: HTTP-only on the free tier (would leak your IP
   // in plaintext) and unused — dropped rather than ship a privacy regression.
