@@ -41,19 +41,17 @@ function NavLink({
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+        "relative flex items-center gap-3 rounded-md py-2 pl-4 pr-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring",
         active
-          ? "text-sidebar-accent-foreground"
-          : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+          ? "font-medium text-sidebar-primary"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground",
       )}
     >
       {active && (
         <motion.span
-          layoutId={`${idPrefix}-active-pill`}
-          className="absolute inset-0 -z-10 rounded-md bg-sidebar-accent"
-          transition={
-            reduce ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 35 }
-          }
+          layoutId={`${idPrefix}-active-bar`}
+          className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-sidebar-primary"
+          transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 38 }}
         />
       )}
       <Icon className="size-4 shrink-0" />
@@ -75,7 +73,8 @@ export function SidebarContent({
       <div className="px-1 py-2">
         <Brand />
       </div>
-      <nav className="mt-1 flex flex-1 flex-col gap-0.5">
+      <span className="label-caps mt-3 mb-1 px-4">Navigate</span>
+      <nav className="flex flex-1 flex-col gap-0.5">
         {primaryNav.map((item) => (
           <NavLink
             key={item.href}

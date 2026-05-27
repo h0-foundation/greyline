@@ -13,11 +13,12 @@ const inter = localFont({
   display: "swap",
 });
 
-// Display / headings / scores — warm humanist geometry.
-const jakarta = localFont({
-  src: "./fonts/jakarta.woff2",
-  variable: "--font-jakarta",
-  weight: "200 800",
+// Display / editorial headings — Fraunces, an expressive variable serif. The
+// "premium is bought with type" lever; carries the Field-Atlas/dossier voice.
+const fraunces = localFont({
+  src: "./fonts/fraunces.woff2",
+  variable: "--font-fraunces",
+  weight: "400 600",
   display: "swap",
 });
 
@@ -41,16 +42,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jakarta.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full font-sans">
+      <body className="min-h-full bg-background font-sans text-foreground">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
+          <div className="grain" aria-hidden />
           <AppShell>{children}</AppShell>
         </ThemeProvider>
       </body>

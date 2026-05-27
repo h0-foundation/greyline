@@ -15,10 +15,10 @@ export function WorldMap({ visited }: { visited: Visited[] }) {
   useEffect(() => {
     if (!ref.current) return;
     const dark = document.documentElement.classList.contains("dark");
-    // Basque-red brand fill for visited countries; warm neutrals otherwise.
+    // Twilight-indigo fill for visited countries; warm-neutral land otherwise.
     const c = dark
-      ? { bg: "transparent", off: "#2b2622", on: "#d8483b", border: "#3a332e", onText: "#fff" }
-      : { bg: "transparent", off: "#ece5df", on: "#cf3a30", border: "#ddd2ca", onText: "#fff" };
+      ? { bg: "transparent", off: "#272536", on: "#8478d6", border: "#363349", onText: "#fff" }
+      : { bg: "transparent", off: "#e8e6f0", on: "#5546b8", border: "#d8d4e6", onText: "#fff" };
     const codes = visited.map((v) => v.code);
     const stats = new Map(visited.map((v) => [v.code, v]));
 

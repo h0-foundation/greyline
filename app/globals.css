@@ -14,70 +14,75 @@
 :root {
   --radius: 0.625rem; /* 10px base; sm/md/lg/xl derived in @theme */
 
-  /* Surfaces — warm near-white (cream), the opposite of cold grey */
-  --background: oklch(0.993 0.005 75);
-  --foreground: oklch(0.22 0.013 55);
-  --card: oklch(0.998 0.004 80);
-  --card-foreground: oklch(0.22 0.013 55);
-  --popover: oklch(0.998 0.004 80);
-  --popover-foreground: oklch(0.22 0.013 55);
+  /* TWILIGHT — warm-tinted surfaces (never grey), deep violet-indigo brand,
+     gold "spark" used at ~10%. Light theme. */
+  --background: oklch(0.985 0.006 85);
+  --foreground: oklch(0.255 0.020 280);
+  --card: oklch(0.998 0.004 85);
+  --card-foreground: oklch(0.255 0.020 280);
+  --popover: oklch(0.998 0.004 85);
+  --popover-foreground: oklch(0.255 0.020 280);
 
-  /* Brand — Basque red (Ikurriña) */
-  --primary: oklch(0.555 0.205 27);
-  --primary-foreground: oklch(0.99 0.01 60);
+  /* Brand — twilight indigo */
+  --primary: oklch(0.470 0.150 273);
+  --primary-foreground: oklch(0.985 0.006 85);
 
   /* Muted / secondary surfaces + secondary text */
-  --secondary: oklch(0.965 0.007 70);
-  --secondary-foreground: oklch(0.28 0.013 55);
-  --muted: oklch(0.965 0.007 70);
-  --muted-foreground: oklch(0.48 0.015 58);
+  --secondary: oklch(0.945 0.012 80);
+  --secondary-foreground: oklch(0.330 0.030 278);
+  --muted: oklch(0.955 0.010 82);
+  --muted-foreground: oklch(0.520 0.022 278);
 
-  /* shadcn `accent` = subtle warm hover surface (NOT the brand color) */
-  --accent: oklch(0.95 0.02 45);
-  --accent-foreground: oklch(0.34 0.10 30);
+  /* shadcn `accent` = subtle hover surface (NOT the brand color) */
+  --accent: oklch(0.945 0.014 278);
+  --accent-foreground: oklch(0.330 0.040 278);
 
   /* Tertiary / caption text */
-  --faint: oklch(0.60 0.013 58);
+  --faint: oklch(0.600 0.018 278);
 
-  /* Accent-colored text/icons on page (links, active glyphs) — Basque red */
-  --accent-text: oklch(0.52 0.19 27);
-  --accent-subtle: oklch(0.955 0.035 35);
-  --accent-subtle-foreground: oklch(0.45 0.17 27);
+  /* Accent-colored text/icons (links, active glyphs) — indigo brand */
+  --accent-text: oklch(0.470 0.150 273);
+  --accent-subtle: oklch(0.950 0.022 278);
+  --accent-subtle-foreground: oklch(0.420 0.130 273);
 
-  /* Semantics — danger sits at a deeper rose hue so it reads apart from the brand red */
-  --destructive: oklch(0.52 0.21 12);
-  --destructive-foreground: oklch(0.99 0.01 12);
-  --success: oklch(0.55 0.13 155);
-  --success-foreground: oklch(0.99 0.01 155);
-  --warning: oklch(0.72 0.15 70);
-  --warning-foreground: oklch(0.24 0.05 70);
-  --info: oklch(0.56 0.12 235);
-  --info-foreground: oklch(0.99 0.01 235);
+  /* Spark — warm gold, the 10% punctuation (last light on the terminator) */
+  --spark: oklch(0.760 0.150 64);
+  --spark-foreground: oklch(0.270 0.060 60);
+
+  /* Semantics */
+  --destructive: oklch(0.555 0.205 25);
+  --destructive-foreground: oklch(0.985 0.006 85);
+  --success: oklch(0.560 0.110 160);
+  --success-foreground: oklch(0.985 0.006 85);
+  --warning: oklch(0.720 0.150 70);
+  --warning-foreground: oklch(0.270 0.060 60);
+  --info: oklch(0.560 0.110 245);
+  --info-foreground: oklch(0.985 0.006 85);
 
   /* Lines + focus */
-  --border: oklch(0.90 0.008 65);
-  --input: oklch(0.88 0.009 65);
-  --ring: oklch(0.555 0.205 27);
+  --border: oklch(0.905 0.012 80);
+  --input: oklch(0.905 0.012 80);
+  --ring: oklch(0.470 0.150 273);
 
   /* Sidebar */
-  --sidebar: oklch(0.975 0.007 70);
-  --sidebar-foreground: oklch(0.30 0.013 55);
-  --sidebar-primary: oklch(0.555 0.205 27);
-  --sidebar-primary-foreground: oklch(0.99 0.01 60);
-  --sidebar-accent: oklch(0.95 0.025 38);
-  --sidebar-accent-foreground: oklch(0.42 0.16 27);
-  --sidebar-border: oklch(0.90 0.008 65);
-  --sidebar-ring: oklch(0.555 0.205 27);
+  --sidebar: oklch(0.965 0.010 82);
+  --sidebar-foreground: oklch(0.330 0.022 278);
+  --sidebar-primary: oklch(0.470 0.150 273);
+  --sidebar-primary-foreground: oklch(0.985 0.006 85);
+  --sidebar-accent: oklch(0.930 0.014 280);
+  --sidebar-accent-foreground: oklch(0.300 0.040 278);
+  --sidebar-border: oklch(0.895 0.012 80);
+  --sidebar-ring: oklch(0.470 0.150 273);
 
-  /* Categorical chart palette — warm-led, equal perceptual lightness */
-  --chart-1: oklch(0.58 0.20 27);
-  --chart-2: oklch(0.64 0.14 55);
-  --chart-3: oklch(0.62 0.13 155);
-  --chart-4: oklch(0.66 0.13 90);
-  --chart-5: oklch(0.55 0.14 300);
+  /* Categorical chart palette — indigo / teal / gold / coral / oak */
+  --chart-1: oklch(0.470 0.150 273);
+  --chart-2: oklch(0.620 0.110 200);
+  --chart-3: oklch(0.730 0.150 64);
+  --chart-4: oklch(0.600 0.170 25);
+  --chart-5: oklch(0.560 0.090 145);
 
   /* Soft, diffuse elevation (light mode only) */
-  --shadow-color: 30 28% 28%;
+  --shadow-color: 278 30% 24%;
   --gl-shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
   --gl-shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 1px 3px hsl(var(--shadow-color) / 0.05);
   --gl-shadow-md: 0 4px 6px hsl(var(--shadow-color) / 0.05), 0 2px 4px hsl(var(--shadow-color) / 0.05);
@@ -86,58 +91,62 @@
 }
 
 .dark {
-  /* Warm near-black charcoal; elevation climbs via lightness */
-  --background: oklch(0.18 0.008 50);
-  --foreground: oklch(0.95 0.006 70);
-  --card: oklch(0.215 0.009 50);
-  --card-foreground: oklch(0.95 0.006 70);
-  --popover: oklch(0.235 0.01 50);
-  --popover-foreground: oklch(0.95 0.006 70);
+  /* TWILIGHT dark (the designed primary) — deep indigo-tinted ink, elevation
+     via lighter translucent surfaces, hairline borders, gold spark lifted. */
+  --background: oklch(0.180 0.014 278);
+  --foreground: oklch(0.945 0.008 80);
+  --card: oklch(0.215 0.016 278);
+  --card-foreground: oklch(0.945 0.008 80);
+  --popover: oklch(0.210 0.016 278);
+  --popover-foreground: oklch(0.945 0.008 80);
 
-  --primary: oklch(0.645 0.19 30);
-  --primary-foreground: oklch(0.16 0.02 40);
+  --primary: oklch(0.680 0.140 273);
+  --primary-foreground: oklch(0.165 0.014 278);
 
-  --secondary: oklch(0.265 0.01 50);
-  --secondary-foreground: oklch(0.92 0.008 70);
-  --muted: oklch(0.265 0.01 50);
-  --muted-foreground: oklch(0.70 0.012 62);
+  --secondary: oklch(0.285 0.018 278);
+  --secondary-foreground: oklch(0.920 0.010 80);
+  --muted: oklch(0.270 0.016 278);
+  --muted-foreground: oklch(0.700 0.018 80);
 
-  --accent: oklch(0.30 0.04 35);
-  --accent-foreground: oklch(0.90 0.05 35);
+  --accent: oklch(0.300 0.024 278);
+  --accent-foreground: oklch(0.900 0.020 280);
 
-  --faint: oklch(0.58 0.012 60);
+  --faint: oklch(0.620 0.018 280);
 
-  --accent-text: oklch(0.75 0.16 30);
-  --accent-subtle: oklch(0.32 0.07 30);
-  --accent-subtle-foreground: oklch(0.85 0.10 30);
+  --accent-text: oklch(0.760 0.130 275);
+  --accent-subtle: oklch(0.315 0.040 278);
+  --accent-subtle-foreground: oklch(0.860 0.080 275);
 
-  --destructive: oklch(0.66 0.20 14);
-  --destructive-foreground: oklch(0.16 0.02 14);
-  --success: oklch(0.70 0.14 155);
-  --success-foreground: oklch(0.16 0.02 155);
-  --warning: oklch(0.80 0.14 75);
-  --warning-foreground: oklch(0.20 0.04 75);
-  --info: oklch(0.70 0.12 235);
-  --info-foreground: oklch(0.16 0.02 235);
+  --spark: oklch(0.800 0.140 66);
+  --spark-foreground: oklch(0.200 0.040 60);
 
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.645 0.19 30);
+  --destructive: oklch(0.640 0.190 25);
+  --destructive-foreground: oklch(0.160 0.014 278);
+  --success: oklch(0.700 0.120 160);
+  --success-foreground: oklch(0.165 0.014 278);
+  --warning: oklch(0.790 0.140 72);
+  --warning-foreground: oklch(0.200 0.040 60);
+  --info: oklch(0.700 0.110 245);
+  --info-foreground: oklch(0.165 0.014 278);
 
-  --sidebar: oklch(0.205 0.009 50);
-  --sidebar-foreground: oklch(0.88 0.008 68);
-  --sidebar-primary: oklch(0.645 0.19 30);
-  --sidebar-primary-foreground: oklch(0.16 0.02 40);
-  --sidebar-accent: oklch(0.30 0.04 35);
-  --sidebar-accent-foreground: oklch(0.90 0.05 35);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.680 0.140 273);
+
+  --sidebar: oklch(0.205 0.016 278);
+  --sidebar-foreground: oklch(0.880 0.010 80);
+  --sidebar-primary: oklch(0.680 0.140 273);
+  --sidebar-primary-foreground: oklch(0.165 0.014 278);
+  --sidebar-accent: oklch(0.295 0.018 278);
+  --sidebar-accent-foreground: oklch(0.920 0.010 80);
   --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.645 0.19 30);
+  --sidebar-ring: oklch(0.680 0.140 273);
 
-  --chart-1: oklch(0.66 0.19 30);
-  --chart-2: oklch(0.72 0.13 60);
-  --chart-3: oklch(0.72 0.12 155);
-  --chart-4: oklch(0.78 0.12 90);
-  --chart-5: oklch(0.68 0.13 300);
+  --chart-1: oklch(0.700 0.140 273);
+  --chart-2: oklch(0.720 0.110 200);
+  --chart-3: oklch(0.800 0.140 66);
+  --chart-4: oklch(0.680 0.170 25);
+  --chart-5: oklch(0.700 0.100 145);
 
   /* Shadows are near-invisible on dark; keep them faint and rely on borders */
   --gl-shadow-xs: 0 1px 2px hsl(0 0% 0% / 0.30);
@@ -198,10 +207,12 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-spark: var(--spark);
+  --color-spark-foreground: var(--spark-foreground);
 
-  /* Type families */
+  /* Type families — Fraunces (editorial display) · Inter (UI) · Geist Mono (data) */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, ui-serif, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   /* Easing tokens → `ease-*` utilities */
@@ -235,11 +246,37 @@
   .font-mono {
     font-variant-numeric: tabular-nums;
   }
-  /* Display headings use Plus Jakarta with tight tracking */
+  /* Editorial display serif (Fraunces): high optical size + tight tracking */
   .font-display {
     letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 144;
+    font-feature-settings: "ss01";
   }
 }
+
+/* Mono ALL-CAPS micro-label — the "technical overlay" / dossier voice */
+.label-caps {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  color: var(--faint);
+}
+
+/* Subtle film grain over the whole app — kills flat "void" feel (3–5%) */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dark .grain { opacity: 0.035; }
+/* App content sits above the grain layer */
+body > :not(.grain) { position: relative; z-index: 1; }
 
 /* Honor the OS reduced-motion setting for CSS-driven animation.
    Motion components additionally guard via useReducedMotion(). */

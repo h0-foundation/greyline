@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
 
 test("dashboard renders with live counts", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Welcome to Greyline" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Every country you've been/i })).toBeVisible();
   await expect(page.getByText("Country profiles")).toBeVisible();
   await expect(page.getByText(/nothing leaves this machine/i).first()).toBeVisible();
 });
