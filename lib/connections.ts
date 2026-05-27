@@ -59,6 +59,12 @@ export const CONNECTIONS: ConnectionMeta[] = [
     description: "Live global earthquakes (M2.5+, past day) for the map OSINT layer.",
     host: "earthquake.usgs.gov",
   },
+  {
+    id: "gdacs",
+    label: "Disasters (GDACS)",
+    description: "Live global disaster alerts — cyclones, floods, volcanoes, wildfires.",
+    host: "www.gdacs.org",
+  },
   // ip-api intentionally omitted: HTTP-only on the free tier (would leak your IP
   // in plaintext) and unused — dropped rather than ship a privacy regression.
 ];

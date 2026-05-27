@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain } from "lucide-react";
+import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
@@ -13,6 +13,10 @@ type Marker = MapMarker;
 type Aircraft = { hex: string; flight?: string; lat?: number; lon?: number; alt_baro?: number; gs?: number; track?: number; type?: string };
 type Quake = { properties: { mag: number; place: string; url: string; tsunami: number }; geometry: { coordinates: [number, number, number] } };
 type Camera = { lat: number; lon: number } & Record<string, unknown>;
+type Disaster = { geometry: { coordinates: [number, number] }; properties: { eventtype: string; name: string; htmldescription: string; alertlevel?: string; url?: { report?: string } } };
+
+const DISASTER_GLYPH: Record<string, string> = { EQ: "⊙", TC: "🌀", FL: "🌊", VO: "🌋", WF: "🔥", DR: "☀" };
+const ALERT_COLOR: Record<string, string> = { Red: "#e06a5a", Orange: "#e0992a", Green: "#74b277" };
 
 const MARKER_COLOR: Record<Marker["type"], string> = {
   destination: "#74b277",
@@ -62,14 +66,14 @@ function dot(color: string, size = 12) {
 export function MapView({ markers }: { markers: Marker[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const layerMarkers = useRef<Record<string, maplibregl.Marker[]>>({ base: [], cameras: [], quakes: [], custom: [] });
+  const layerMarkers = useRef<Record<string, maplibregl.Marker[]>>({ base: [], cameras: [], quakes: [], disasters: [], custom: [] });
   const planes = useRef<Map<string, { tlng: number; tlat: number; lng: number; lat: number; marker: maplibregl.Marker; el: HTMLDivElement }>>(new Map());
   const trails = useRef<Map<string, [number, number][]>>(new Map());
   const rafRef = useRef<number>(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [ready, setReady] = useState(false);
-  const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false });
+  const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false });
   const [satellite, setSatellite] = useState(false);
   const [radar, setRadar] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -112,6 +116,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
       style: darkStyle(),
       center: markers[0] ? [markers[0].lng, markers[0].lat] : [10, 25],
       zoom: markers[0] ? 3 : 1.4,
+      maxZoom: 18,
       attributionControl: false,
       dragRotate: false,
     });
@@ -125,7 +130,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
       }
       // Satellite imagery (NASA GIBS), hidden until toggled.
       map.addSource("satellite", {
-        type: "raster", tileSize: 256, maxzoom: 9,
+        type: "raster", tileSize: 256, maxzoom: 8,
         tiles: [`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/${gibsDate()}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`],
         attribution: "Imagery © NASA EOSDIS GIBS",
       });
@@ -175,9 +180,9 @@ export function MapView({ markers }: { markers: Marker[] }) {
   }, [markers, layers.base, ready]);
 
   // ---- toggle a live layer: also enable/disable the underlying connection ----
-  async function setLayer(key: "cameras" | "aircraft" | "quakes", on: boolean) {
+  async function setLayer(key: "cameras" | "aircraft" | "quakes" | "disasters", on: boolean) {
     setLayers((s) => ({ ...s, [key]: on }));
-    const apiId = key === "cameras" ? "overpass" : key === "aircraft" ? "adsb" : "usgs";
+    const apiId = key === "cameras" ? "overpass" : key === "aircraft" ? "adsb" : key === "quakes" ? "usgs" : "gdacs";
     await fetch("/api/toggles", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ api_id: apiId, enabled: on }),
@@ -186,7 +191,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
     else clearLayer(key);
   }
 
-  function clearLayer(key: "cameras" | "aircraft" | "quakes") {
+  function clearLayer(key: "cameras" | "aircraft" | "quakes" | "disasters") {
     const map = mapRef.current;
     if (key === "aircraft") {
       planes.current.forEach((p) => p.marker.remove());
@@ -202,11 +207,12 @@ export function MapView({ markers }: { markers: Marker[] }) {
     setNotes((n) => ({ ...n, [key]: "" }));
   }
 
-  function refreshLayer(key: "cameras" | "aircraft" | "quakes") {
+  function refreshLayer(key: "cameras" | "aircraft" | "quakes" | "disasters") {
     if (key === "aircraft") {
       fetchAircraft();
       if (!pollRef.current) pollRef.current = setInterval(fetchAircraft, 20_000);
     } else if (key === "cameras") fetchCameras();
+    else if (key === "disasters") fetchDisasters();
     else fetchQuakes();
   }
 
@@ -269,6 +275,25 @@ export function MapView({ markers }: { markers: Marker[] }) {
     }
   }
 
+  async function fetchDisasters() {
+    const map = mapRef.current;
+    if (!map) return;
+    const res = await fetch("/api/map/disasters");
+    if (res.status === 503) { setNotes((n) => ({ ...n, disasters: "off" })); return; }
+    setNotes((n) => ({ ...n, disasters: "" }));
+    const { disasters } = (await res.json()) as { disasters: Disaster[] };
+    layerMarkers.current.disasters.forEach((m) => m.remove());
+    layerMarkers.current.disasters = [];
+    for (const d of disasters ?? []) {
+      const [lon, lat] = d.geometry?.coordinates ?? [];
+      if (lon == null || lat == null) continue;
+      const mk = new maplibregl.Marker({ element: disasterEl(d) }).setLngLat([lon, lat])
+        .setPopup(new maplibregl.Popup({ offset: 14 }).setHTML(disasterPopup(d)))
+        .addTo(map);
+      layerMarkers.current.disasters.push(mk);
+    }
+  }
+
   async function fetchCameras() {
     const map = mapRef.current;
     if (!map) return;
@@ -288,7 +313,10 @@ export function MapView({ markers }: { markers: Marker[] }) {
     layerMarkers.current.cameras = [];
     for (const cam of (cameras ?? []).slice(0, 400)) {
       if (cam.lat == null || cam.lon == null) continue;
-      const mk = new maplibregl.Marker({ element: dot("#e0b24a", 9) }).setLngLat([cam.lon, cam.lat]).addTo(map);
+      const mk = new maplibregl.Marker({ element: dot("#e0b24a", 10) })
+        .setLngLat([cam.lon, cam.lat])
+        .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(cameraPopup(cam)))
+        .addTo(map);
       layerMarkers.current.cameras.push(mk);
     }
   }
@@ -345,6 +373,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
         <LayerRow icon={MapPin} color="#74b277" label="Your points" on={layers.base} onToggle={(v) => setLayers((s) => ({ ...s, base: v }))} />
         <LayerRow icon={Plane} color="#7fb2ff" label="Live aircraft" on={layers.aircraft} onToggle={(v) => setLayer("aircraft", v)} note={notes.aircraft} />
         <LayerRow icon={Activity} color="#e06a5a" label="Earthquakes" on={layers.quakes} onToggle={(v) => setLayer("quakes", v)} note={notes.quakes} />
+        <LayerRow icon={TriangleAlert} color="#e0992a" label="Disasters (GDACS)" on={layers.disasters} onToggle={(v) => setLayer("disasters", v)} note={notes.disasters} />
         <LayerRow icon={Cctv} color="#e0b24a" label="Cameras (nearby)" on={layers.cameras} onToggle={(v) => setLayer("cameras", v)} note={notes.cameras} />
         <Button size="sm" variant={placing ? "default" : "outline"} className="mt-3 w-full" onClick={() => setPlacing((p) => !p)}>
           {placing ? <><X className="size-4" /> Cancel</> : <><Plus className="size-4" /> Add a point</>}
@@ -398,6 +427,43 @@ function planePopup(a: Aircraft) {
   return `<div style="min-width:150px;font-family:system-ui">
     <div style="font:600 13px system-ui;margin-bottom:4px">✈ ${escapeHtml(a.flight?.trim() || a.hex)}</div>
     ${rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#888"><span>${k}</span><span style="font-family:ui-monospace;color:#222">${escapeHtml(v)}</span></div>`).join("")}
+  </div>`;
+}
+function disasterEl(d: Disaster) {
+  const color = ALERT_COLOR[d.properties.alertlevel ?? "Green"] ?? "#e0992a";
+  const el = document.createElement("div");
+  el.textContent = DISASTER_GLYPH[d.properties.eventtype] ?? "⚠";
+  el.style.cssText = `font-size:16px;line-height:1;cursor:pointer;filter:drop-shadow(0 0 3px ${color});color:${color};text-shadow:0 0 4px rgba(0,0,0,.8)`;
+  return el;
+}
+function disasterPopup(d: Disaster): string {
+  const p = d.properties;
+  const TYPE: Record<string, string> = { EQ: "Earthquake", TC: "Tropical cyclone", FL: "Flood", VO: "Volcano", WF: "Wildfire", DR: "Drought" };
+  const desc = (p.htmldescription || "").replace(/<[^>]*>/g, "").trim().slice(0, 220);
+  const link = p.url?.report;
+  return `<div style="min-width:170px;max-width:240px;font-family:system-ui">
+    <div style="font:600 13px system-ui;margin-bottom:3px">${escapeHtml(p.name || TYPE[p.eventtype] || "Event")}</div>
+    <div style="font-size:11px;color:#888;margin-bottom:4px">${escapeHtml(TYPE[p.eventtype] ?? p.eventtype)} · ${escapeHtml(p.alertlevel ?? "—")} alert</div>
+    ${desc ? `<div style="font-size:11px;color:#444;line-height:1.4">${escapeHtml(desc)}</div>` : ""}
+    ${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener" style="display:block;margin-top:5px;font-size:11px;color:#2a6">GDACS report →</a>` : ""}
+  </div>`;
+}
+function cameraPopup(cam: Camera): string {
+  const tags = (cam.tags ?? {}) as Record<string, string>;
+  const label = (k: string) => tags[k];
+  const kind = label("surveillance:type") || label("camera:type") || "Camera";
+  const rows: [string, string | undefined][] = [
+    ["Type", label("camera:type")],
+    ["Mount", label("camera:mount")],
+    ["Zone", label("surveillance:zone") || label("surveillance")],
+    ["Direction", label("camera:direction") || label("direction")],
+    ["Operator", label("operator")],
+    ["Coverage", label("camera:type") === "dome" ? "360° (dome)" : undefined],
+  ].filter((r) => r[1]) as [string, string][];
+  return `<div style="min-width:160px;font-family:system-ui">
+    <div style="font:600 13px system-ui;text-transform:capitalize;margin-bottom:4px">📹 ${escapeHtml(kind)} surveillance</div>
+    ${rows.length ? rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#888"><span>${k}</span><span style="color:#222;text-transform:capitalize">${escapeHtml(v ?? "")}</span></div>`).join("") : '<div style="font-size:11px;color:#888">No further details tagged in OpenStreetMap.</div>'}
+    <div style="margin-top:5px;font-size:10px;color:#aaa">© OpenStreetMap</div>
   </div>`;
 }
 function boundsRadiusNm(map: maplibregl.Map): number {
