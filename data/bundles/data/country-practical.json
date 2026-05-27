@@ -1,0 +1,492 @@
+[
+  {
+    "iso2": "US",
+    "emergency_numbers": { "police": "911", "ambulance": "911", "fire": "911", "general": "911" },
+    "plug_types": "A,B",
+    "voltage": "120V",
+    "frequency": "60Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "GB",
+    "emergency_numbers": { "police": "999", "ambulance": "999", "fire": "999", "general": "112" },
+    "plug_types": "G",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 0,
+    "cash_declaration": "GBP 10000"
+  },
+  {
+    "iso2": "CA",
+    "emergency_numbers": { "police": "911", "ambulance": "911", "fire": "911", "general": "911" },
+    "plug_types": "A,B",
+    "voltage": "120V",
+    "frequency": "60Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "CAD 10000"
+  },
+  {
+    "iso2": "AU",
+    "emergency_numbers": { "police": "000", "ambulance": "000", "fire": "000", "general": "112" },
+    "plug_types": "I",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 1,
+    "cash_declaration": "AUD 10000"
+  },
+  {
+    "iso2": "NZ",
+    "emergency_numbers": { "police": "111", "ambulance": "111", "fire": "111", "general": "111" },
+    "plug_types": "I",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 0,
+    "cash_declaration": "NZD 10000"
+  },
+  {
+    "iso2": "IE",
+    "emergency_numbers": { "police": "112", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "G",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "FR",
+    "emergency_numbers": { "police": "17", "ambulance": "15", "fire": "18", "general": "112" },
+    "plug_types": "C,E",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "DE",
+    "emergency_numbers": { "police": "110", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "ES",
+    "emergency_numbers": { "police": "091", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "IT",
+    "emergency_numbers": { "police": "112", "ambulance": "118", "fire": "115", "general": "112" },
+    "plug_types": "C,F,L",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "NL",
+    "emergency_numbers": { "police": "112", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "BE",
+    "emergency_numbers": { "police": "112", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "C,E",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "CH",
+    "emergency_numbers": { "police": "117", "ambulance": "144", "fire": "118", "general": "112" },
+    "plug_types": "C,J",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "CHF 10000"
+  },
+  {
+    "iso2": "AT",
+    "emergency_numbers": { "police": "133", "ambulance": "144", "fire": "122", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "SE",
+    "emergency_numbers": { "police": "112", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "NO",
+    "emergency_numbers": { "police": "112", "ambulance": "113", "fire": "110", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "NOK 25000"
+  },
+  {
+    "iso2": "DK",
+    "emergency_numbers": { "police": "112", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "C,E,F,K",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "FI",
+    "emergency_numbers": { "police": "112", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "PL",
+    "emergency_numbers": { "police": "997", "ambulance": "999", "fire": "998", "general": "112" },
+    "plug_types": "C,E",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "PT",
+    "emergency_numbers": { "police": "112", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "GR",
+    "emergency_numbers": { "police": "100", "ambulance": "166", "fire": "199", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "CZ",
+    "emergency_numbers": { "police": "158", "ambulance": "155", "fire": "150", "general": "112" },
+    "plug_types": "C,E",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "CN",
+    "emergency_numbers": { "police": "110", "ambulance": "120", "fire": "119", "general": null },
+    "plug_types": "A,C,I",
+    "voltage": "220V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 5000"
+  },
+  {
+    "iso2": "JP",
+    "emergency_numbers": { "police": "110", "ambulance": "119", "fire": "119", "general": null },
+    "plug_types": "A,B",
+    "voltage": "100V",
+    "frequency": "50/60Hz",
+    "driving_side": "left",
+    "idp_required": 1,
+    "cash_declaration": "JPY 1000000"
+  },
+  {
+    "iso2": "KR",
+    "emergency_numbers": { "police": "112", "ambulance": "119", "fire": "119", "general": null },
+    "plug_types": "C,F",
+    "voltage": "220V",
+    "frequency": "60Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "IN",
+    "emergency_numbers": { "police": "100", "ambulance": "102", "fire": "101", "general": "112" },
+    "plug_types": "C,D,M",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 1,
+    "cash_declaration": "USD 5000"
+  },
+  {
+    "iso2": "ID",
+    "emergency_numbers": { "police": "110", "ambulance": "118", "fire": "113", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 1,
+    "cash_declaration": "IDR 100000000"
+  },
+  {
+    "iso2": "TH",
+    "emergency_numbers": { "police": "191", "ambulance": "1669", "fire": "199", "general": "112" },
+    "plug_types": "A,B,C,O",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 1,
+    "cash_declaration": "USD 20000"
+  },
+  {
+    "iso2": "VN",
+    "emergency_numbers": { "police": "113", "ambulance": "115", "fire": "114", "general": null },
+    "plug_types": "A,C,F",
+    "voltage": "220V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 5000"
+  },
+  {
+    "iso2": "SG",
+    "emergency_numbers": { "police": "999", "ambulance": "995", "fire": "995", "general": "999" },
+    "plug_types": "G",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 1,
+    "cash_declaration": "SGD 20000"
+  },
+  {
+    "iso2": "MY",
+    "emergency_numbers": { "police": "999", "ambulance": "999", "fire": "994", "general": "112" },
+    "plug_types": "G",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 1,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "PH",
+    "emergency_numbers": { "police": "911", "ambulance": "911", "fire": "911", "general": "911" },
+    "plug_types": "A,B,C",
+    "voltage": "220V",
+    "frequency": "60Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "AE",
+    "emergency_numbers": { "police": "999", "ambulance": "998", "fire": "997", "general": "112" },
+    "plug_types": "C,D,G",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "AED 60000"
+  },
+  {
+    "iso2": "SA",
+    "emergency_numbers": { "police": "999", "ambulance": "997", "fire": "998", "general": "911" },
+    "plug_types": "A,B,F,G",
+    "voltage": "230V",
+    "frequency": "60Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "SAR 60000"
+  },
+  {
+    "iso2": "QA",
+    "emergency_numbers": { "police": "999", "ambulance": "999", "fire": "999", "general": "999" },
+    "plug_types": "D,G",
+    "voltage": "240V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "QAR 50000"
+  },
+  {
+    "iso2": "TR",
+    "emergency_numbers": { "police": "155", "ambulance": "112", "fire": "110", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "IL",
+    "emergency_numbers": { "police": "100", "ambulance": "101", "fire": "102", "general": "112" },
+    "plug_types": "C,H,M",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "ILS 50000"
+  },
+  {
+    "iso2": "EG",
+    "emergency_numbers": { "police": "122", "ambulance": "123", "fire": "180", "general": null },
+    "plug_types": "C,F",
+    "voltage": "220V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "ZA",
+    "emergency_numbers": { "police": "10111", "ambulance": "10177", "fire": "10177", "general": "112" },
+    "plug_types": "C,D,M,N",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 1,
+    "cash_declaration": "ZAR 25000"
+  },
+  {
+    "iso2": "KE",
+    "emergency_numbers": { "police": "999", "ambulance": "999", "fire": "999", "general": "112" },
+    "plug_types": "G",
+    "voltage": "240V",
+    "frequency": "50Hz",
+    "driving_side": "left",
+    "idp_required": 1,
+    "cash_declaration": "USD 5000"
+  },
+  {
+    "iso2": "NG",
+    "emergency_numbers": { "police": "112", "ambulance": "112", "fire": "112", "general": "112" },
+    "plug_types": "D,G",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "MA",
+    "emergency_numbers": { "police": "190", "ambulance": "150", "fire": "150", "general": "112" },
+    "plug_types": "C,E",
+    "voltage": "220V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "MAD 100000"
+  },
+  {
+    "iso2": "BR",
+    "emergency_numbers": { "police": "190", "ambulance": "192", "fire": "193", "general": "112" },
+    "plug_types": "C,N",
+    "voltage": "127/220V",
+    "frequency": "60Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "BRL 10000"
+  },
+  {
+    "iso2": "MX",
+    "emergency_numbers": { "police": "911", "ambulance": "911", "fire": "911", "general": "911" },
+    "plug_types": "A,B",
+    "voltage": "127V",
+    "frequency": "60Hz",
+    "driving_side": "right",
+    "idp_required": 0,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "AR",
+    "emergency_numbers": { "police": "911", "ambulance": "107", "fire": "100", "general": "911" },
+    "plug_types": "C,I",
+    "voltage": "220V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "RU",
+    "emergency_numbers": { "police": "102", "ambulance": "103", "fire": "101", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "UA",
+    "emergency_numbers": { "police": "102", "ambulance": "103", "fire": "101", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "EUR 10000"
+  },
+  {
+    "iso2": "BY",
+    "emergency_numbers": { "police": "102", "ambulance": "103", "fire": "101", "general": "112" },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "USD 10000"
+  },
+  {
+    "iso2": "IR",
+    "emergency_numbers": { "police": "110", "ambulance": "115", "fire": "125", "general": null },
+    "plug_types": "C,F",
+    "voltage": "230V",
+    "frequency": "50Hz",
+    "driving_side": "right",
+    "idp_required": 1,
+    "cash_declaration": "EUR 10000"
+  }
+]

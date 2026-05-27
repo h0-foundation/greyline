@@ -11,13 +11,18 @@ import {
   Car,
   Clock,
   Globe2,
-  ShieldQuestion,
+  Siren,
+  Plug,
+  PlaneTakeoff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   getCountryProfile,
   getCountryListRows,
 } from "$server/db/repositories/knowledge";
+import { getCountryIntel, getCountryPractical } from "$server/db/repositories/intel";
+import { getAirportsByCountry } from "$server/db/repositories/airports";
+import { PrivacyPosture } from "@/components/intel/privacy-posture";
 import {
   toBriefing,
   buildNeighborIndex,
@@ -71,6 +76,12 @@ export default async function CountryBriefingPage({
 
   const c = toBriefing(profile.country_code, profile.rest_countries);
   const neighbors = buildNeighborIndex(getCountryListRows());
+  const intel = getCountryIntel(profile.country_code);
+  const practical = getCountryPractical(profile.country_code);
+  const airports = getAirportsByCountry(profile.country_code, 8);
+  const emergency: Record<string, string> = (() => {
+    try { return practical ? JSON.parse(practical.emergency_numbers) : {}; } catch { return {}; }
+  })();
 
   return (
     <div className="space-y-6">
@@ -190,20 +201,42 @@ export default async function CountryBriefingPage({
             </p>
           )}
         </Section>
+
+        {/* Arrival card — practical bundled data */}
+        <Section title="Arrival" icon={Siren}>
+          <dl className="grid grid-cols-2 gap-3">
+            <Stat label="Police" value={emergency.police || "—"} />
+            <Stat label="Ambulance" value={emergency.ambulance || "—"} />
+            <Stat label="Fire" value={emergency.fire || "—"} />
+            <Stat label="General (EU 112)" value={emergency.general || "—"} />
+            {practical && (
+              <Stat
+                label="Power"
+                value={<span className="inline-flex items-center gap-1.5"><Plug className="size-3.5 text-faint" />{[practical.plug_types, practical.voltage, practical.frequency].filter(Boolean).join(" · ") || "—"}</span>}
+              />
+            )}
+            {practical?.cash_declaration && (
+              <Stat label="Cash declaration" value={practical.cash_declaration} />
+            )}
+          </dl>
+        </Section>
+
+        {/* Nearest scheduled airports */}
+        {airports.length > 0 && (
+          <Section title="Airports" icon={PlaneTakeoff}>
+            <ul className="space-y-1.5">
+              {airports.slice(0, 6).map((a) => (
+                <li key={a.ident} className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate text-foreground">{a.name}</span>
+                  <span className="shrink-0 font-mono text-xs text-faint">{a.iata_code || a.icao_code || a.ident}</span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
       </div>
 
-      <section className="rounded-xl border border-dashed border-border bg-accent-subtle/40 p-5">
-        <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-accent-subtle-foreground">
-          <ShieldQuestion className="size-4" />
-          What&apos;s captured about you here
-        </h2>
-        <p className="mt-2 max-w-prose text-sm text-muted-foreground text-pretty">
-          The privacy layer — surveillance posture, border device-search powers, VPN and
-          encryption law, SIM-registration and biometric entry rules — is bundled offline in
-          an upcoming build, with cited sources and a freshness date. Country metadata above
-          is already local.
-        </p>
-      </section>
+      <PrivacyPosture data={intel} />
     </div>
   );
 }

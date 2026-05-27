@@ -13,6 +13,7 @@
     "migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed-db.ts",
     "build:countries": "tsx scripts/build-country-data.ts",
+    "build:data": "tsx scripts/build-data.ts",
     "setup": "pnpm install && pnpm migrate && pnpm seed"
   },
   "dependencies": {
