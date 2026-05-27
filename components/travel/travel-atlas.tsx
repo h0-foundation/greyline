@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Globe2, CalendarClock, Plane, MapPinned, Sparkles } from "lucide-react";
 import { CountUp } from "@/components/count-up";
+import { WorldMap } from "@/components/travel/world-map";
 import type { TravelStats, VisitedCountry } from "$server/db/repositories/travel";
 
 function Stat({
@@ -36,6 +37,9 @@ export function TravelAtlas({
         <Sparkles className="size-4 text-accent-text" />
         <span>Your life&apos;s travels — <span className="text-foreground">yours alone, on this machine</span>.</span>
       </div>
+
+      {/* Hero scratch-map — your visited world, fully offline */}
+      <WorldMap visited={visited.map((v) => ({ code: v.country_code, name: v.name, days: v.days, trips: v.trips }))} />
 
       {/* Delight stats */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
