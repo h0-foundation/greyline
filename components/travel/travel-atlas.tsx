@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Globe2, CalendarClock, Plane, MapPinned, Sparkles } from "lucide-react";
 import { CountUp } from "@/components/count-up";
 import { WorldMap } from "@/components/travel/world-map";
+import { StampWall } from "@/components/travel/stamp-wall";
 import type { TravelStats, VisitedCountry } from "$server/db/repositories/travel";
 
 function Stat({
@@ -92,26 +93,7 @@ export function TravelAtlas({
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-faint">
           Passport stamps <span className="text-muted-foreground">· {visited.length} countries</span>
         </h3>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {visited.map((c, i) => {
-            const tilt = [-2, 1.5, -1, 2, -1.5, 1][i % 6]; // hand-stamped jitter
-            return (
-              <li key={c.country_code}>
-                <Link
-                  href={`/countries/${c.country_code}`}
-                  style={{ "--tilt": `${tilt}deg` } as React.CSSProperties}
-                  className="group flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/35 bg-primary/[0.04] p-2 text-center [transform:rotate(var(--tilt))] transition-transform duration-200 ease-out hover:[transform:rotate(0deg)_scale(1.04)] hover:border-primary/60"
-                >
-                  <span className="text-2xl leading-none grayscale-[0.15] group-hover:grayscale-0" aria-hidden>{c.flag || "🏳️"}</span>
-                  <span className="block w-full truncate text-[11px] font-semibold uppercase tracking-wide text-accent-text">{c.name}</span>
-                  <span className="font-mono text-[10px] tabular-nums text-faint">
-                    {c.first ? c.first.slice(0, 4) : "—"} · {c.trips}×
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <StampWall visited={visited} />
       </div>
     </section>
   );
