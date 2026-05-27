@@ -13,12 +13,12 @@ const inter = localFont({
   display: "swap",
 });
 
-// Display / editorial headings — Fraunces, an expressive variable serif. The
-// "premium is bought with type" lever; carries the Field-Atlas/dossier voice.
-const fraunces = localFont({
-  src: "./fonts/fraunces.woff2",
-  variable: "--font-fraunces",
-  weight: "400 600",
+// Display / headings — Geist, a clean geometric premium sans. Carries the
+// editorial structure without a jarring fashion-serif.
+const geist = localFont({
+  src: "./fonts/geist.woff2",
+  variable: "--font-geist",
+  weight: "300 700",
   display: "swap",
 });
 
@@ -42,7 +42,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geist.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full bg-background font-sans text-foreground">

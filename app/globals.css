@@ -14,42 +14,42 @@
 :root {
   --radius: 0.625rem; /* 10px base; sm/md/lg/xl derived in @theme */
 
-  /* OAK & GOLD — warm Basque-hills earth: deep oak-green brand + warm gold
-     "spark" (~10%) on warm-tinted (never grey) surfaces. Light theme. */
-  --background: oklch(0.984 0.008 80);
-  --foreground: oklch(0.260 0.022 140);
-  --card: oklch(0.997 0.006 82);
-  --card-foreground: oklch(0.260 0.022 140);
-  --popover: oklch(0.997 0.006 82);
-  --popover-foreground: oklch(0.260 0.022 140);
+  /* OAK ON STONE — warm-NEUTRAL stone surfaces (low chroma, never green-cast)
+     with deep oak green as the accent + a gold spark. Light theme. */
+  --background: oklch(0.986 0.004 85);
+  --foreground: oklch(0.245 0.008 80);
+  --card: oklch(0.998 0.003 85);
+  --card-foreground: oklch(0.245 0.008 80);
+  --popover: oklch(0.998 0.003 85);
+  --popover-foreground: oklch(0.245 0.008 80);
 
-  /* Brand — deep oak green */
-  --primary: oklch(0.460 0.090 145);
-  --primary-foreground: oklch(0.985 0.008 80);
+  /* Brand / accent — deep oak green (used sparingly: CTAs, active, links) */
+  --primary: oklch(0.455 0.095 146);
+  --primary-foreground: oklch(0.985 0.010 130);
 
-  /* Muted / secondary surfaces + secondary text */
-  --secondary: oklch(0.945 0.014 78);
-  --secondary-foreground: oklch(0.330 0.030 140);
-  --muted: oklch(0.955 0.012 78);
-  --muted-foreground: oklch(0.520 0.024 130);
+  /* Muted / secondary surfaces + secondary text — neutral */
+  --secondary: oklch(0.955 0.005 85);
+  --secondary-foreground: oklch(0.330 0.010 80);
+  --muted: oklch(0.958 0.005 85);
+  --muted-foreground: oklch(0.510 0.010 82);
 
-  /* shadcn `accent` = subtle hover surface (NOT the brand color) */
-  --accent: oklch(0.945 0.018 130);
-  --accent-foreground: oklch(0.330 0.050 145);
+  /* shadcn `accent` = subtle hover surface — neutral, NOT green */
+  --accent: oklch(0.950 0.006 85);
+  --accent-foreground: oklch(0.330 0.012 80);
 
   /* Tertiary / caption text */
-  --faint: oklch(0.600 0.018 130);
+  --faint: oklch(0.600 0.010 82);
 
-  /* Accent-colored text/icons (links, active glyphs) — oak green brand */
-  --accent-text: oklch(0.450 0.090 145);
-  --accent-subtle: oklch(0.950 0.026 135);
-  --accent-subtle-foreground: oklch(0.400 0.085 145);
+  /* Accent-colored text/icons (links, active glyphs) — oak green */
+  --accent-text: oklch(0.450 0.095 146);
+  --accent-subtle: oklch(0.948 0.032 142);
+  --accent-subtle-foreground: oklch(0.400 0.090 146);
 
-  /* Spark — warm gold, the 10% punctuation */
+  /* Spark — warm gold, the rare punctuation */
   --spark: oklch(0.740 0.140 75);
   --spark-foreground: oklch(0.270 0.060 65);
 
-  /* Semantics — danger warm crimson, distinct from the green brand */
+  /* Semantics — danger warm crimson, distinct from the green accent */
   --destructive: oklch(0.555 0.205 25);
   --destructive-foreground: oklch(0.985 0.008 80);
   --success: oklch(0.560 0.120 150);
@@ -60,29 +60,29 @@
   --info-foreground: oklch(0.985 0.008 80);
 
   /* Lines + focus */
-  --border: oklch(0.905 0.014 78);
-  --input: oklch(0.905 0.014 78);
-  --ring: oklch(0.460 0.090 145);
+  --border: oklch(0.908 0.005 85);
+  --input: oklch(0.908 0.005 85);
+  --ring: oklch(0.455 0.095 146);
 
-  /* Sidebar */
-  --sidebar: oklch(0.964 0.012 80);
-  --sidebar-foreground: oklch(0.330 0.024 140);
-  --sidebar-primary: oklch(0.460 0.090 145);
-  --sidebar-primary-foreground: oklch(0.985 0.008 80);
-  --sidebar-accent: oklch(0.930 0.018 132);
-  --sidebar-accent-foreground: oklch(0.300 0.050 145);
-  --sidebar-border: oklch(0.895 0.014 78);
-  --sidebar-ring: oklch(0.460 0.090 145);
+  /* Sidebar — neutral surface, green accent */
+  --sidebar: oklch(0.966 0.005 85);
+  --sidebar-foreground: oklch(0.330 0.010 80);
+  --sidebar-primary: oklch(0.455 0.095 146);
+  --sidebar-primary-foreground: oklch(0.985 0.010 130);
+  --sidebar-accent: oklch(0.945 0.006 85);
+  --sidebar-accent-foreground: oklch(0.320 0.012 80);
+  --sidebar-border: oklch(0.905 0.005 85);
+  --sidebar-ring: oklch(0.455 0.095 146);
 
   /* Categorical chart palette — oak / teal / gold / coral / indigo */
-  --chart-1: oklch(0.460 0.090 145);
+  --chart-1: oklch(0.455 0.095 146);
   --chart-2: oklch(0.620 0.110 200);
   --chart-3: oklch(0.730 0.140 75);
   --chart-4: oklch(0.580 0.160 35);
   --chart-5: oklch(0.500 0.120 280);
 
-  /* Soft, diffuse elevation (light mode only) */
-  --shadow-color: 140 28% 22%;
+  /* Soft, diffuse elevation (light mode only) — neutral */
+  --shadow-color: 80 8% 24%;
   --gl-shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
   --gl-shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 1px 3px hsl(var(--shadow-color) / 0.05);
   --gl-shadow-md: 0 4px 6px hsl(var(--shadow-color) / 0.05), 0 2px 4px hsl(var(--shadow-color) / 0.05);
@@ -91,58 +91,58 @@
 }
 
 .dark {
-  /* OAK & GOLD dark (the designed primary) — warm green-tinted ink, elevation
-     via lighter surfaces, hairline borders, gold spark + oak-green brand lifted. */
-  --background: oklch(0.185 0.012 135);
-  --foreground: oklch(0.945 0.010 80);
-  --card: oklch(0.220 0.014 135);
-  --card-foreground: oklch(0.945 0.010 80);
-  --popover: oklch(0.215 0.014 135);
-  --popover-foreground: oklch(0.945 0.010 80);
+  /* OAK ON STONE dark (designed primary) — warm-NEUTRAL charcoal surfaces
+     (low chroma, not green-cast), oak green as the accent, gold spark. */
+  --background: oklch(0.182 0.004 85);
+  --foreground: oklch(0.945 0.006 85);
+  --card: oklch(0.216 0.005 85);
+  --card-foreground: oklch(0.945 0.006 85);
+  --popover: oklch(0.210 0.005 85);
+  --popover-foreground: oklch(0.945 0.006 85);
 
-  --primary: oklch(0.680 0.115 145);
-  --primary-foreground: oklch(0.165 0.012 135);
+  --primary: oklch(0.700 0.130 146);
+  --primary-foreground: oklch(0.165 0.012 130);
 
-  --secondary: oklch(0.285 0.016 135);
-  --secondary-foreground: oklch(0.920 0.012 80);
-  --muted: oklch(0.270 0.014 135);
-  --muted-foreground: oklch(0.700 0.018 90);
+  --secondary: oklch(0.285 0.006 85);
+  --secondary-foreground: oklch(0.920 0.008 85);
+  --muted: oklch(0.270 0.006 85);
+  --muted-foreground: oklch(0.700 0.012 85);
 
-  --accent: oklch(0.300 0.026 140);
-  --accent-foreground: oklch(0.900 0.030 135);
+  --accent: oklch(0.300 0.007 85);
+  --accent-foreground: oklch(0.900 0.010 85);
 
-  --faint: oklch(0.620 0.016 100);
+  --faint: oklch(0.625 0.011 85);
 
-  --accent-text: oklch(0.740 0.115 145);
-  --accent-subtle: oklch(0.315 0.045 142);
-  --accent-subtle-foreground: oklch(0.860 0.075 145);
+  --accent-text: oklch(0.760 0.130 146);
+  --accent-subtle: oklch(0.310 0.045 146);
+  --accent-subtle-foreground: oklch(0.870 0.080 146);
 
   --spark: oklch(0.800 0.130 76);
   --spark-foreground: oklch(0.200 0.040 65);
 
   --destructive: oklch(0.640 0.190 25);
-  --destructive-foreground: oklch(0.160 0.012 135);
+  --destructive-foreground: oklch(0.160 0.012 85);
   --success: oklch(0.720 0.130 150);
-  --success-foreground: oklch(0.165 0.012 135);
+  --success-foreground: oklch(0.165 0.012 130);
   --warning: oklch(0.800 0.130 76);
   --warning-foreground: oklch(0.200 0.040 65);
   --info: oklch(0.700 0.110 230);
-  --info-foreground: oklch(0.165 0.012 135);
+  --info-foreground: oklch(0.165 0.012 85);
 
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 13%);
-  --ring: oklch(0.680 0.115 145);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.700 0.130 146);
 
-  --sidebar: oklch(0.205 0.014 135);
-  --sidebar-foreground: oklch(0.880 0.012 80);
-  --sidebar-primary: oklch(0.680 0.115 145);
-  --sidebar-primary-foreground: oklch(0.165 0.012 135);
-  --sidebar-accent: oklch(0.295 0.016 138);
-  --sidebar-accent-foreground: oklch(0.920 0.012 80);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.680 0.115 145);
+  --sidebar: oklch(0.202 0.005 85);
+  --sidebar-foreground: oklch(0.880 0.008 85);
+  --sidebar-primary: oklch(0.700 0.130 146);
+  --sidebar-primary-foreground: oklch(0.165 0.012 130);
+  --sidebar-accent: oklch(0.292 0.007 85);
+  --sidebar-accent-foreground: oklch(0.920 0.008 85);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.700 0.130 146);
 
-  --chart-1: oklch(0.680 0.115 145);
+  --chart-1: oklch(0.700 0.130 146);
   --chart-2: oklch(0.720 0.110 200);
   --chart-3: oklch(0.800 0.130 76);
   --chart-4: oklch(0.680 0.170 35);
@@ -210,9 +210,9 @@
   --color-spark: var(--spark);
   --color-spark-foreground: var(--spark-foreground);
 
-  /* Type families — Fraunces (editorial display) · Inter (UI) · Geist Mono (data) */
+  /* Type families — Geist (display) · Inter (UI) · Geist Mono (data) */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, ui-serif, serif;
+  --font-display: var(--font-geist), var(--font-inter), ui-sans-serif, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   /* Easing tokens → `ease-*` utilities */
@@ -246,11 +246,9 @@
   .font-mono {
     font-variant-numeric: tabular-nums;
   }
-  /* Editorial display serif (Fraunces): high optical size + tight tracking */
+  /* Display sans (Geist): tight tracking for confident, clean headlines */
   .font-display {
-    letter-spacing: -0.02em;
-    font-variation-settings: "opsz" 144;
-    font-feature-settings: "ss01";
+    letter-spacing: -0.022em;
   }
 }
 

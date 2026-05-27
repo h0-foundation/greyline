@@ -25,14 +25,19 @@ function flagsToIso2(s: string): string[] {
   return out;
 }
 
-/** First & last YYYY-MM(-DD) tokens → normalized ISO dates (pad day = 01). */
-function parseDates(s: string): { start: string | null; end: string | null } {
+/** First & last YYYY-MM(-DD) tokens → normalized ISO dates (pad day = 01), plus
+ *  the precision actually present in the source (day if any token had a day). */
+function parseDates(s: string): { start: string | null; end: string | null; precision: string } {
   const re = /(\d{4})-(\d{2})(?:-(\d{2}))?/g;
   const dates: string[] = [];
+  let hasDay = false;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(s))) dates.push(`${m[1]}-${m[2]}-${m[3] ?? "01"}`);
-  if (dates.length === 0) return { start: null, end: null };
-  return { start: dates[0], end: dates[dates.length - 1] };
+  while ((m = re.exec(s))) {
+    if (m[3]) hasDay = true;
+    dates.push(`${m[1]}-${m[2]}-${m[3] ?? "01"}`);
+  }
+  if (dates.length === 0) return { start: null, end: null, precision: "unknown" };
+  return { start: dates[0], end: dates[dates.length - 1], precision: hasDay ? "day" : "month" };
 }
 
 function main() {
@@ -51,7 +56,7 @@ function main() {
 
   const today = new Date().toISOString().slice(0, 10);
   const insTrip = db.prepare(
-    "INSERT INTO trips (id, name, status, start_date, end_date, notes, created_at, updated_at) VALUES (?,?,?,?,?,?,datetime('now'),datetime('now'))",
+    "INSERT INTO trips (id, name, status, start_date, end_date, notes, date_precision, created_at, updated_at) VALUES (?,?,?,?,?,?,?,datetime('now'),datetime('now'))",
   );
   const insDest = db.prepare(
     "INSERT INTO destinations (id, trip_id, country_code, city, arrival_date, departure_date, sort_order, notes) VALUES (?,?,?,?,?,?,?,?)",
@@ -63,7 +68,7 @@ function main() {
       const content = line.replace(/^###\s+/, "");
       const iso = flagsToIso2(content);
       if (iso.length === 0) continue;
-      const { start, end } = parseDates(content);
+      const { start, end, precision } = parseDates(content);
       const code = content.match(/`([A-Z]{2})`/)?.[1] ?? "";
       // City from the first parenthetical, if any.
       const city = content.match(/\(([^)]+)\)/)?.[1]?.split(/[/+]/)[0].trim() ?? null;
@@ -76,7 +81,7 @@ function main() {
 
       const status = end && end < today ? "wrapped" : "planning";
       const tripId = uuid();
-      insTrip.run(tripId, name || iso[0], status, start, end, `${TAG} status:${code}`);
+      insTrip.run(tripId, name || iso[0], status, start, end, `${TAG} status:${code}`, precision);
       trips++;
       iso.forEach((cc, i) => {
         insDest.run(uuid(), tripId, cc, i === 0 ? city : null, start, end, i, null);
