@@ -1,4 +1,4 @@
-import { getDb } from '../index.js';
+import { getDb } from '../index';
 
 /** Raw country_profiles row. JSON columns are stored as serialized strings. */
 export interface CountryProfileRow {
@@ -21,6 +21,13 @@ export function getCountryProfile(countryCode: string): CountryProfileRow | unde
 
 export function getAllCountryProfiles() {
   return getDb().prepare('SELECT country_code, updated_at FROM country_profiles ORDER BY country_code').all();
+}
+
+/** Raw rows for the Countries index — parsed into list items by `lib/countries`. */
+export function getCountryListRows(): Array<{ country_code: string; rest_countries: string | null }> {
+  return getDb()
+    .prepare('SELECT country_code, rest_countries FROM country_profiles ORDER BY country_code')
+    .all() as Array<{ country_code: string; rest_countries: string | null }>;
 }
 
 export function getAllCountrySummaries(): Array<{ country_code: string; name: string; region: string; flag: string }> {

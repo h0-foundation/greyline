@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { resolve, join } from 'path';
-import { encrypt, decrypt } from '../crypto/encryption.js';
-import { deriveKey } from '../crypto/key-derivation.js';
-import { createVaultDoc, getVaultDocById, deleteVaultDoc, getAllVaultDocs } from '../db/repositories/vault.js';
+import { encrypt, decrypt } from '../crypto/encryption';
+import { deriveKey } from '../crypto/key-derivation';
+import { createVaultDoc, getVaultDocById, deleteVaultDoc, getAllVaultDocs } from '../db/repositories/vault';
 
 const VAULT_DIR = resolve('data/vault');
 const VERIFY_FILE = join(VAULT_DIR, '.verify');

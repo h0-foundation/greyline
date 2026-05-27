@@ -1,0 +1,210 @@
+import Link from "next/link";
+import {
+  ShieldCheck,
+  Compass,
+  Globe,
+  Lock,
+  ListChecks,
+  ArrowRight,
+  MapPin,
+  Plug,
+  WifiOff,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CountUp } from "@/components/count-up";
+import { getCountryListRows } from "$server/db/repositories/knowledge";
+import { getAllTrips, getDestinationsByTrip } from "$server/db/repositories/trip";
+import { getChecklistsByTrip } from "$server/db/repositories/checklist";
+import { getAllVaultDocs } from "$server/db/repositories/vault";
+import { getAllSettings, getApiToggles } from "$server/db/repositories/settings";
+
+// Reads local SQLite at request time.
+export const dynamic = "force-dynamic";
+
+type Trip = {
+  id: string;
+  name: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+};
+
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
+  planning: "secondary",
+  active: "default",
+  wrapped: "outline",
+};
+
+function formatDateRange(start: string | null, end: string | null): string | null {
+  const fmt = (d: string) => {
+    const date = new Date(d);
+    return Number.isNaN(date.getTime())
+      ? null
+      : date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
+  };
+  const s = start ? fmt(start) : null;
+  const e = end ? fmt(end) : null;
+  if (s && e) return `${s} – ${e}`;
+  return s ?? e ?? null;
+}
+
+export default function Home() {
+  const countriesCount = getCountryListRows().length;
+  const trips = getAllTrips() as Trip[];
+  const activeTrip =
+    trips.find((t) => t.status === "active") ?? trips.find((t) => t.status !== "wrapped") ?? null;
+
+  const destinations = activeTrip ? getDestinationsByTrip(activeTrip.id) : [];
+  const checklists = activeTrip ? getChecklistsByTrip(activeTrip.id) : [];
+  let totalItems = 0;
+  let checkedItems = 0;
+  for (const cl of checklists) {
+    try {
+      const items = JSON.parse(cl.items) as Array<{ checked: boolean }>;
+      totalItems += items.length;
+      checkedItems += items.filter((i) => i.checked).length;
+    } catch {
+      /* skip malformed */
+    }
+  }
+  const readiness = totalItems ? Math.round((checkedItems / totalItems) * 100) : 0;
+
+  const vaultCount = getAllVaultDocs().length;
+
+  const settings = getAllSettings();
+  const fullyOffline = settings.master_offline === "true";
+  const toggles = getApiToggles();
+  const enabledConnections = toggles.filter((t) => t.enabled).length;
+
+  return (
+    <div className="space-y-6">
+      {/* Reassurance — the privacy through-line, always visible */}
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-accent-subtle/40 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+            Welcome to Greyline
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            No account · works offline · nothing leaves this machine.
+          </p>
+        </div>
+        <Badge
+          variant={fullyOffline ? "secondary" : "outline"}
+          className="self-start gap-1.5 px-2.5 py-1 text-xs sm:self-center"
+        >
+          {fullyOffline ? <WifiOff className="size-3.5" /> : <Plug className="size-3.5" />}
+          {fullyOffline
+            ? "Fully offline — no connections"
+            : `${enabledConnections} optional connection${enabledConnections === 1 ? "" : "s"} on`}
+        </Badge>
+      </div>
+
+      {/* Bento: active trip + privacy posture */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Link
+          href="/trips"
+          className="group flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 lg:col-span-2"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-faint">
+                <Compass className="size-3.5" />
+                {activeTrip ? "Active trip" : "Trips"}
+              </span>
+              <h2 className="font-display text-xl font-semibold text-foreground group-hover:text-accent-text">
+                {activeTrip ? activeTrip.name : "Plan your first trip"}
+              </h2>
+            </div>
+            {activeTrip && (
+              <Badge variant={STATUS_VARIANT[activeTrip.status] ?? "secondary"} className="capitalize">
+                {activeTrip.status}
+              </Badge>
+            )}
+          </div>
+
+          {activeTrip ? (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="size-4 text-faint" />
+                {destinations.length} destination{destinations.length === 1 ? "" : "s"}
+              </span>
+              {formatDateRange(activeTrip.start_date, activeTrip.end_date) && (
+                <span className="font-mono text-xs tabular-nums">
+                  {formatDateRange(activeTrip.start_date, activeTrip.end_date)}
+                </span>
+              )}
+              {totalItems > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <ListChecks className="size-4 text-faint" />
+                  {readiness}% ready
+                </span>
+              )}
+              <span className="ml-auto inline-flex items-center gap-1 text-accent-text">
+                Open <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Plan destinations, track readiness, and operate with destination-aware OPSEC — all
+              stored locally.
+            </p>
+          )}
+        </Link>
+
+        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-xs">
+          <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-faint">
+            <ShieldCheck className="size-3.5" />
+            Privacy posture
+          </span>
+          <p className="text-sm text-muted-foreground text-pretty">
+            {fullyOffline
+              ? "Master offline switch is on. Greyline makes no network requests — every surface renders from bundled local data."
+              : `${enabledConnections} of ${toggles.length} optional data connections are enabled. All can be turned off in Settings; nothing is sent without your action.`}
+          </p>
+          <Link
+            href="/settings"
+            className="mt-auto inline-flex items-center gap-1 text-sm text-accent-text hover:underline"
+          >
+            Manage connections <ArrowRight className="size-4" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Stat tiles */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatTile href="/countries" icon={Globe} label="Country profiles" value={countriesCount} />
+        <StatTile href="/trips" icon={Compass} label="Trips" value={trips.length} />
+        <StatTile href="/vault" icon={Lock} label="Vault documents" value={vaultCount} />
+        <StatTile href="/trips" icon={ListChecks} label="OPSEC readiness" value={readiness} suffix="%" />
+      </div>
+    </div>
+  );
+}
+
+function StatTile({
+  href,
+  icon: Icon,
+  label,
+  value,
+  suffix = "",
+}: {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  suffix?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    >
+      <Icon className="size-4 text-faint" />
+      <div className="mt-3 font-mono text-2xl font-semibold tabular-nums text-foreground">
+        <CountUp to={value} />
+        {suffix}
+      </div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
+    </Link>
+  );
+}

@@ -1,4 +1,4 @@
-import { proxyFetch } from '../services/api-gateway.js';
+import { proxyFetch } from '../services/api-gateway';
 
 interface AdvisoryData {
   data: Record<string, {

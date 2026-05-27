@@ -1,4 +1,4 @@
-import { getDb } from '../db/index.js';
+import { getDb } from '../db/index';
 import { ofetch } from 'ofetch';
 
 interface ProxyOptions {

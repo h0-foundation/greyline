@@ -8,6 +8,12 @@ node_modules
 /.svelte-kit
 /build
 
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
 # OS
 .DS_Store
 Thumbs.db
