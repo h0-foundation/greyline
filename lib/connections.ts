@@ -26,8 +26,8 @@ export const CONNECTIONS: ConnectionMeta[] = [
   {
     id: "travel-advisory",
     label: "Travel advisories",
-    description: "Government advisory levels and safety notes by country.",
-    host: "www.travel-advisory.info",
+    description: "US State Department advisory levels and safety notes by country.",
+    host: "cadataapi.state.gov",
   },
   {
     id: "nominatim",
@@ -53,10 +53,6 @@ export const CONNECTIONS: ConnectionMeta[] = [
     description: "Nearby aircraft positions for situational awareness.",
     host: "api.adsb.lol",
   },
-  {
-    id: "ip-api",
-    label: "IP geolocation",
-    description: "Approximate your location from your IP for map centering.",
-    host: "ip-api.com",
-  },
+  // ip-api intentionally omitted: HTTP-only on the free tier (would leak your IP
+  // in plaintext) and unused — dropped rather than ship a privacy regression.
 ];
