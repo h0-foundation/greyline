@@ -1,7 +1,22 @@
 import { getDb } from '../index.js';
 
-export function getCountryProfile(countryCode: string) {
-  return getDb().prepare('SELECT * FROM country_profiles WHERE country_code = ?').get(countryCode);
+/** Raw country_profiles row. JSON columns are stored as serialized strings. */
+export interface CountryProfileRow {
+  country_code: string;
+  rest_countries: string | null;
+  cia_factbook: string | null;
+  cultural: string | null;
+  advisory: string | null;
+  financial: string | null;
+  comms: string | null;
+  photography: string | null;
+  updated_at: string | null;
+}
+
+export function getCountryProfile(countryCode: string): CountryProfileRow | undefined {
+  return getDb()
+    .prepare('SELECT * FROM country_profiles WHERE country_code = ?')
+    .get(countryCode) as CountryProfileRow | undefined;
 }
 
 export function getAllCountryProfiles() {

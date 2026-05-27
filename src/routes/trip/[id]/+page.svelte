@@ -503,7 +503,12 @@
 
 	function formatDate(d: string | null): string {
 		if (!d) return '--';
-		return new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
+		// Accept either a pure date ("YYYY-MM-DD") or a SQLite datetime
+		// ("YYYY-MM-DD HH:MM:SS"). Take the date portion and parse it as local time.
+		const datePart = d.trim().split(/[ T]/)[0];
+		const parsed = new Date(datePart + 'T00:00:00');
+		if (isNaN(parsed.getTime())) return '--';
+		return parsed.toLocaleDateString('en-US', {
 			month: 'short',
 			day: 'numeric',
 			year: 'numeric'
@@ -652,8 +657,8 @@
 
 				<!-- Meta -->
 				<div class="flex gap-4 text-xs text-surface-600 pt-2 border-t border-surface-800">
-					<span>Created: {formatDate(trip.created_at?.split('T')[0] ?? trip.created_at)}</span>
-					<span>Updated: {formatDate(trip.updated_at?.split('T')[0] ?? trip.updated_at)}</span>
+					<span>Created: {formatDate(trip.created_at)}</span>
+					<span>Updated: {formatDate(trip.updated_at)}</span>
 				</div>
 			</div>
 		</Card>

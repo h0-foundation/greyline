@@ -469,7 +469,7 @@
 									<p class="text-xs text-surface-500">
 										{categories[doc.category] || doc.category} &middot; {formatSize(
 											doc.file_size
-										)} &middot; {doc.created_at?.split('T')[0] || ''}
+										)} &middot; {doc.created_at?.split(/[ T]/)[0] || ''}
 									</p>
 								</div>
 							</div>
