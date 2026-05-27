@@ -19,7 +19,7 @@ export default function VisaPage() {
     <div className="space-y-8">
       <PageHeader
         title="Visa checker"
-        description="Pick your passport to see entry requirements for every destination in the offline matrix."
+        description="Run the Schengen 90/180 and passport-validity calculators, then browse entry requirements for every destination in the offline matrix."
       />
       <VisaChecker passports={passports} names={names} initialPassport={initialPassport} />
     </div>

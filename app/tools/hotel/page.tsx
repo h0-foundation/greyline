@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/page-header";
 import { ChecklistTool, type ChecklistSection } from "@/components/tools/checklist-tool";
+import { HotelAssessment } from "@/components/tools/hotel-assessment";
 
 const SECTIONS: ChecklistSection[] = [
   {
@@ -64,13 +65,21 @@ export default function HotelSecurityPage() {
     <div className="space-y-8">
       <PageHeader
         title="Hotel & room security"
-        description="A defensive walkthrough for picking, inspecting, and securing a hotel room. Runs entirely offline; your check-state stays on this machine."
+        description="Score a room against executive-protection room-selection tradecraft, see the gaps that hurt most, and generate a front-desk request. Runs entirely offline; your answers stay on this machine."
       />
-      <ChecklistTool
-        toolKey="hotel"
-        intro="Standard travel-security practice for staying low-profile and reducing risk in temporary lodging. These steps are observational and defensive — none require tampering with hotel property. Work through each section on arrival and re-check before leaving the room."
-        sections={SECTIONS}
-      />
+      <HotelAssessment />
+      <div>
+        <h2 className="mb-1 text-base font-medium text-foreground">On-arrival walkthrough</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          The score tells you which room to ask for. This checklist is the action
+          layer once you&apos;re in the room.
+        </p>
+        <ChecklistTool
+          toolKey="hotel"
+          intro="Standard travel-security practice for staying low-profile and reducing risk in temporary lodging. These steps are observational and defensive — none require tampering with hotel property. Work through each section on arrival and re-check before leaving the room."
+          sections={SECTIONS}
+        />
+      </div>
     </div>
   );
 }

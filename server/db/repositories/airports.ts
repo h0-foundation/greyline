@@ -56,26 +56,45 @@ export function searchAirports(query: string, limit = 40): Airport[] {
 }
 
 /** Nearest scheduled-service airports to a point, via bounding-box prefilter + haversine. */
-export function nearestAirports(lat: number, lng: number, limit = 6): (Airport & { distance_km: number })[] {
+export function nearestAirports(
+  lat: number,
+  lng: number,
+  limit = 6,
+): (Airport & { distance_km: number; bearing_deg: number; est_drive_min: number })[] {
   const d = 3; // ~330km box
+  const toRad = (x: number) => (x * Math.PI) / 180;
+  const toDeg = (x: number) => (x * 180) / Math.PI;
+  // Longitude degrees per km shrink with latitude — widen the lng span by 1/cos(lat).
+  const lngPad = d / Math.max(0.01, Math.cos(toRad(lat)));
   const rows = getDb()
     .prepare(
       `SELECT * FROM airports
        WHERE scheduled_service = 1 AND type IN ${SERVICE_TYPES}
          AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?`,
     )
-    .all(lat - d, lat + d, lng - d * 1.5, lng + d * 1.5) as Airport[];
+    .all(lat - d, lat + d, lng - lngPad, lng + lngPad) as Airport[];
 
   const R = 6371;
-  const toRad = (x: number) => (x * Math.PI) / 180;
+  const phi1 = toRad(lat);
   return rows
     .map((a) => {
-      const dLat = toRad((a.lat ?? 0) - lat);
-      const dLng = toRad((a.lng ?? 0) - lng);
+      const aLat = a.lat ?? 0;
+      const aLng = a.lng ?? 0;
+      const dLat = toRad(aLat - lat);
+      const dLng = toRad(aLng - lng);
       const h =
         Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat)) * Math.cos(toRad(a.lat ?? 0)) * Math.sin(dLng / 2) ** 2;
-      return { ...a, distance_km: Math.round(2 * R * Math.asin(Math.sqrt(h))) };
+        Math.cos(phi1) * Math.cos(toRad(aLat)) * Math.sin(dLng / 2) ** 2;
+      const distance_km = Math.round(2 * R * Math.asin(Math.sqrt(h)));
+
+      // Initial great-circle bearing from the query point to the airport.
+      const phi2 = toRad(aLat);
+      const y = Math.sin(dLng) * Math.cos(phi2);
+      const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLng);
+      const bearing_deg = (toDeg(Math.atan2(y, x)) + 360) % 360;
+
+      const est_drive_min = Math.round(distance_km * 1.35);
+      return { ...a, distance_km, bearing_deg, est_drive_min };
     })
     .sort((a, b) => a.distance_km - b.distance_km)
     .slice(0, limit);

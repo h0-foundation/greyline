@@ -2,13 +2,31 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Search, Stamp, Info } from "lucide-react";
+import {
+  Search,
+  Stamp,
+  Info,
+  CalendarRange,
+  ShieldCheck,
+  Plus,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { VISA_LABEL, TONE_CLASS, TONE_DOT } from "@/lib/intel";
+import {
+  epochDay,
+  fromEpochDay,
+  todayEpochDay,
+  isSchengen,
+  schengenStatus,
+  passportValidity,
+  type Stay,
+} from "@/lib/visa";
 
 type VisaRow = {
   passport_iso2: string;
@@ -36,7 +54,394 @@ function rank(requirement: string): number {
   return i === -1 ? 99 : i;
 }
 
-export function VisaChecker({
+// --- Persistence -------------------------------------------------------------
+
+const STORAGE_KEY = "greyline:visa-calc";
+
+type StayRow = { entry: string; exit: string };
+type PersistShape = { stays: StayRow[]; expiry: string };
+
+function loadPersisted(): PersistShape {
+  if (typeof window === "undefined") return { stays: [], expiry: "" };
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { stays: [], expiry: "" };
+    const parsed = JSON.parse(raw) as Partial<PersistShape>;
+    const stays = Array.isArray(parsed.stays)
+      ? parsed.stays
+          .filter((s): s is StayRow => !!s && typeof s.entry === "string" && typeof s.exit === "string")
+          .map((s) => ({ entry: s.entry, exit: s.exit }))
+      : [];
+    return { stays, expiry: typeof parsed.expiry === "string" ? parsed.expiry : "" };
+  } catch {
+    return { stays: [], expiry: "" };
+  }
+}
+
+// --- Schengen 90/180 calculator ----------------------------------------------
+
+function SchengenCalculator() {
+  const reduce = useReducedMotion();
+  const [stays, setStays] = useState<StayRow[]>([]);
+  const [queryDate, setQueryDate] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+
+  // Hydrate from localStorage on mount; default the query date to today.
+  useEffect(() => {
+    setStays(loadPersisted().stays);
+    setQueryDate(fromEpochDay(todayEpochDay()));
+    setHydrated(true);
+  }, []);
+
+  // Persist stays (merge with the validity card's expiry so neither clobbers).
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    const expiry = loadPersisted().expiry;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ stays, expiry }));
+  }, [stays, hydrated]);
+
+  const addStay = () => setStays((prev) => [...prev, { entry: "", exit: "" }]);
+  const removeStay = (i: number) =>
+    setStays((prev) => prev.filter((_, idx) => idx !== i));
+  const updateStay = (i: number, patch: Partial<StayRow>) =>
+    setStays((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+
+  // Parse valid stays into epoch-day pairs (skip incomplete/incoherent rows).
+  const parsed = useMemo<Stay[]>(() => {
+    const out: Stay[] = [];
+    for (const s of stays) {
+      const entry = epochDay(s.entry);
+      const exit = epochDay(s.exit);
+      if (entry == null || exit == null || exit < entry) continue;
+      out.push({ entry, exit });
+    }
+    return out;
+  }, [stays]);
+
+  const queryEpoch = useMemo(() => epochDay(queryDate), [queryDate]);
+
+  const status = useMemo(() => {
+    if (queryEpoch == null) return null;
+    return schengenStatus(parsed, queryEpoch);
+  }, [parsed, queryEpoch]);
+
+  // Color band: ok / approaching / over.
+  const band = status
+    ? !status.compliant
+      ? { tone: "over" as const, text: "text-destructive", bg: "bg-destructive/10 border-destructive/30" }
+      : status.remaining <= 15
+        ? { tone: "warn" as const, text: "text-spark", bg: "bg-spark/10 border-spark/30" }
+        : { tone: "ok" as const, text: "text-primary", bg: "bg-primary/10 border-primary/30" }
+    : null;
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+      <div className="mb-1 flex items-center gap-2">
+        <CalendarRange className="size-4 text-accent-text" />
+        <h3 className="text-sm font-semibold text-foreground">Schengen 90/180 calculator</h3>
+      </div>
+      <p className="mb-4 text-xs text-muted-foreground">
+        No more than 90 days of presence in any rolling 180-day window across the
+        Schengen area. Enter each past or planned stay — both endpoints count.
+      </p>
+
+      <div className="space-y-2.5">
+        {stays.length === 0 && (
+          <p className="text-xs text-faint">No stays yet — add your trips below.</p>
+        )}
+        {stays.map((s, i) => (
+          <div key={i} className="flex flex-wrap items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <label className="mb-1 block text-[11px] text-faint">Entry</label>
+              <Input
+                type="date"
+                value={s.entry}
+                max={s.exit || undefined}
+                onChange={(e) => updateStay(i, { entry: e.target.value })}
+                aria-label={`Stay ${i + 1} entry date`}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <label className="mb-1 block text-[11px] text-faint">Exit</label>
+              <Input
+                type="date"
+                value={s.exit}
+                min={s.entry || undefined}
+                onChange={(e) => updateStay(i, { exit: e.target.value })}
+                aria-label={`Stay ${i + 1} exit date`}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => removeStay(i)}
+              aria-label={`Remove stay ${i + 1}`}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <X />
+            </Button>
+          </div>
+        ))}
+        <Button type="button" variant="outline" size="sm" onClick={addStay}>
+          <Plus />
+          Add stay
+        </Button>
+      </div>
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 sm:items-end">
+        <div className="sm:max-w-[12rem]">
+          <label className="mb-1 block text-[11px] text-faint">
+            As of date (e.g. planned entry)
+          </label>
+          <Input
+            type="date"
+            value={queryDate}
+            onChange={(e) => setQueryDate(e.target.value)}
+            aria-label="Query date"
+          />
+        </div>
+      </div>
+
+      {band && status && (
+        <motion.div
+          key={`${status.used}-${status.windowEnd}`}
+          initial={reduce ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className={cn("mt-5 rounded-xl border p-4", band.bg)}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+            <div>
+              <div className={cn("font-mono text-2xl font-semibold tabular-nums", band.text)}>
+                {Math.max(status.used, 0)}
+                <span className="text-sm font-normal text-muted-foreground"> / 90 days used</span>
+              </div>
+            </div>
+            <div className="text-sm text-foreground">
+              {status.compliant ? (
+                <>
+                  <span className="font-medium text-primary">{status.remaining}</span>{" "}
+                  <span className="text-muted-foreground">days remaining</span>
+                </>
+              ) : (
+                <span className="font-medium text-destructive">
+                  Over by {Math.abs(status.remaining)} day
+                  {Math.abs(status.remaining) === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Usage bar */}
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-border">
+            <div
+              className={cn(
+                "h-full rounded-full",
+                band.tone === "over"
+                  ? "bg-destructive"
+                  : band.tone === "warn"
+                    ? "bg-spark"
+                    : "bg-primary",
+              )}
+              style={{ width: `${Math.min((Math.max(status.used, 0) / 90) * 100, 100)}%` }}
+            />
+          </div>
+
+          <p className="mt-3 text-xs text-muted-foreground">
+            Window {fromEpochDay(status.windowStart)} → {fromEpochDay(status.windowEnd)}.
+            {!status.compliant &&
+              (status.earliestReentry != null ? (
+                <>
+                  {" "}
+                  Earliest compliant re-entry:{" "}
+                  <span className="font-medium text-foreground">
+                    {fromEpochDay(status.earliestReentry)}
+                  </span>
+                  .
+                </>
+              ) : (
+                " Wait for older stays to age out of the window before re-entering."
+              ))}
+          </p>
+        </motion.div>
+      )}
+    </section>
+  );
+}
+
+// --- Passport validity checker -----------------------------------------------
+
+function PassportValidityChecker({
+  passports,
+  names,
+}: {
+  passports: string[];
+  names: Record<string, string>;
+}) {
+  const reduce = useReducedMotion();
+  const [expiry, setExpiry] = useState("");
+  const [entry, setEntry] = useState("");
+  const [dest, setDest] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setExpiry(loadPersisted().expiry);
+    setHydrated(true);
+  }, []);
+
+  // Persist expiry (merge with the Schengen card's stays).
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    const stays = loadPersisted().stays;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ stays, expiry }));
+  }, [expiry, hydrated]);
+
+  const destCode = dest.trim().toUpperCase();
+  const expiryEpoch = useMemo(() => epochDay(expiry), [expiry]);
+  const entryEpoch = useMemo(() => epochDay(entry), [entry]);
+
+  const result = useMemo(() => {
+    if (expiryEpoch == null || entryEpoch == null) return null;
+    return passportValidity({
+      expiry: expiryEpoch,
+      entry: entryEpoch,
+      destIso2: destCode || null,
+    });
+  }, [expiryEpoch, entryEpoch, destCode]);
+
+  const destName = names[destCode];
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+      <div className="mb-1 flex items-center gap-2">
+        <ShieldCheck className="size-4 text-accent-text" />
+        <h3 className="text-sm font-semibold text-foreground">Passport validity check</h3>
+      </div>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Most countries require your passport to stay valid ≥ 6 months beyond entry.
+        Schengen states require ≥ 3 months beyond your planned departure.
+      </p>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="mb-1 block text-[11px] text-faint">Passport expiry</label>
+          <Input
+            type="date"
+            value={expiry}
+            onChange={(e) => setExpiry(e.target.value)}
+            aria-label="Passport expiry date"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-faint">Planned entry</label>
+          <Input
+            type="date"
+            value={entry}
+            onChange={(e) => setEntry(e.target.value)}
+            aria-label="Planned entry date"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-faint">Destination</label>
+          <Input
+            list="validity-dest-codes"
+            value={dest}
+            onChange={(e) => setDest(e.target.value.toUpperCase().slice(0, 2))}
+            placeholder="e.g. FR"
+            maxLength={2}
+            className="font-mono uppercase"
+            aria-label="Destination country code"
+          />
+          <datalist id="validity-dest-codes">
+            {passports.map((code) => (
+              <option key={code} value={code}>
+                {names[code] ?? code}
+              </option>
+            ))}
+          </datalist>
+        </div>
+      </div>
+
+      {result && expiryEpoch != null && (
+        <motion.div
+          key={`${result.ok}-${result.ruleMonths}-${result.requiredUntil}`}
+          initial={reduce ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className={cn(
+            "mt-5 rounded-xl border p-4",
+            result.ok
+              ? "border-primary/30 bg-primary/10"
+              : "border-destructive/30 bg-destructive/10",
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant="outline"
+              className={cn(
+                "font-medium",
+                result.ok ? "text-primary" : "text-destructive",
+              )}
+            >
+              {result.ok ? "Meets requirement" : "Insufficient validity"}
+            </Badge>
+            {isSchengen(destCode) && (
+              <span className="text-xs text-muted-foreground">
+                {destName ?? destCode} · Schengen 3-month rule
+              </span>
+            )}
+          </div>
+          <p className="mt-3 text-sm text-foreground">
+            Passport must be valid until{" "}
+            <span className="font-medium">{fromEpochDay(result.requiredUntil)}</span>{" "}
+            <span className="text-muted-foreground">
+              ({result.ruleMonths} months beyond entry)
+            </span>
+            . Yours expires {fromEpochDay(expiryEpoch)}.
+          </p>
+          {result.renewSoon && (
+            <p className="mt-2 flex items-start gap-2 text-xs text-spark">
+              <Info className="mt-0.5 size-3.5 shrink-0" />
+              <span>
+                Expires within ~9 months. Routine renewals take 6–8 weeks and the
+                6-month rule erodes usable validity early — renew soon.
+              </span>
+            </p>
+          )}
+        </motion.div>
+      )}
+    </section>
+  );
+}
+
+// --- Top-level: calculators above the existing matrix ------------------------
+
+export function VisaChecker(props: {
+  passports: string[];
+  names: Record<string, string>;
+  initialPassport?: string;
+}) {
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-5">
+        <SchengenCalculator />
+        <PassportValidityChecker passports={props.passports} names={props.names} />
+        <p className="flex items-start gap-2 text-xs text-faint">
+          <Info className="mt-0.5 size-3.5 shrink-0" />
+          <span>
+            Calculators implement the EU 90/180 rule (EU Regulation 610/2013) and
+            the general 6-month passport-validity rule. Always confirm against the
+            destination&rsquo;s official source before travel.
+          </span>
+        </p>
+      </div>
+      <VisaMatrix {...props} />
+    </div>
+  );
+}
+
+function VisaMatrix({
   passports,
   names,
   initialPassport,

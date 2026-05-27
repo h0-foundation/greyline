@@ -54,6 +54,7 @@ test("tools hub lists tools; airports search returns Heathrow", async ({ page })
   await page.goto("/tools");
   await expect(page.getByRole("heading", { name: "Tools", exact: true })).toBeVisible();
   await page.goto("/tools/airports");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
   await page.getByPlaceholder(/Name, city, IATA/i).fill("heathrow");
   await expect(page.getByText(/London Heathrow/i).first()).toBeVisible({ timeout: 10_000 });
 });
@@ -66,6 +67,22 @@ test("tools: visa checker resolves a passport to destinations", async ({ page })
   await input.press("Enter");
   // After selecting a passport, destination requirements load.
   await expect(page.getByText(/visa-free/i).first()).toBeVisible({ timeout: 10_000 });
+  // Schengen 90/180 calculator (offline) renders above the matrix.
+  await expect(page.getByText(/Schengen 90\/180/i).first()).toBeVisible();
+  await expect(page.getByText(/days remaining/i).first()).toBeVisible();
+});
+
+test("tools: airports nearest planner ranks airports for a place (offline)", async ({ page }) => {
+  await page.goto("/tools/airports");
+  await page.getByRole("button", { name: "Paris" }).click();
+  await expect(page.getByText(/nearest from Paris/i)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Paris-Orly|Charles de Gaulle|Le Bourget/i).first()).toBeVisible();
+});
+
+test("tools: hotel room-security assessment scores live (offline)", async ({ page }) => {
+  await page.goto("/tools/hotel");
+  await expect(page.getByText("Room Security Score")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Front-desk request" })).toBeVisible();
 });
 
 test("settings: connection toggles render and offline switch is present", async ({ page }) => {
