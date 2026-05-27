@@ -7,6 +7,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { FlyingTrail } from "@/components/tools/flying-trail";
 import {
   Accordion,
   AccordionContent,
@@ -186,6 +187,8 @@ export default function FlyingPage() {
         title="Data footprint of flying"
         description="A calm, factual map of the identity and biometric systems that record you when you fly. Offline reference — no data leaves this machine."
       />
+
+      <FlyingTrail />
 
       <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
         <p className="max-w-prose text-sm text-muted-foreground text-pretty">

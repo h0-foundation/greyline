@@ -13,15 +13,15 @@ export default function SelfDoxxingPage() {
     <div className="space-y-8">
       <PageHeader
         title="Self-doxxing audit"
-        description="Do to yourself what an attacker would. Greyline performs no searches — these are steps you run yourself. Re-run every 3–12 months."
+        description="Do to yourself what an attacker would. Generate search queries, track broker opt-outs, and keep the audit on a recurring cadence. Greyline performs no searches — everything runs on this machine."
       />
 
       <section className="flex items-start gap-3 rounded-xl border border-border bg-accent-subtle/40 p-5">
         <Eye className="mt-0.5 size-4 shrink-0 text-accent-text" />
         <p className="max-w-prose text-sm text-muted-foreground text-pretty">
-          This audit is fully offline. The checklist below is yours to work through; your progress
-          is saved only in this browser. External links open opt-out and search tools you operate
-          directly — Greyline never sees your queries or results.
+          This audit is fully offline. Any identifiers you type are kept only in this browser and
+          are never transmitted — Greyline builds copy-ready queries but runs none of them. External
+          links open opt-out and search tools you operate directly.
         </p>
       </section>
 

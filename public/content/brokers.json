@@ -1,0 +1,332 @@
+[
+  {
+    "id": "acxiom",
+    "name": "Acxiom",
+    "category": "data_broker",
+    "optOutUrl": "https://www.acxiom.com/optout/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 180
+  },
+  {
+    "id": "lexisnexis",
+    "name": "LexisNexis",
+    "category": "data_broker",
+    "optOutUrl": "https://optout.lexisnexis.com/",
+    "method": "web_form",
+    "requiresId": true,
+    "verificationEmail": false,
+    "reappearsDays": 180
+  },
+  {
+    "id": "epsilon",
+    "name": "Epsilon",
+    "category": "data_broker",
+    "optOutUrl": "https://legal.epsilon.com/dsr/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 180
+  },
+  {
+    "id": "oracle-data-cloud",
+    "name": "Oracle Data Cloud (Datalogix)",
+    "category": "data_broker",
+    "optOutUrl": "https://www.oracle.com/legal/privacy/marketing-cloud-data-cloud-privacy-policy.html",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 180
+  },
+  {
+    "id": "corelogic",
+    "name": "CoreLogic",
+    "category": "data_broker",
+    "optOutUrl": "https://www.corelogic.com/policies/opt-out/",
+    "method": "email",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 180
+  },
+  {
+    "id": "experian",
+    "name": "Experian",
+    "category": "data_broker",
+    "optOutUrl": "https://www.experian.com/privacy/opting_out",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 180
+  },
+  {
+    "id": "equifax",
+    "name": "Equifax",
+    "category": "data_broker",
+    "optOutUrl": "https://www.equifax.com/personal/privacy/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 180
+  },
+  {
+    "id": "transunion",
+    "name": "TransUnion",
+    "category": "data_broker",
+    "optOutUrl": "https://www.transunion.com/optout",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 180
+  },
+  {
+    "id": "infogroup",
+    "name": "Data Axle (Infogroup)",
+    "category": "data_broker",
+    "optOutUrl": "https://www.data-axle.com/opt-out/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 180
+  },
+  {
+    "id": "towerdata",
+    "name": "TowerData",
+    "category": "data_broker",
+    "optOutUrl": "https://www.towerdata.com/privacy-opt-out",
+    "method": "email",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 180
+  },
+  {
+    "id": "spokeo",
+    "name": "Spokeo",
+    "category": "people_search",
+    "optOutUrl": "https://www.spokeo.com/optout",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 90
+  },
+  {
+    "id": "whitepages",
+    "name": "Whitepages",
+    "category": "people_search",
+    "optOutUrl": "https://www.whitepages.com/suppression-requests",
+    "method": "phone",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 90
+  },
+  {
+    "id": "beenverified",
+    "name": "BeenVerified",
+    "category": "people_search",
+    "optOutUrl": "https://www.beenverified.com/app/optout/search",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 90
+  },
+  {
+    "id": "radaris",
+    "name": "Radaris",
+    "category": "people_search",
+    "optOutUrl": "https://radaris.com/control/privacy",
+    "method": "account_required",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 90
+  },
+  {
+    "id": "intelius",
+    "name": "Intelius",
+    "category": "people_search",
+    "optOutUrl": "https://www.intelius.com/opt-out/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 90
+  },
+  {
+    "id": "mylife",
+    "name": "MyLife",
+    "category": "people_search",
+    "optOutUrl": "https://www.mylife.com/ccpa/index.pubview",
+    "method": "phone",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 90
+  },
+  {
+    "id": "peoplefinders",
+    "name": "PeopleFinders",
+    "category": "people_search",
+    "optOutUrl": "https://www.peoplefinders.com/opt-out",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 90
+  },
+  {
+    "id": "truepeoplesearch",
+    "name": "TruePeopleSearch",
+    "category": "people_search",
+    "optOutUrl": "https://www.truepeoplesearch.com/removal",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 60
+  },
+  {
+    "id": "fastpeoplesearch",
+    "name": "FastPeopleSearch",
+    "category": "people_search",
+    "optOutUrl": "https://www.fastpeoplesearch.com/removal",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 60
+  },
+  {
+    "id": "thatsthem",
+    "name": "ThatsThem",
+    "category": "people_search",
+    "optOutUrl": "https://thatsthem.com/optout",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 90
+  },
+  {
+    "id": "peekyou",
+    "name": "PeekYou",
+    "category": "people_search",
+    "optOutUrl": "https://www.peekyou.com/about/contact/optout/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 90
+  },
+  {
+    "id": "ussearch",
+    "name": "US Search",
+    "category": "people_search",
+    "optOutUrl": "https://www.ussearch.com/opt-out/submit/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 90
+  },
+  {
+    "id": "instantcheckmate",
+    "name": "Instant Checkmate",
+    "category": "people_search",
+    "optOutUrl": "https://www.instantcheckmate.com/opt-out/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 90
+  },
+  {
+    "id": "truthfinder",
+    "name": "TruthFinder",
+    "category": "people_search",
+    "optOutUrl": "https://www.truthfinder.com/opt-out/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 90
+  },
+  {
+    "id": "spy-dialer",
+    "name": "Spy Dialer",
+    "category": "people_search",
+    "optOutUrl": "https://www.spydialer.com/optout.aspx",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 90
+  },
+  {
+    "id": "usphonebook",
+    "name": "USPhoneBook",
+    "category": "people_search",
+    "optOutUrl": "https://www.usphonebook.com/opt-out",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 60
+  },
+  {
+    "id": "nuwber",
+    "name": "Nuwber",
+    "category": "people_search",
+    "optOutUrl": "https://nuwber.com/removal/link",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": true,
+    "reappearsDays": 90
+  },
+  {
+    "id": "clustrmaps",
+    "name": "ClustrMaps",
+    "category": "aggregator",
+    "optOutUrl": "https://clustrmaps.com/bl/opt-out",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 120
+  },
+  {
+    "id": "advanced-background-checks",
+    "name": "Advanced Background Checks",
+    "category": "aggregator",
+    "optOutUrl": "https://www.advancedbackgroundchecks.com/removal",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 90
+  },
+  {
+    "id": "searchpeoplefree",
+    "name": "SearchPeopleFree",
+    "category": "aggregator",
+    "optOutUrl": "https://www.searchpeoplefree.com/opt-out",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 90
+  },
+  {
+    "id": "addresses-com",
+    "name": "Addresses.com",
+    "category": "aggregator",
+    "optOutUrl": "https://www.addresses.com/optout.php",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 120
+  },
+  {
+    "id": "familytreenow",
+    "name": "FamilyTreeNow",
+    "category": "aggregator",
+    "optOutUrl": "https://www.familytreenow.com/optout",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 120
+  },
+  {
+    "id": "dehashed",
+    "name": "Acxiom AbiliTec / InfoUSA",
+    "category": "aggregator",
+    "optOutUrl": "https://www.infousa.com/optout/",
+    "method": "web_form",
+    "requiresId": false,
+    "verificationEmail": false,
+    "reappearsDays": 180
+  }
+]

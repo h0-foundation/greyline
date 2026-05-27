@@ -1,5 +1,11 @@
 import { PageHeader } from "@/components/page-header";
 import { ChecklistTool, type ChecklistSection } from "@/components/tools/checklist-tool";
+import { BorderPrep } from "@/components/tools/border-prep";
+import { getIntelCoverage } from "$server/db/repositories/intel";
+import { getCountryListRows } from "$server/db/repositories/knowledge";
+import { toListItem } from "@/lib/countries";
+
+export const dynamic = "force-dynamic";
 
 const SECTIONS: ChecklistSection[] = [
   {
@@ -33,17 +39,37 @@ const SECTIONS: ChecklistSection[] = [
 ];
 
 export default function BorderCrossingPage() {
+  // Build the destination picker from the curated-intel coverage set, labelled
+  // with country names from the offline knowledge base.
+  const coverageSet = getIntelCoverage();
+  const names: Record<string, string> = {};
+  for (const row of getCountryListRows()) {
+    names[row.country_code] = toListItem(row.country_code, row.rest_countries).name;
+  }
+  const coverage = [...coverageSet]
+    .map((iso2) => ({ iso2, name: names[iso2] ?? iso2 }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <PageHeader
         title="Border crossing"
-        description="A pre-trip, at-the-border, and post-crossing checklist for protecting your data and knowing your options. Runs offline; nothing is recorded off this machine."
+        description="A device-prep decision engine: pick your destination, status, and threat level to get a personalized exposure score and a phase-grouped action plan. Runs offline; nothing is recorded off this machine."
       />
-      <ChecklistTool
-        toolKey="border"
-        intro="Informational, not legal advice. Border-search powers and your rights depend heavily on your citizenship and the country you are entering — consult a qualified attorney for your situation. This checklist is adapted from the EFF's border-search guidance (Digital Privacy at the U.S. Border) and applies general data-hygiene principles."
-        sections={SECTIONS}
-      />
+
+      <BorderPrep coverage={coverage} />
+
+      <div className="space-y-4">
+        <div className="h-px w-full bg-border" />
+        <h2 className="font-display text-2xl font-medium text-foreground">
+          Generic walkthrough
+        </h2>
+        <ChecklistTool
+          toolKey="border"
+          intro="Informational, not legal advice. Border-search powers and your rights depend heavily on your citizenship and the country you are entering — consult a qualified attorney for your situation. This checklist is adapted from the EFF's border-search guidance (Digital Privacy at the U.S. Border) and applies general data-hygiene principles."
+          sections={SECTIONS}
+        />
+      </div>
     </div>
   );
 }

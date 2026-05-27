@@ -1,257 +1,725 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
-  Users,
-  Database,
-  UserSearch,
-  Camera,
-  CalendarClock,
+  Copy,
+  Check,
   ExternalLink,
+  ShieldOff,
+  CalendarClock,
+  Trash2,
   RotateCcw,
 } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  type Identifiers,
+  emptyIdentifiers,
+  buildDorks,
+  auditStatus,
+} from "@/lib/self-doxxing";
 
-const STORAGE_KEY = "greyline:checklist:self-doxxing";
+// ---------------------------------------------------------------------------
+// localStorage keys (all data stays on this machine).
+// ---------------------------------------------------------------------------
+const IDENTIFIERS_KEY = "greyline:selfdox:identifiers";
+const BROKERS_KEY = "greyline:selfdox:brokers";
+const AUDIT_KEY = "greyline:selfdox:audit";
 
-type LinkRef = { label: string; href: string };
-type Item = { id: string; label: string; note?: string; links?: LinkRef[] };
-type Section = {
+// ---------------------------------------------------------------------------
+// Types for the bundled broker catalog (public/content/brokers.json).
+// ---------------------------------------------------------------------------
+type BrokerCategory = "data_broker" | "people_search" | "aggregator";
+type BrokerMethod = "web_form" | "email" | "phone" | "account_required";
+type BrokerStatus =
+  | "not_started"
+  | "submitted"
+  | "pending_verification"
+  | "confirmed"
+  | "reappeared";
+
+interface Broker {
   id: string;
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  blurb: string;
-  items: Item[];
+  name: string;
+  category: BrokerCategory;
+  optOutUrl: string;
+  method: BrokerMethod;
+  requiresId: boolean;
+  verificationEmail: boolean;
+  reappearsDays: number;
+}
+
+interface BrokerState {
+  status: BrokerStatus;
+  confirmedAt: string | null; // ISO timestamp set when status -> confirmed
+}
+
+// ---------------------------------------------------------------------------
+// Small UI helpers.
+// ---------------------------------------------------------------------------
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={() => {
+        void navigator.clipboard?.writeText(value).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        });
+      }}
+      aria-label="Copy query"
+    >
+      {copied ? <Check className="text-spark" /> : <Copy />}
+      {copied ? "Copied" : "Copy"}
+    </Button>
+  );
+}
+
+const CATEGORY_LABEL: Record<BrokerCategory, string> = {
+  data_broker: "Data broker",
+  people_search: "People search",
+  aggregator: "Aggregator",
 };
 
-const SECTIONS: Section[] = [
-  {
-    id: "search",
-    title: "Search yourself",
-    icon: Search,
-    blurb:
-      "Query the same way an attacker would. Use more than one engine — results differ, and stale data lingers.",
-    items: [
-      { id: "search-name", label: "Search your full name across multiple engines (Google, Bing, DuckDuckGo, Brave)." },
-      { id: "search-name-city", label: "Search name + city, name + employer, and name + school." },
-      { id: "search-phone", label: "Search each phone number you've used publicly." },
-      { id: "search-email", label: "Search each email address, including old/forgotten ones." },
-      { id: "search-usernames", label: "Search every handle/username you reuse across platforms." },
-      { id: "search-reverse-image", label: "Reverse-image-search your profile and avatar photos to find where they've been reposted." },
-      { id: "search-quotes", label: 'Search exact phrases in quotes (bios, taglines) to surface linked accounts.' },
-    ],
-  },
-  {
-    id: "social",
-    title: "Social media",
-    icon: Users,
-    blurb:
-      "View each account while logged out — that's what strangers see. Then tighten and prune.",
-    items: [
-      { id: "social-loggedout", label: "Audit every account logged-out (or in a private window) to see the public view." },
-      { id: "social-privacy", label: "Lock down privacy settings; restrict who can see posts, friends/followers, and tagged photos." },
-      { id: "social-location", label: "Disable location tags and remove geotags/EXIF from existing posts." },
-      { id: "social-prune", label: "Prune or archive old posts that reveal routines, home, workplace, or travel patterns." },
-      { id: "social-connections", label: "Hide friend/follower lists and contact info; review third-party app connections." },
-      { id: "social-faces", label: "Untag yourself from others' posts that expose your location or relationships." },
-    ],
-  },
-  {
-    id: "brokers",
-    title: "Data brokers",
-    icon: Database,
-    blurb:
-      "Brokers aggregate public records, purchases, and online activity into sellable profiles. Opt-outs are tedious but effective; expect to re-do them periodically.",
-    items: [
-      {
-        id: "brokers-accessnow",
-        label: "Work through Access Now's Self-Doxing guide for a structured opt-out workflow.",
-        links: [{ label: "Access Now — Self-Doxing guide", href: "https://guides.accessnow.org/self-doxing.html" }],
-      },
-      {
-        id: "brokers-badbroker",
-        label: "Use the Big Ass Data Broker Opt-Out List to find and remove your records broker-by-broker.",
-        links: [{ label: "Yael Grauer — Big Ass Data Broker Opt-Out List", href: "https://github.com/yaelwrites/Big-Ass-Data-Broker-Opt-Out-List" }],
-      },
-      {
-        id: "brokers-google",
-        label: 'Use Google "Results about you" to monitor and request removal of search results exposing your contact info.',
-        links: [{ label: 'Google — Results about you', href: "https://myactivity.google.com/results-about-you" }],
-      },
-      {
-        id: "brokers-paid",
-        label:
-          "Consider a paid removal service if manual opt-outs are too much: DeleteMe, Optery, or EasyOptOuts handle filings and re-checks for you.",
-      },
-    ],
-  },
-  {
-    id: "people-search",
-    title: "People-search removal",
-    icon: UserSearch,
-    blurb:
-      "People-search sites publish addresses, relatives, and phone numbers. Each has its own opt-out page — submit one per site.",
-    items: [
-      { id: "ps-whitepages", label: "Whitepages — submit the opt-out (each site has its own form)." },
-      { id: "ps-spokeo", label: "Spokeo — locate your listing, then file the opt-out." },
-      { id: "ps-beenverified", label: "BeenVerified — use its opt-out / suppression request." },
-      { id: "ps-radaris", label: "Radaris — claim/remove your profile via its opt-out." },
-      { id: "ps-recheck", label: "Re-check these sites months later — listings frequently reappear." },
-    ],
-  },
-  {
-    id: "photos",
-    title: "Photos & metadata",
-    icon: Camera,
-    blurb:
-      "Photos carry GPS coordinates, device IDs, and timestamps. Strip them before anything goes public.",
-    items: [
-      {
-        id: "photos-exif",
-        label: "Strip EXIF/GPS metadata from images before posting or sharing.",
-        links: [{ label: "Greyline EXIF stripper", href: "/tools/exif" }],
-      },
-      { id: "photos-backgrounds", label: "Check photo backgrounds for addresses, plates, badges, screens, and reflections." },
-    ],
-  },
-  {
-    id: "recurring",
-    title: "Recurring",
-    icon: CalendarClock,
-    blurb: "Exposure regrows. Treat this as maintenance, not a one-time cleanup.",
-    items: [
-      { id: "recurring-reminder", label: "Set a calendar reminder to re-run this audit every 3–12 months." },
-      { id: "recurring-alerts", label: "Set up search alerts on your name and key identifiers to catch new exposure early." },
-    ],
-  },
+const METHOD_LABEL: Record<BrokerMethod, string> = {
+  web_form: "Web form",
+  email: "Email",
+  phone: "Phone",
+  account_required: "Account required",
+};
+
+const STATUS_LABEL: Record<BrokerStatus, string> = {
+  not_started: "Not started",
+  submitted: "Submitted",
+  pending_verification: "Pending verification",
+  confirmed: "Confirmed",
+  reappeared: "Reappeared",
+};
+
+// Ordered cycle the "advance" button walks through.
+const STATUS_ORDER: BrokerStatus[] = [
+  "not_started",
+  "submitted",
+  "pending_verification",
+  "confirmed",
 ];
 
-const ALL_IDS = SECTIONS.flatMap((s) => s.items.map((i) => i.id));
+function statusBadgeClass(status: BrokerStatus): string {
+  switch (status) {
+    case "confirmed":
+      return "border-transparent bg-accent-subtle text-spark";
+    case "reappeared":
+      return "border-transparent bg-destructive/15 text-destructive";
+    case "not_started":
+      return "text-faint";
+    default:
+      return "text-accent-text";
+  }
+}
 
-function loadState(): Record<string, boolean> {
-  if (typeof window === "undefined") return {};
+// ---------------------------------------------------------------------------
+// MODULE 1 — Dork / query generator.
+// ---------------------------------------------------------------------------
+
+function commaList(values: string[]): string {
+  return values.join(", ");
+}
+
+function parseList(value: string): string[] {
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function DorkGenerator() {
+  const [ids, setIds] = useState<Identifiers>(emptyIdentifiers);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(IDENTIFIERS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<Identifiers>;
+        setIds({ ...emptyIdentifiers(), ...parsed });
+      }
+    } catch {
+      /* ignore */
+    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      window.localStorage.setItem(IDENTIFIERS_KEY, JSON.stringify(ids));
+    } catch {
+      /* storage unavailable — non-fatal */
+    }
+  }, [ids, hydrated]);
+
+  const groups = useMemo(() => buildDorks(ids), [ids]);
+  const hasInput =
+    ids.name.trim() !== "" ||
+    ids.emails.length > 0 ||
+    ids.phones.length > 0 ||
+    ids.usernames.length > 0;
+
+  function clearAll() {
+    setIds(emptyIdentifiers());
+    try {
+      window.localStorage.removeItem(IDENTIFIERS_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+      <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-foreground">
+        <Search className="size-4 text-accent-text" />
+        Search yourself
+      </h2>
+      <p className="mt-1 max-w-prose text-sm text-muted-foreground text-pretty">
+        Enter what you want to hunt for. Greyline builds copy-ready queries and
+        direct lookup links but never runs them — you paste them into a search
+        engine yourself. Everything you type is stored only in this browser.
+      </p>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Field label="Full name">
+          <Input
+            value={ids.name}
+            placeholder="Jane Q. Doe"
+            onChange={(e) => setIds((p) => ({ ...p, name: e.target.value }))}
+          />
+        </Field>
+        <Field label="Aliases / maiden names (comma-separated)">
+          <Input
+            value={commaList(ids.aliases)}
+            placeholder="J. Doe, Jane Smith"
+            onChange={(e) =>
+              setIds((p) => ({ ...p, aliases: parseList(e.target.value) }))
+            }
+          />
+        </Field>
+        <Field label="City">
+          <Input
+            value={ids.city}
+            placeholder="Austin"
+            onChange={(e) => setIds((p) => ({ ...p, city: e.target.value }))}
+          />
+        </Field>
+        <Field label="Employer / school">
+          <Input
+            value={ids.employer}
+            placeholder="Acme Corp"
+            onChange={(e) =>
+              setIds((p) => ({ ...p, employer: e.target.value }))
+            }
+          />
+        </Field>
+        <Field label="Emails (comma-separated)">
+          <Input
+            value={commaList(ids.emails)}
+            placeholder="jane@example.com, old@mail.com"
+            onChange={(e) =>
+              setIds((p) => ({ ...p, emails: parseList(e.target.value) }))
+            }
+          />
+        </Field>
+        <Field label="Phones (comma-separated)">
+          <Input
+            value={commaList(ids.phones)}
+            placeholder="555-123-4567"
+            onChange={(e) =>
+              setIds((p) => ({ ...p, phones: parseList(e.target.value) }))
+            }
+          />
+        </Field>
+        <Field label="Usernames / handles (comma-separated)">
+          <Input
+            value={commaList(ids.usernames)}
+            placeholder="janedoe, jdoe99"
+            onChange={(e) =>
+              setIds((p) => ({ ...p, usernames: parseList(e.target.value) }))
+            }
+          />
+        </Field>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-[11px] text-faint">
+          Stored only on this machine. Nothing is transmitted.
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={clearAll}
+          disabled={!hasInput}
+        >
+          <Trash2 />
+          Clear all
+        </Button>
+      </div>
+
+      {groups.length > 0 && (
+        <div className="mt-4 space-y-4">
+          {groups.map((g) => (
+            <div
+              key={g.group}
+              className="rounded-lg border border-border bg-background/40 p-3"
+            >
+              <h3 className="font-mono text-xs font-medium text-muted-foreground">
+                {g.group}
+              </h3>
+              <ul className="mt-2 space-y-1.5">
+                {g.queries.map((q, i) => (
+                  <li
+                    key={`${g.group}-${i}`}
+                    className="flex items-start gap-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] text-faint">{q.label}</p>
+                      {q.query ? (
+                        <code className="block break-all font-mono text-xs text-foreground">
+                          {q.query}
+                        </code>
+                      ) : (
+                        <a
+                          href={q.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 break-all text-xs text-accent-text hover:underline"
+                        >
+                          {q.url}
+                          <ExternalLink className="size-3 shrink-0" />
+                        </a>
+                      )}
+                    </div>
+                    {q.query && <CopyButton value={q.query} />}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MODULE 2 — Broker opt-out tracker.
+// ---------------------------------------------------------------------------
+
+type CategoryFilter = "all" | BrokerCategory;
+type StatusFilter = "all" | BrokerStatus | "needs_recheck";
+
+function loadBrokerStates(): Record<string, BrokerState> {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(BROKERS_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (typeof parsed !== "object" || parsed === null) return {};
-    const out: Record<string, boolean> = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v === "boolean") out[k] = v;
-    }
-    return out;
+    return parsed as Record<string, BrokerState>;
   } catch {
     return {};
   }
 }
 
-function LinkRow({ link }: { link: LinkRef }) {
-  const external = /^https?:\/\//.test(link.href);
+function needsRecheck(broker: Broker, state: BrokerState, now: number): boolean {
+  if (state.status !== "confirmed" || !state.confirmedAt) return false;
+  const confirmed = new Date(state.confirmedAt).getTime();
+  if (Number.isNaN(confirmed)) return false;
+  const daysSince = (now - confirmed) / (1000 * 60 * 60 * 24);
+  return daysSince > broker.reappearsDays;
+}
+
+function BrokerTracker() {
+  const [brokers, setBrokers] = useState<Broker[]>([]);
+  const [states, setStates] = useState<Record<string, BrokerState>>({});
+  const [hydrated, setHydrated] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const now = Date.now();
+
+  useEffect(() => {
+    setStates(loadBrokerStates());
+    setHydrated(true);
+    void fetch("/content/brokers.json")
+      .then((r) => (r.ok ? (r.json() as Promise<Broker[]>) : []))
+      .then((data) => setBrokers(Array.isArray(data) ? data : []))
+      .catch(() => setBrokers([]));
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      window.localStorage.setItem(BROKERS_KEY, JSON.stringify(states));
+    } catch {
+      /* storage unavailable — non-fatal */
+    }
+  }, [states, hydrated]);
+
+  function getState(id: string): BrokerState {
+    return states[id] ?? { status: "not_started", confirmedAt: null };
+  }
+
+  function setStatus(id: string, status: BrokerStatus) {
+    setStates((prev) => ({
+      ...prev,
+      [id]: {
+        status,
+        confirmedAt:
+          status === "confirmed"
+            ? (prev[id]?.confirmedAt ?? new Date().toISOString())
+            : null,
+      },
+    }));
+  }
+
+  // Advance through the normal lifecycle (not_started -> ... -> confirmed),
+  // wrapping back to not_started after confirmed.
+  function advance(id: string) {
+    const current = getState(id).status;
+    if (current === "reappeared") {
+      setStatus(id, "submitted");
+      return;
+    }
+    const idx = STATUS_ORDER.indexOf(current);
+    const next = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length] ?? "not_started";
+    setStatus(id, next);
+  }
+
+  const confirmedCount = brokers.filter(
+    (b) => getState(b.id).status === "confirmed"
+  ).length;
+
+  const recheckList = brokers.filter((b) =>
+    needsRecheck(b, getState(b.id), now)
+  );
+
+  const visible = brokers.filter((b) => {
+    if (categoryFilter !== "all" && b.category !== categoryFilter) return false;
+    const st = getState(b.id);
+    if (statusFilter === "all") return true;
+    if (statusFilter === "needs_recheck") return needsRecheck(b, st, now);
+    return st.status === statusFilter;
+  });
+
+  const pct = brokers.length
+    ? Math.round((confirmedCount / brokers.length) * 100)
+    : 0;
+
   return (
-    <a
-      href={link.href}
-      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline"
-    >
-      {link.label}
-      <ExternalLink className="size-3" />
-    </a>
+    <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+      <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-foreground">
+        <ShieldOff className="size-4 text-accent-text" />
+        Broker opt-out tracker
+      </h2>
+      <p className="mt-1 max-w-prose text-sm text-muted-foreground text-pretty">
+        Work each broker through its opt-out flow and record where you are.
+        Confirmed removals frequently reappear — Greyline flags them for re-check
+        based on each broker&apos;s typical relisting window.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-mono text-muted-foreground">
+            {confirmedCount} / {brokers.length} confirmed removed
+          </span>
+          {recheckList.length > 0 && (
+            <span className="text-destructive">
+              {recheckList.length} need re-check
+            </span>
+          )}
+        </div>
+        <Progress value={pct} />
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          Category
+          <select
+            value={categoryFilter}
+            onChange={(e) =>
+              setCategoryFilter(e.target.value as CategoryFilter)
+            }
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+          >
+            <option value="all">All</option>
+            <option value="data_broker">Data broker</option>
+            <option value="people_search">People search</option>
+            <option value="aggregator">Aggregator</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          Status
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+          >
+            <option value="all">All</option>
+            <option value="not_started">Not started</option>
+            <option value="submitted">Submitted</option>
+            <option value="pending_verification">Pending verification</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="reappeared">Reappeared</option>
+            <option value="needs_recheck">Needs re-check</option>
+          </select>
+        </label>
+      </div>
+
+      <ul className="mt-4 divide-y divide-border">
+        {visible.map((b) => {
+          const st = getState(b.id);
+          const recheck = needsRecheck(b, st, now);
+          return (
+            <li
+              key={b.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <a
+                    href={b.optOutUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:text-accent-text hover:underline"
+                  >
+                    {b.name}
+                    <ExternalLink className="size-3 shrink-0 text-faint" />
+                  </a>
+                  <Badge variant="outline" className="text-faint">
+                    {CATEGORY_LABEL[b.category]}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 text-[11px] text-faint">
+                  {METHOD_LABEL[b.method]}
+                  {b.requiresId && " · ID required"}
+                  {b.verificationEmail && " · email verification"}
+                  {" · relists ~"}
+                  {b.reappearsDays}d
+                  {recheck && (
+                    <span className="text-destructive"> · re-check now</span>
+                  )}
+                </p>
+              </div>
+              <Badge
+                variant="outline"
+                className={statusBadgeClass(
+                  recheck ? "reappeared" : st.status
+                )}
+              >
+                {recheck ? "Re-check due" : STATUS_LABEL[st.status]}
+              </Badge>
+              <div className="flex gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => advance(b.id)}
+                >
+                  Advance
+                </Button>
+                {recheck ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setStatus(b.id, "reappeared")}
+                  >
+                    Mark reappeared
+                  </Button>
+                ) : (
+                  st.status !== "not_started" && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStatus(b.id, "not_started")}
+                      aria-label="Reset broker status"
+                    >
+                      <RotateCcw />
+                    </Button>
+                  )
+                )}
+              </div>
+            </li>
+          );
+        })}
+        {visible.length === 0 && (
+          <li className="py-4 text-center text-xs text-faint">
+            No brokers match this filter.
+          </li>
+        )}
+      </ul>
+    </section>
   );
 }
 
-export function SelfDoxxingChecklist() {
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+// ---------------------------------------------------------------------------
+// MODULE 3 — Recurring audit cadence.
+// ---------------------------------------------------------------------------
+
+interface AuditPrefs {
+  lastRun: string | null;
+  cadenceMonths: number;
+}
+
+function loadAudit(): AuditPrefs {
+  try {
+    const raw = window.localStorage.getItem(AUDIT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<AuditPrefs>;
+      return {
+        lastRun: typeof parsed.lastRun === "string" ? parsed.lastRun : null,
+        cadenceMonths:
+          typeof parsed.cadenceMonths === "number" ? parsed.cadenceMonths : 6,
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { lastRun: null, cadenceMonths: 6 };
+}
+
+function AuditCadence() {
+  const [prefs, setPrefs] = useState<AuditPrefs>({
+    lastRun: null,
+    cadenceMonths: 6,
+  });
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setChecked(loadState());
+    setPrefs(loadAudit());
     setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return;
+    if (!hydrated) return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(checked));
+      window.localStorage.setItem(AUDIT_KEY, JSON.stringify(prefs));
     } catch {
       /* storage unavailable — non-fatal */
     }
-  }, [checked, hydrated]);
+  }, [prefs, hydrated]);
 
-  const doneCount = ALL_IDS.filter((id) => checked[id]).length;
+  const status = auditStatus(prefs.lastRun, prefs.cadenceMonths);
 
-  function toggle(id: string, value: boolean) {
-    setChecked((prev) => ({ ...prev, [id]: value }));
-  }
-
-  function reset() {
-    setChecked({});
+  let stateLabel = "On track";
+  let stateClass = "border-transparent bg-accent-subtle text-spark";
+  if (status.overdue) {
+    stateLabel = "Overdue";
+    stateClass = "border-transparent bg-destructive/15 text-destructive";
+  } else if (status.due) {
+    stateLabel = "Due";
+    stateClass = "border-transparent bg-destructive/10 text-destructive";
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
-        <span className="font-mono text-xs text-muted-foreground">
-          {doneCount} / {ALL_IDS.length} done
-        </span>
-        <button
+    <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+      <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-foreground">
+        <CalendarClock className="size-4 text-accent-text" />
+        Audit cadence
+      </h2>
+      <p className="mt-1 max-w-prose text-sm text-muted-foreground text-pretty">
+        Exposure regrows. Pick how often you&apos;ll re-run this audit and start
+        a run to reset the clock.
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-end gap-4">
+        <label className="space-y-1 text-xs text-muted-foreground">
+          <span>Cadence</span>
+          <select
+            value={prefs.cadenceMonths}
+            onChange={(e) =>
+              setPrefs((p) => ({
+                ...p,
+                cadenceMonths: Number(e.target.value),
+              }))
+            }
+            className="block h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+          >
+            <option value={3}>Every 3 months</option>
+            <option value={6}>Every 6 months</option>
+            <option value={12}>Every 12 months</option>
+          </select>
+        </label>
+
+        <div className="space-y-1">
+          <Badge variant="outline" className={stateClass}>
+            {stateLabel}
+          </Badge>
+          <p className="text-xs text-muted-foreground">
+            {prefs.lastRun
+              ? status.daysRemaining >= 0
+                ? `${status.daysRemaining} day${status.daysRemaining === 1 ? "" : "s"} until next due`
+                : `${Math.abs(status.daysRemaining)} day${Math.abs(status.daysRemaining) === 1 ? "" : "s"} past due`
+              : "No run recorded yet"}
+          </p>
+        </div>
+
+        <Button
           type="button"
-          onClick={reset}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-faint transition-colors hover:text-foreground"
+          onClick={() =>
+            setPrefs((p) => ({ ...p, lastRun: new Date().toISOString() }))
+          }
         >
-          <RotateCcw className="size-3.5" />
-          Reset
-        </button>
+          Start new run
+        </Button>
       </div>
 
-      {SECTIONS.map((section) => (
-        <section
-          key={section.id}
-          className="rounded-xl border border-border bg-card p-5 shadow-xs"
-        >
-          <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-foreground">
-            <section.icon className="size-4 text-accent-text" />
-            {section.title}
-          </h2>
-          <p className="mt-1 max-w-prose text-sm text-muted-foreground text-pretty">
-            {section.blurb}
-          </p>
-          <ul className="mt-3 divide-y divide-border">
-            {section.items.map((item) => (
-              <li key={item.id} className="flex items-start gap-3 py-2.5">
-                <Checkbox
-                  id={item.id}
-                  checked={!!checked[item.id]}
-                  onCheckedChange={(v) => toggle(item.id, v === true)}
-                  className="mt-0.5"
-                />
-                <div className="min-w-0 flex-1">
-                  <label
-                    htmlFor={item.id}
-                    className={`block cursor-pointer text-sm text-pretty ${
-                      checked[item.id]
-                        ? "text-faint line-through"
-                        : "text-foreground"
-                    }`}
-                  >
-                    {item.label}
-                  </label>
-                  {item.note && (
-                    <p className="mt-0.5 text-xs text-faint text-pretty">{item.note}</p>
-                  )}
-                  {item.links && item.links.length > 0 && (
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                      {item.links.map((link) => (
-                        <LinkRow key={link.href} link={link} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      {prefs.lastRun && (
+        <p className="mt-3 text-[11px] text-faint">
+          Last run {new Date(prefs.lastRun).toLocaleDateString()}.
+        </p>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Top-level tool — three interactive modules.
+// ---------------------------------------------------------------------------
+
+export function SelfDoxxingChecklist() {
+  return (
+    <div className="space-y-6">
+      <DorkGenerator />
+      <BrokerTracker />
+      <AuditCadence />
+
+      <p className="text-[11px] text-faint text-pretty">
+        Method: Michael Bazzell&apos;s IntelTechniques workbook, Yael Grauer&apos;s
+        Big Ass Data Broker Opt-Out List, and the Access Now self-doxxing guide.
+        Greyline runs no searches and stores everything only in this browser.
+      </p>
     </div>
   );
 }
