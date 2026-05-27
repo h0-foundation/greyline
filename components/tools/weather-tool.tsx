@@ -3,48 +3,33 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Sun,
-  CloudSun,
-  Cloud,
-  CloudFog,
-  CloudDrizzle,
-  CloudRain,
-  CloudSnow,
-  CloudLightning,
-  Droplets,
-  Wind,
-  PlugZap,
-  type LucideIcon,
+  Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudSnow,
+  CloudLightning, Droplets, Wind, PlugZap, Thermometer, Sunrise, Sunset,
+  Camera, Backpack, type LucideIcon,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PlacePicker, type Place } from "@/components/tools/place-picker";
+import {
+  comfortBand, comfortNote, uvBurnMinutes, uvBand, uvAdvice,
+  lightWindows, packingFlags, BAND_LABEL, type Band,
+} from "@/lib/weather";
 
 type Weather = {
-  current: {
-    temperature_2m: number;
-    weather_code: number;
-    wind_speed_10m: number;
-    relative_humidity_2m: number;
-  };
+  current: { temperature_2m: number; apparent_temperature: number; weather_code: number; wind_speed_10m: number; relative_humidity_2m: number; uv_index: number };
   daily: {
-    time: string[];
-    temperature_2m_max: number[];
-    temperature_2m_min: number[];
-    weather_code: number[];
-    precipitation_sum: number[];
+    time: string[]; temperature_2m_max: number[]; temperature_2m_min: number[];
+    apparent_temperature_max: number[]; apparent_temperature_min: number[];
+    weather_code: number[]; precipitation_sum: number[]; precipitation_probability_max: number[];
+    wind_speed_10m_max: number[]; uv_index_max: number[]; sunrise: string[]; sunset: string[];
   };
 };
 
-type WeatherResponse =
-  | { ok: true; weather: Weather }
-  | { ok: false; disabled?: boolean; error: string };
-
-const CITIES: { label: string; lat: number; lng: number }[] = [
-  { label: "London", lat: 51.5, lng: -0.13 },
-  { label: "Tokyo", lat: 35.68, lng: 139.69 },
-  { label: "NYC", lat: 40.71, lng: -74.01 },
-];
+const BAND_CLASS: Record<Band, string> = {
+  comfortable: "text-primary",
+  caution: "text-spark",
+  warning: "text-amber-500",
+  danger: "text-destructive",
+};
 
 function describeCode(code: number): { label: string; Icon: LucideIcon } {
   if (code === 0) return { label: "Clear", Icon: Sun };
@@ -65,103 +50,29 @@ function formatDay(iso: string): string {
 }
 
 export function WeatherTool() {
-  const [lat, setLat] = useState("51.5");
-  const [lng, setLng] = useState("-0.13");
+  const [place, setPlace] = useState<Place | null>(null);
   const [loading, setLoading] = useState(false);
   const [disabled, setDisabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
 
-  async function fetchForecast(useLat: string, useLng: string) {
-    const latNum = Number.parseFloat(useLat);
-    const lngNum = Number.parseFloat(useLng);
-    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
-      setError("Enter a valid latitude and longitude.");
-      setWeather(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    setDisabled(false);
+  async function select(p: Place) {
+    setPlace(p);
+    setLoading(true); setError(null); setDisabled(false);
     try {
-      const res = await fetch(
-        `/api/weather?lat=${encodeURIComponent(latNum)}&lng=${encodeURIComponent(lngNum)}`,
-      );
-      const data = (await res.json()) as WeatherResponse;
-      if (data.ok) {
-        setWeather(data.weather);
-      } else {
-        setWeather(null);
-        setDisabled(Boolean(data.disabled));
-        setError(data.error);
-      }
+      const res = await fetch(`/api/weather?lat=${p.lat}&lng=${p.lng}`);
+      const data = await res.json();
+      if (data.ok) setWeather(data.weather);
+      else { setWeather(null); setDisabled(Boolean(data.disabled)); setError(data.error); }
     } catch {
-      setWeather(null);
-      setError("Could not reach the weather service.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function pickCity(city: (typeof CITIES)[number]) {
-    setLat(String(city.lat));
-    setLng(String(city.lng));
-    void fetchForecast(String(city.lat), String(city.lng));
+      setWeather(null); setError("Could not reach the weather service.");
+    } finally { setLoading(false); }
   }
 
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
-        <form
-          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void fetchForecast(lat, lng);
-          }}
-        >
-          <div className="space-y-1.5">
-            <label htmlFor="lat" className="text-sm text-muted-foreground">
-              Latitude
-            </label>
-            <Input
-              id="lat"
-              inputMode="decimal"
-              value={lat}
-              onChange={(e) => setLat(e.target.value)}
-              className="font-mono tabular-nums"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="lng" className="text-sm text-muted-foreground">
-              Longitude
-            </label>
-            <Input
-              id="lng"
-              inputMode="decimal"
-              value={lng}
-              onChange={(e) => setLng(e.target.value)}
-              className="font-mono tabular-nums"
-            />
-          </div>
-          <Button type="submit" disabled={loading}>
-            Get forecast
-          </Button>
-        </form>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-faint">Quick pick:</span>
-          {CITIES.map((c) => (
-            <Button
-              key={c.label}
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => pickCity(c)}
-            >
-              {c.label}
-            </Button>
-          ))}
-        </div>
+        <PlacePicker value={place} onSelect={select} placeholder="Search your destination…" />
       </div>
 
       {loading && (
@@ -170,88 +81,146 @@ export function WeatherTool() {
           <Skeleton className="h-28 w-full rounded-xl" />
         </div>
       )}
-
       {!loading && disabled && <DisabledNotice />}
-
-      {!loading && !disabled && error && (
-        <p className="text-sm text-muted-foreground">{error}</p>
+      {!loading && !disabled && error && <p className="text-sm text-muted-foreground">{error}</p>}
+      {!loading && !disabled && weather && place && <Forecast weather={weather} place={place} />}
+      {!loading && !weather && !error && !disabled && (
+        <p className="px-1 text-sm text-muted-foreground">Pick a destination above to see conditions and what they mean for your trip.</p>
       )}
-
-      {!loading && !disabled && weather && <Forecast weather={weather} />}
     </div>
   );
 }
 
-function Forecast({ weather }: { weather: Weather }) {
+function Forecast({ weather, place }: { weather: Weather; place: Place }) {
   const { current, daily } = weather;
   const now = describeCode(current.weather_code);
   const NowIcon = now.Icon;
+  const band = comfortBand(current.apparent_temperature);
+  const burn = uvBurnMinutes(current.uv_index);
+  const uband = uvBand(current.uv_index);
+  const light = daily.sunrise[0] && daily.sunset[0] ? lightWindows(daily.sunrise[0], daily.sunset[0]) : null;
+  const flags = packingFlags(daily);
 
   return (
     <div className="space-y-4">
+      {/* Now + apparent temp */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
-        <div className="flex items-start justify-between gap-4">
+        <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{place.label.split(",")[0]}</span>
+        </div>
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-baseline gap-2">
-              <span className="font-mono text-5xl font-semibold tabular-nums text-foreground">
-                {Math.round(current.temperature_2m)}°
-              </span>
+              <span className="font-mono text-5xl font-semibold tabular-nums text-foreground">{Math.round(current.temperature_2m)}°</span>
               <span className="text-sm text-muted-foreground">C</span>
             </div>
             <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <NowIcon className="size-4 text-accent-text" />
-              {now.label}
+              <NowIcon className="size-4 text-accent-text" /> {now.label}
             </p>
           </div>
           <div className="space-y-2 text-sm text-muted-foreground">
             <span className="flex items-center justify-end gap-1.5">
+              <Thermometer className={`size-4 ${BAND_CLASS[band]}`} />
+              feels like <span className="font-mono tabular-nums text-foreground">{Math.round(current.apparent_temperature)}°</span>
+            </span>
+            <span className="flex items-center justify-end gap-1.5">
               <Droplets className="size-4 text-faint" />
-              <span className="font-mono tabular-nums text-foreground">
-                {Math.round(current.relative_humidity_2m)}%
-              </span>
-              humidity
+              <span className="font-mono tabular-nums text-foreground">{Math.round(current.relative_humidity_2m)}%</span> humidity
             </span>
             <span className="flex items-center justify-end gap-1.5">
               <Wind className="size-4 text-faint" />
-              <span className="font-mono tabular-nums text-foreground">
-                {Math.round(current.wind_speed_10m)}
-              </span>
-              km/h wind
+              <span className="font-mono tabular-nums text-foreground">{Math.round(current.wind_speed_10m)}</span> km/h
             </span>
           </div>
         </div>
+
+        {/* Decision strip */}
+        <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
+          <Decision icon={Thermometer} band={band} title={`${BAND_LABEL[band]} conditions`}>
+            {comfortNote(current.apparent_temperature)}
+          </Decision>
+          <Decision icon={Sun} band={uband} title={`UV ${Math.round(current.uv_index)}${burn ? ` · burns in ~${burn} min` : ""}`}>
+            {uvAdvice(current.uv_index)}
+          </Decision>
+        </div>
       </div>
 
+      {/* Photographer / OSINT light windows */}
+      {light && (
+        <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+          <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-faint">
+            <Camera className="size-3.5" /> Best light today <span className="font-normal normal-case text-muted-foreground">· soft, low-glare windows</span>
+          </h2>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <LightCell icon={Sunrise} label="Blue hour" time={`${light.blueAM[0]}–${light.blueAM[1]}`} />
+            <LightCell icon={Sunrise} label="Golden (AM)" time={`${light.goldenAM[0]}–${light.goldenAM[1]}`} accent />
+            <LightCell icon={Sunset} label="Golden (PM)" time={`${light.goldenPM[0]}–${light.goldenPM[1]}`} accent />
+            <LightCell icon={Sunset} label="Blue hour" time={`${light.bluePM[0]}–${light.bluePM[1]}`} />
+          </div>
+        </div>
+      )}
+
+      {/* Packing implications */}
+      {flags.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+          <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-faint">
+            <Backpack className="size-3.5" /> Pack for this forecast
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {flags.map((f) => (
+              <li key={f.item} className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="text-foreground">{f.item}</span>
+                <span className="shrink-0 text-xs text-faint">{f.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* 7-day */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-faint">
-          7-day forecast
-        </h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-faint">7-day forecast</h2>
         <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-          {daily.time.map((iso, i) => {
+          {daily.time.slice(0, 7).map((iso, i) => {
             const day = describeCode(daily.weather_code[i] ?? 0);
             const DayIcon = day.Icon;
+            const pp = daily.precipitation_probability_max[i] ?? 0;
             return (
-              <li
-                key={iso}
-                className="flex flex-col items-center gap-1 rounded-lg border border-border bg-accent-subtle/40 p-3 text-center"
-              >
+              <li key={iso} className="flex flex-col items-center gap-1 rounded-lg border border-border bg-accent-subtle/40 p-3 text-center">
                 <span className="text-xs font-medium text-foreground">{formatDay(iso)}</span>
                 <DayIcon className="size-5 text-accent-text" />
-                <span className="font-mono text-sm tabular-nums text-foreground">
-                  {Math.round(daily.temperature_2m_max[i] ?? 0)}°
-                </span>
-                <span className="font-mono text-xs tabular-nums text-faint">
-                  {Math.round(daily.temperature_2m_min[i] ?? 0)}°
-                </span>
+                <span className="font-mono text-sm tabular-nums text-foreground">{Math.round(daily.temperature_2m_max[i] ?? 0)}°</span>
+                <span className="font-mono text-xs tabular-nums text-faint">{Math.round(daily.temperature_2m_min[i] ?? 0)}°</span>
                 <span className="mt-0.5 flex items-center gap-1 font-mono text-[11px] tabular-nums text-muted-foreground">
-                  <CloudRain className="size-3" />
-                  {Math.round(daily.precipitation_sum[i] ?? 0)} mm
+                  <Droplets className="size-3" /> {Math.round(pp)}%
                 </span>
               </li>
             );
           })}
         </ul>
       </div>
+    </div>
+  );
+}
+
+function Decision({ icon: Icon, band, title, children }: { icon: LucideIcon; band: Band; title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <Icon className={`mt-0.5 size-4 shrink-0 ${BAND_CLASS[band]}`} />
+      <div className="space-y-0.5">
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="text-xs text-muted-foreground">{children}</p>
+      </div>
+    </div>
+  );
+}
+
+function LightCell({ icon: Icon, label, time, accent }: { icon: LucideIcon; label: string; time: string; accent?: boolean }) {
+  return (
+    <div className={`rounded-lg border p-2.5 text-center ${accent ? "border-spark/30 bg-spark/5" : "border-border bg-accent-subtle/30"}`}>
+      <Icon className={`mx-auto size-4 ${accent ? "text-spark" : "text-faint"}`} />
+      <div className="mt-1 font-mono text-sm tabular-nums text-foreground">{time}</div>
+      <div className="text-[11px] text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -264,14 +233,10 @@ function DisabledNotice() {
           <PlugZap className="size-5" />
         </span>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">
-            Weather connection is off.
-          </p>
+          <p className="text-sm font-medium text-foreground">Weather connection is off.</p>
           <p className="max-w-prose text-sm text-muted-foreground">
             Enable it in{" "}
-            <Link href="/settings" className="text-accent-text underline-offset-4 hover:underline">
-              Settings
-            </Link>{" "}
+            <Link href="/settings" className="text-accent-text underline-offset-4 hover:underline">Settings</Link>{" "}
             to fetch a forecast. Everything else still works offline.
           </p>
         </div>

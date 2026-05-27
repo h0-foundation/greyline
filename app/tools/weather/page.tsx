@@ -6,7 +6,7 @@ export default function WeatherPage() {
     <div className="space-y-8">
       <PageHeader
         title="Weather"
-        description="Current conditions and a 7-day forecast for any coordinates. Works only while the optional weather connection is on."
+        description="Search a destination for conditions, a 7-day forecast, and what it means for your trip — heat and UV risk, the best light for photography, and what to pack. Needs the weather connection on."
       />
       <WeatherTool />
     </div>
