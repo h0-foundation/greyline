@@ -17,6 +17,8 @@ import { getAllTrips, getDestinationsByTrip } from "$server/db/repositories/trip
 import { getChecklistsByTrip } from "$server/db/repositories/checklist";
 import { getAllVaultDocs } from "$server/db/repositories/vault";
 import { getAllSettings, getApiToggles } from "$server/db/repositories/settings";
+import { getTravelStats, getVisitedCountries } from "$server/db/repositories/travel";
+import { WorldMap } from "@/components/travel/world-map";
 
 // Reads local SQLite at request time.
 export const dynamic = "force-dynamic";
@@ -70,6 +72,8 @@ export default function Home() {
   const readiness = totalItems ? Math.round((checkedItems / totalItems) * 100) : 0;
 
   const vaultCount = getAllVaultDocs().length;
+  const travel = getTravelStats();
+  const visited = getVisitedCountries();
 
   const settings = getAllSettings();
   const fullyOffline = settings.master_offline === "true";
@@ -98,6 +102,41 @@ export default function Home() {
             : `${enabledConnections} optional connection${enabledConnections === 1 ? "" : "s"} on`}
         </Badge>
       </div>
+
+      {/* Travel hero — your visited world, the emotional anchor */}
+      {travel.totalTrips > 0 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <WorldMap visited={visited.map((v) => ({ code: v.country_code, name: v.name, days: v.days, trips: v.trips }))} />
+          </div>
+          <Link
+            href="/trips"
+            className="group flex flex-col justify-center gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="font-mono text-3xl font-semibold tabular-nums text-foreground"><CountUp to={travel.countries} /></div>
+                <div className="text-xs text-muted-foreground">countries</div>
+              </div>
+              <div>
+                <div className="font-mono text-3xl font-semibold tabular-nums text-foreground"><CountUp to={travel.pctOfWorld} />%</div>
+                <div className="text-xs text-muted-foreground">of the world</div>
+              </div>
+              <div>
+                <div className="font-mono text-3xl font-semibold tabular-nums text-foreground"><CountUp to={travel.totalDays} /></div>
+                <div className="text-xs text-muted-foreground">days abroad</div>
+              </div>
+              <div>
+                <div className="font-mono text-3xl font-semibold tabular-nums text-foreground"><CountUp to={travel.continents} /></div>
+                <div className="text-xs text-muted-foreground">continents</div>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 text-sm text-accent-text">
+              Open your atlas <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+        </div>
+      )}
 
       {/* Bento: active trip + privacy posture */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
