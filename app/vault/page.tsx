@@ -1,19 +1,31 @@
-import { Lock } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { EmptyState } from "@/components/empty-state";
+import { VaultClient } from "@/components/vault/vault-client";
+import { isVaultInitialized, listDocs } from "$server/services/vault";
+
+export const dynamic = "force-dynamic";
+
+export type VaultDoc = {
+  id: string;
+  name: string;
+  category: string;
+  filename: string;
+  mime_type: string;
+  file_size: number;
+  tags: string;
+  notes: string | null;
+  created_at: string;
+};
 
 export default function VaultPage() {
+  const initialized = isVaultInitialized();
+  const docs = listDocs() as VaultDoc[];
   return (
     <div className="space-y-6">
       <PageHeader
         title="Vault"
-        description="Encrypted, offline document storage."
+        description="AES-256-GCM encrypted document storage, unlocked with your passphrase. Encrypted on this machine — the passphrase is never stored and nothing is uploaded anywhere."
       />
-      <EmptyState
-        icon={Lock}
-        title="The vault is being rebuilt"
-        description="AES-256-GCM document storage, unlocked with your passphrase, returns in a later phase."
-      />
+      <VaultClient initialized={initialized} initialDocs={docs} />
     </div>
   );
 }
