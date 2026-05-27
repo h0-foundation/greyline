@@ -87,28 +87,30 @@ export function TravelAtlas({
         </div>
       )}
 
-      {/* Countries visited — the collection (passport stamps, text-first) */}
+      {/* Countries visited — a wall of passport stamps (the collectible peak) */}
       <div>
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-faint">
-          Countries visited <span className="text-muted-foreground">· {visited.length}</span>
+          Passport stamps <span className="text-muted-foreground">· {visited.length} countries</span>
         </h3>
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {visited.map((c) => (
-            <li key={c.country_code}>
-              <Link
-                href={`/countries/${c.country_code}`}
-                className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm"
-              >
-                <span className="text-xl leading-none" aria-hidden>{c.flag || "🏳️"}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-foreground">{c.name}</span>
-                  <span className="block font-mono text-[11px] text-faint tabular-nums">
-                    {c.trips} {c.trips === 1 ? "trip" : "trips"} · {c.days}d
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {visited.map((c, i) => {
+            const tilt = [-2, 1.5, -1, 2, -1.5, 1][i % 6]; // hand-stamped jitter
+            return (
+              <li key={c.country_code}>
+                <Link
+                  href={`/countries/${c.country_code}`}
+                  style={{ "--tilt": `${tilt}deg` } as React.CSSProperties}
+                  className="group flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/35 bg-primary/[0.04] p-2 text-center [transform:rotate(var(--tilt))] transition-transform duration-200 ease-out hover:[transform:rotate(0deg)_scale(1.04)] hover:border-primary/60"
+                >
+                  <span className="text-2xl leading-none grayscale-[0.15] group-hover:grayscale-0" aria-hidden>{c.flag || "🏳️"}</span>
+                  <span className="block w-full truncate text-[11px] font-semibold uppercase tracking-wide text-accent-text">{c.name}</span>
+                  <span className="font-mono text-[10px] tabular-nums text-faint">
+                    {c.first ? c.first.slice(0, 4) : "—"} · {c.trips}×
                   </span>
-                </span>
-              </Link>
-            </li>
-          ))}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </section>
