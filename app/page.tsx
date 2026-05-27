@@ -41,7 +41,9 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
 
 
 export default function Home() {
-  const countriesCount = getCountryListRows().length;
+  const countryRows = getCountryListRows();
+  const countriesCount = countryRows.length;
+  const knownCodes = countryRows.map((r) => r.country_code);
   const trips = getAllTrips() as Trip[];
   // Headline = an upcoming/active trip if there is one, else your most recent trip.
   const upcoming =
@@ -106,11 +108,15 @@ export default function Home() {
       {travel.totalTrips > 0 && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <WorldMap home={(settings.home_country ?? "").replace(/"/g, "")} visited={visited.map((v) => ({ code: v.country_code, name: v.name, days: v.days, trips: v.trips }))} />
+            <WorldMap
+              home={(settings.home_country ?? "").replace(/"/g, "")}
+              knownCodes={knownCodes}
+              visited={visited.map((v) => ({ code: v.country_code, name: v.name, days: v.days, trips: v.trips, flag: v.flag, first: v.first, last: v.last }))}
+            />
           </div>
           <Link
             href="/trips"
-            className="group flex flex-col justify-center gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm"
+            className="surface-interactive group flex flex-col justify-center gap-4 rounded-xl border border-border bg-card p-5 hover:border-primary/30"
           >
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -141,7 +147,7 @@ export default function Home() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Link
           href="/trips"
-          className="group flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 lg:col-span-2"
+          className="surface-interactive group flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 lg:col-span-2"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
@@ -235,7 +241,7 @@ function StatTile({
   return (
     <Link
       href={href}
-      className="group rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      className="surface-interactive group rounded-xl border border-border bg-card p-4 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       <Icon className="size-4 text-faint" />
       <div className="mt-3 font-mono text-2xl font-semibold tabular-nums text-foreground">

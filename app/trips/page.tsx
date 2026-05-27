@@ -5,6 +5,7 @@ import { Wrapped } from "@/components/travel/wrapped";
 import { getAllTrips } from "$server/db/repositories/trip";
 import { getTravelStats, getVisitedCountries, getTravelYears, getYearInReview } from "$server/db/repositories/travel";
 import { getSetting } from "$server/db/repositories/settings";
+import { getCountryListRows } from "$server/db/repositories/knowledge";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default function TripsPage() {
   const stats = getTravelStats();
   const visited = getVisitedCountries();
   const home = (getSetting("home_country") ?? "").replace(/"/g, "");
+  const knownCodes = getCountryListRows().map((r) => r.country_code);
   const reviews = getTravelYears().map((y) => getYearInReview(y)).filter((r) => r.hasData);
 
   return (
@@ -45,7 +47,7 @@ export default function TripsPage() {
         description="Your lifetime travel log — every trip, country, and day, stored only on this machine."
       />
       {reviews.length > 0 && <Wrapped reviews={reviews} />}
-      <TravelAtlas stats={stats} visited={visited} onThisDay={onThisDay(trips, visited)} home={home} />
+      <TravelAtlas stats={stats} visited={visited} onThisDay={onThisDay(trips, visited)} home={home} knownCodes={knownCodes} />
       <div className="space-y-4">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-faint">All trips</h2>
         <TripsClient initialTrips={trips} />
