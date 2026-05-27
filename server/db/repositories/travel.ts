@@ -69,6 +69,123 @@ export function getVisitedCountries(): VisitedCountry[] {
     .sort((a, b) => b.days - a.days);
 }
 
+export interface YearInReview {
+  year: number;
+  trips: number;
+  days: number;
+  countries: { code: string; name: string; flag: string; days: number; isNew: boolean }[];
+  newCountries: number;
+  busiestMonth: { month: number; days: number } | null;
+  longestTrip: { name: string; days: number; tripId: string } | null;
+  farthest: { name: string; flag: string } | null;
+  hasData: boolean;
+}
+
+/** Narrative recap of a single year — the "Greyline Wrapped" retention hook.
+ *  Computed entirely from local trip/destination rows. Pass null → latest year. */
+export function getYearInReview(year?: number | null): YearInReview {
+  const db = getDb();
+  const trips = db.prepare(
+    `SELECT t.id, t.name, t.start_date, t.end_date FROM trips t`,
+  ).all() as { id: string; name: string; start_date: string | null; end_date: string | null }[];
+
+  // Resolve target year: explicit, else the most recent year with a dated trip.
+  const yearsWithData = new Set<number>();
+  for (const t of trips) {
+    const d = t.start_date ?? t.end_date;
+    if (!d) continue;
+    const y = new Date(d).getUTCFullYear();
+    if (!Number.isNaN(y)) yearsWithData.add(y);
+  }
+  const target = year ?? (yearsWithData.size ? Math.max(...yearsWithData) : null);
+  if (target === null) {
+    return { year: new Date().getUTCFullYear(), trips: 0, days: 0, countries: [], newCountries: 0, busiestMonth: null, longestTrip: null, farthest: null, hasData: false };
+  }
+
+  // Earliest visit date per country across all trips (to flag first-ever this year).
+  const firstSeen = new Map<string, string>();
+  const destRows = db.prepare(
+    `SELECT d.country_code, d.arrival_date, d.departure_date, d.trip_id, c.rest_countries
+       FROM destinations d
+       LEFT JOIN country_profiles c ON c.country_code = d.country_code
+      WHERE d.country_code IS NOT NULL AND d.country_code != ''`,
+  ).all() as DestRow[];
+  for (const r of destRows) {
+    const d = r.arrival_date ?? r.departure_date;
+    if (!d || !r.country_code) continue;
+    const prev = firstSeen.get(r.country_code);
+    if (!prev || d < prev) firstSeen.set(r.country_code, d);
+  }
+
+  const tripById = new Map(trips.map((t) => [t.id, t]));
+  const inYear = (d: string | null) => d != null && new Date(d).getUTCFullYear() === target;
+
+  const countries = new Map<string, { code: string; name: string; flag: string; days: number; isNew: boolean }>();
+  const months = new Map<number, number>();
+  for (const r of destRows) {
+    const t = tripById.get(r.trip_id);
+    const d = r.arrival_date ?? r.departure_date ?? t?.start_date ?? null;
+    if (!inYear(d)) continue;
+    const cc = r.country_code!;
+    let name = cc, flag = "";
+    if (r.rest_countries) {
+      try { const rc = JSON.parse(r.rest_countries); name = rc?.name?.common ?? cc; flag = rc?.flag ?? ""; } catch { /* keep */ }
+    }
+    const days = dayspan(r.arrival_date, r.departure_date);
+    const entry = countries.get(cc) ?? { code: cc, name, flag, days: 0, isNew: false };
+    entry.days += days;
+    const fs = firstSeen.get(cc);
+    if (fs && new Date(fs).getUTCFullYear() === target) entry.isNew = true;
+    countries.set(cc, entry);
+    if (d) {
+      const m = new Date(d).getUTCMonth();
+      months.set(m, (months.get(m) ?? 0) + days);
+    }
+  }
+
+  let tripsInYear = 0, daysInYear = 0;
+  let longestTrip: YearInReview["longestTrip"] = null;
+  for (const t of trips) {
+    const d = t.start_date ?? t.end_date;
+    if (!inYear(d)) continue;
+    tripsInYear++;
+    const td = dayspan(t.start_date, t.end_date);
+    daysInYear += td;
+    if (!longestTrip || td > longestTrip.days) longestTrip = { name: t.name, days: td, tripId: t.id };
+  }
+
+  let busiestMonth: YearInReview["busiestMonth"] = null;
+  for (const [month, days] of months) {
+    if (!busiestMonth || days > busiestMonth.days) busiestMonth = { month, days };
+  }
+
+  const sorted = [...countries.values()].sort((a, b) => b.days - a.days);
+  return {
+    year: target,
+    trips: tripsInYear,
+    days: daysInYear,
+    countries: sorted,
+    newCountries: sorted.filter((c) => c.isNew).length,
+    busiestMonth,
+    longestTrip,
+    farthest: sorted[0] ? { name: sorted[0].name, flag: sorted[0].flag } : null,
+    hasData: sorted.length > 0 || tripsInYear > 0,
+  };
+}
+
+/** Years that have at least one dated trip, newest first — for the Wrapped picker. */
+export function getTravelYears(): number[] {
+  const rows = getDb().prepare(`SELECT start_date, end_date FROM trips`).all() as { start_date: string | null; end_date: string | null }[];
+  const years = new Set<number>();
+  for (const r of rows) {
+    const d = r.start_date ?? r.end_date;
+    if (!d) continue;
+    const y = new Date(d).getUTCFullYear();
+    if (!Number.isNaN(y)) years.add(y);
+  }
+  return [...years].sort((a, b) => b - a);
+}
+
 export interface TravelStats {
   countries: number;
   continents: number;

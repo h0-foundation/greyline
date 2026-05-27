@@ -1,8 +1,9 @@
 import { PageHeader } from "@/components/page-header";
 import { TripsClient } from "@/components/trip/trips-client";
 import { TravelAtlas } from "@/components/travel/travel-atlas";
+import { Wrapped } from "@/components/travel/wrapped";
 import { getAllTrips } from "$server/db/repositories/trip";
-import { getTravelStats, getVisitedCountries } from "$server/db/repositories/travel";
+import { getTravelStats, getVisitedCountries, getTravelYears, getYearInReview } from "$server/db/repositories/travel";
 import { getSetting } from "$server/db/repositories/settings";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export default function TripsPage() {
   const stats = getTravelStats();
   const visited = getVisitedCountries();
   const home = (getSetting("home_country") ?? "").replace(/"/g, "");
+  const reviews = getTravelYears().map((y) => getYearInReview(y)).filter((r) => r.hasData);
 
   return (
     <div className="space-y-8">
@@ -42,6 +44,7 @@ export default function TripsPage() {
         title="Trips"
         description="Your lifetime travel log — every trip, country, and day, stored only on this machine."
       />
+      {reviews.length > 0 && <Wrapped reviews={reviews} />}
       <TravelAtlas stats={stats} visited={visited} onThisDay={onThisDay(trips, visited)} home={home} />
       <div className="space-y-4">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-faint">All trips</h2>
