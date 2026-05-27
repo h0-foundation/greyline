@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
+import { formatTripDate, type DatePrecision } from "@/lib/trip-format";
 import type { TripRow } from "@/app/trips/page";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
@@ -24,19 +25,6 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
   active: "default",
   wrapped: "outline",
 };
-
-function formatDateRange(start: string | null, end: string | null): string | null {
-  const fmt = (d: string) => {
-    const date = new Date(d);
-    return Number.isNaN(date.getTime())
-      ? null
-      : date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
-  };
-  const s = start ? fmt(start) : null;
-  const e = end ? fmt(end) : null;
-  if (s && e) return `${s} – ${e}`;
-  return s ?? e ?? null;
-}
 
 export function TripsClient({ initialTrips }: { initialTrips: TripRow[] }) {
   const router = useRouter();
@@ -104,7 +92,7 @@ export function TripsClient({ initialTrips }: { initialTrips: TripRow[] }) {
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
                   <span className="font-mono text-xs tabular-nums">
-                    {formatDateRange(t.start_date, t.end_date) ?? "No dates set"}
+                    {formatTripDate(t.start_date, t.end_date, t.date_precision as DatePrecision) ?? "No dates set"}
                   </span>
                   <span className="inline-flex items-center gap-1 text-accent-text">
                     Open <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />

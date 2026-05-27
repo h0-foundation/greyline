@@ -17,9 +17,10 @@ import { ThreatDial } from "@/components/trip/threat-dial";
 import { cn } from "@/lib/utils";
 import { THREAT, TONE_CLASS, type ThreatLevel } from "@/lib/intel";
 import { OPSEC_TEMPLATES, itemsForLevel } from "@/lib/opsec";
+import { formatTripDate, type DatePrecision } from "@/lib/trip-format";
 import type { CountryListItem } from "@/lib/countries";
 
-type Trip = { id: string; name: string; status: string; start_date: string | null; end_date: string | null; notes: string | null };
+type Trip = { id: string; name: string; status: string; start_date: string | null; end_date: string | null; notes: string | null; date_precision?: string };
 type Destination = { id: string; country_code: string | null; city: string | null; arrival_date: string | null; departure_date: string | null; sort_order: number; notes: string | null };
 type ChecklistItem = { id: string; label: string; checked: boolean; notes?: string };
 type Checklist = { id: string; type: string; name: string; items: string };
@@ -79,7 +80,7 @@ export function TripDetail({
         <div className="space-y-1.5">
           <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{trip.name}</h1>
           <p className="font-mono text-xs text-faint tabular-nums">
-            {trip.start_date || "—"} → {trip.end_date || "—"}
+            {formatTripDate(trip.start_date, trip.end_date, (trip.date_precision as DatePrecision) ?? "day") ?? "No dates set"}
           </p>
         </div>
         <div className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5">

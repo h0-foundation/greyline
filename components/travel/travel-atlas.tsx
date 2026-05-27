@@ -22,11 +22,12 @@ function Stat({
 }
 
 export function TravelAtlas({
-  stats, visited, onThisDay,
+  stats, visited, onThisDay, home,
 }: {
   stats: TravelStats;
   visited: VisitedCountry[];
   onThisDay: { name: string; flag: string; year: number; tripId: string }[];
+  home?: string;
 }) {
   if (stats.totalTrips === 0) return null;
   const maxYear = Math.max(1, ...stats.byYear.map((y) => y.days));
@@ -40,7 +41,7 @@ export function TravelAtlas({
       </div>
 
       {/* Hero scratch-map — your visited world, fully offline */}
-      <WorldMap visited={visited.map((v) => ({ code: v.country_code, name: v.name, days: v.days, trips: v.trips }))} />
+      <WorldMap home={home} visited={visited.map((v) => ({ code: v.country_code, name: v.name, days: v.days, trips: v.trips }))} />
 
       {/* Delight stats */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

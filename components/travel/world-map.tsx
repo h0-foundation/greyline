@@ -8,18 +8,19 @@ type Visited = { code: string; name: string; days: number; trips: number };
 
 // Fully offline: country polygons are bundled (Natural Earth, public domain) and
 // rendered with no tile server — on-brand and works with zero network.
-export function WorldMap({ visited }: { visited: Visited[] }) {
+export function WorldMap({ visited, home }: { visited: Visited[]; home?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ name: string; days?: number; trips?: number } | null>(null);
 
   useEffect(() => {
     if (!ref.current) return;
     const dark = document.documentElement.classList.contains("dark");
-    // Oak-green fill for visited countries; NEUTRAL stone land otherwise.
+    // Oak-green = visited; gold spark = home country; NEUTRAL stone = unvisited.
     const c = dark
-      ? { bg: "transparent", off: "#2a2a27", on: "#74b277", border: "#37372f", onText: "#fff" }
-      : { bg: "transparent", off: "#eae8e3", on: "#3f6e44", border: "#dcd9d2", onText: "#fff" };
+      ? { bg: "transparent", off: "#2a2a27", on: "#74b277", homeFill: "#e0b24a", border: "#37372f", onText: "#fff" }
+      : { bg: "transparent", off: "#eae8e3", on: "#3f6e44", homeFill: "#b9892a", border: "#dcd9d2", onText: "#fff" };
     const codes = visited.map((v) => v.code);
+    const homeCode = (home ?? "").toUpperCase();
     const stats = new Map(visited.map((v) => [v.code, v]));
 
     const map = new maplibregl.Map({
@@ -34,7 +35,12 @@ export function WorldMap({ visited }: { visited: Visited[] }) {
           {
             id: "fill", type: "fill", source: "countries",
             paint: {
-              "fill-color": ["case", ["in", ["get", "iso"], ["literal", codes]], c.on, c.off],
+              "fill-color": [
+                "case",
+                ["==", ["get", "iso"], homeCode], c.homeFill,
+                ["in", ["get", "iso"], ["literal", codes]], c.on,
+                c.off,
+              ],
               "fill-opacity": 0.95,
             },
           },
@@ -58,7 +64,7 @@ export function WorldMap({ visited }: { visited: Visited[] }) {
     map.on("mouseleave", "fill", () => { map.getCanvas().style.cursor = ""; setHover(null); });
 
     return () => map.remove();
-  }, [visited]);
+  }, [visited, home]);
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-xs">
@@ -76,6 +82,7 @@ export function WorldMap({ visited }: { visited: Visited[] }) {
       </div>
       {/* Legend */}
       <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-3 rounded-md border border-border bg-card/90 px-2.5 py-1.5 text-[11px] shadow-sm backdrop-blur">
+        {home && <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-spark" />Home</span>}
         <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-primary" />Visited</span>
         <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-muted" />Not yet</span>
       </div>

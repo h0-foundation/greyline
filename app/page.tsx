@@ -19,6 +19,7 @@ import { getAllVaultDocs } from "$server/db/repositories/vault";
 import { getAllSettings, getApiToggles } from "$server/db/repositories/settings";
 import { getTravelStats, getVisitedCountries } from "$server/db/repositories/travel";
 import { WorldMap } from "@/components/travel/world-map";
+import { formatTripDate, type DatePrecision } from "@/lib/trip-format";
 
 // Reads local SQLite at request time.
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ type Trip = {
   status: string;
   start_date: string | null;
   end_date: string | null;
+  date_precision: string;
 };
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
@@ -37,18 +39,6 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
   wrapped: "outline",
 };
 
-function formatDateRange(start: string | null, end: string | null): string | null {
-  const fmt = (d: string) => {
-    const date = new Date(d);
-    return Number.isNaN(date.getTime())
-      ? null
-      : date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
-  };
-  const s = start ? fmt(start) : null;
-  const e = end ? fmt(end) : null;
-  if (s && e) return `${s} – ${e}`;
-  return s ?? e ?? null;
-}
 
 export default function Home() {
   const countriesCount = getCountryListRows().length;
@@ -116,7 +106,7 @@ export default function Home() {
       {travel.totalTrips > 0 && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <WorldMap visited={visited.map((v) => ({ code: v.country_code, name: v.name, days: v.days, trips: v.trips }))} />
+            <WorldMap home={(settings.home_country ?? "").replace(/"/g, "")} visited={visited.map((v) => ({ code: v.country_code, name: v.name, days: v.days, trips: v.trips }))} />
           </div>
           <Link
             href="/trips"
@@ -176,9 +166,9 @@ export default function Home() {
                 <MapPin className="size-4 text-faint" />
                 {destinations.length} destination{destinations.length === 1 ? "" : "s"}
               </span>
-              {formatDateRange(headline.start_date, headline.end_date) && (
+              {formatTripDate(headline.start_date, headline.end_date, headline.date_precision as DatePrecision) && (
                 <span className="font-mono text-xs tabular-nums">
-                  {formatDateRange(headline.start_date, headline.end_date)}
+                  {formatTripDate(headline.start_date, headline.end_date, headline.date_precision as DatePrecision)}
                 </span>
               )}
               {totalItems > 0 && (

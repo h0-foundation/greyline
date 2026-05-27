@@ -3,6 +3,7 @@ import { TripsClient } from "@/components/trip/trips-client";
 import { TravelAtlas } from "@/components/travel/travel-atlas";
 import { getAllTrips } from "$server/db/repositories/trip";
 import { getTravelStats, getVisitedCountries } from "$server/db/repositories/travel";
+import { getSetting } from "$server/db/repositories/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export type TripRow = {
   start_date: string | null;
   end_date: string | null;
   notes: string | null;
+  date_precision: string;
   updated_at: string;
 };
 
@@ -32,6 +34,7 @@ export default function TripsPage() {
   const trips = getAllTrips() as TripRow[];
   const stats = getTravelStats();
   const visited = getVisitedCountries();
+  const home = (getSetting("home_country") ?? "").replace(/"/g, "");
 
   return (
     <div className="space-y-8">
@@ -39,7 +42,7 @@ export default function TripsPage() {
         title="Trips"
         description="Your lifetime travel log — every trip, country, and day, stored only on this machine."
       />
-      <TravelAtlas stats={stats} visited={visited} onThisDay={onThisDay(trips, visited)} />
+      <TravelAtlas stats={stats} visited={visited} onThisDay={onThisDay(trips, visited)} home={home} />
       <div className="space-y-4">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-faint">All trips</h2>
         <TripsClient initialTrips={trips} />
