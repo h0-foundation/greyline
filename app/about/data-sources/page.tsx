@@ -48,6 +48,24 @@ export default function DataSourcesPage() {
         </ul>
       )}
 
+      <section className="space-y-3">
+        <h2 className="label-caps">Live connections (only when you enable them)</h2>
+        <ul className="divide-y divide-border rounded-xl border border-border bg-card text-sm">
+          {[
+            ["Open-Meteo", "Weather", "CC-BY 4.0"],
+            ["OpenStreetMap — Nominatim & Overpass", "Geocoding & map POIs", "ODbL"],
+            ["US State Department", "Travel advisories", "Public Domain"],
+            ["adsb.lol", "Aircraft positions", "ODbL"],
+            ["fawazahmed0 currency-api", "Exchange rates", "CC0"],
+          ].map(([name, use, license]) => (
+            <li key={name} className="flex items-center justify-between gap-4 p-3">
+              <span className="text-foreground">{name} <span className="text-faint">· {use}</span></span>
+              <span className="shrink-0 font-mono text-xs text-faint">{license}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <p className="max-w-prose text-xs text-faint text-pretty">
         Map data © OpenStreetMap contributors (ODbL). Country metadata via REST Countries. Curated
         privacy-posture and arrival data are compiled by Greyline from cited primary and secondary
