@@ -39,12 +39,14 @@ function rank(requirement: string): number {
 export function VisaChecker({
   passports,
   names,
+  initialPassport,
 }: {
   passports: string[];
   names: Record<string, string>;
+  initialPassport?: string;
 }) {
   const reduce = useReducedMotion();
-  const [passport, setPassport] = useState("");
+  const [passport, setPassport] = useState(initialPassport ?? "");
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<VisaRow[]>([]);
   const [loading, setLoading] = useState(false);

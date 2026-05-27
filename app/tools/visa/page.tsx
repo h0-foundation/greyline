@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/page-header";
 import { VisaChecker } from "@/components/tools/visa-checker";
 import { getVisaPassports } from "$server/db/repositories/intel";
 import { getCountryListRows } from "$server/db/repositories/knowledge";
+import { getSetting } from "$server/db/repositories/settings";
 import { toListItem } from "@/lib/countries";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default function VisaPage() {
   for (const row of getCountryListRows()) {
     names[row.country_code] = toListItem(row.country_code, row.rest_countries).name;
   }
+  const initialPassport = (getSetting("passport_country") ?? "").replace(/"/g, "") || undefined;
 
   return (
     <div className="space-y-8">
@@ -19,7 +21,7 @@ export default function VisaPage() {
         title="Visa checker"
         description="Pick your passport to see entry requirements for every destination in the offline matrix."
       />
-      <VisaChecker passports={passports} names={names} />
+      <VisaChecker passports={passports} names={names} initialPassport={initialPassport} />
     </div>
   );
 }

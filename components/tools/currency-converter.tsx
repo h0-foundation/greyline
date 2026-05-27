@@ -20,10 +20,11 @@ function normalizeCode(value: string): string {
   return value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
 }
 
-export function CurrencyConverter() {
+export function CurrencyConverter({ homeCurrency }: { homeCurrency?: string }) {
+  const home = (homeCurrency || "USD").toUpperCase();
   const [amount, setAmount] = useState("100");
-  const [from, setFrom] = useState("USD");
-  const [to, setTo] = useState("EUR");
+  const [from, setFrom] = useState(home);
+  const [to, setTo] = useState(home === "EUR" ? "USD" : "EUR");
   const [loading, setLoading] = useState(true);
   const [disabled, setDisabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
