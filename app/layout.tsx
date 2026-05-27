@@ -30,9 +30,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Greyline",
+  title: "Greyline — your private lifetime travel log",
   description:
-    "Privacy-first, offline-first travel companion. No account, no cloud, nothing leaves your machine.",
+    "Map every country you've visited, plan every trip, and see what each border knows about you. Private, offline, on your machine — no account, no cloud.",
 };
 
 export default function RootLayout({

@@ -94,10 +94,11 @@ export default function Home() {
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-accent-subtle/40 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
-            Welcome to Greyline
+            Every country you&apos;ve been. Everywhere you&apos;re going.
           </h1>
-          <p className="text-sm text-muted-foreground">
-            No account · works offline · nothing leaves this machine.
+          <p className="max-w-prose text-sm text-muted-foreground">
+            Your private lifetime travel log — mapped and yours alone — plus a briefing on what each
+            border knows about you. No account, no cloud, nothing leaves this machine.
           </p>
         </div>
         <Badge
