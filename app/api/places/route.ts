@@ -7,11 +7,11 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const rows = getDb()
     .prepare(
-      `SELECT d.name, d.country_code, d.lat, d.lng, t.name AS trip
+      `SELECT COALESCE(NULLIF(d.city, ''), d.country_code) AS name, d.country_code, d.lat, d.lng, t.name AS trip
          FROM destinations d
          JOIN trips t ON t.id = d.trip_id
         WHERE d.lat IS NOT NULL AND d.lng IS NOT NULL AND d.lat != 0
-        ORDER BY t.updated_at DESC, d.name`,
+        ORDER BY t.updated_at DESC, d.city`,
     )
     .all() as { name: string; country_code: string | null; lat: number; lng: number; trip: string }[];
 
