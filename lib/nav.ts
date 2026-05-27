@@ -5,6 +5,7 @@ import {
   Map,
   Wrench,
   Lock,
+  Eye,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -42,6 +43,12 @@ export const primaryNav: NavItem[] = [
     href: "/map",
     icon: Map,
     description: "Offline map and overlays",
+  },
+  {
+    label: "Surveillance",
+    href: "/surveillance",
+    icon: Eye,
+    description: "Counter-surveillance log and rally points",
   },
   {
     label: "Tools",
