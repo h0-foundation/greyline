@@ -53,11 +53,19 @@ function formatDateRange(start: string | null, end: string | null): string | nul
 export default function Home() {
   const countriesCount = getCountryListRows().length;
   const trips = getAllTrips() as Trip[];
-  const activeTrip =
-    trips.find((t) => t.status === "active") ?? trips.find((t) => t.status !== "wrapped") ?? null;
+  // Headline = an upcoming/active trip if there is one, else your most recent trip.
+  const upcoming =
+    trips.find((t) => t.status === "active") ?? trips.find((t) => t.status === "planning") ?? null;
+  const recent = [...trips]
+    .filter((t) => t.end_date)
+    .sort((a, b) => (b.end_date ?? "").localeCompare(a.end_date ?? ""))[0] ?? null;
+  const headline = upcoming ?? recent;
+  const headlineLabel = upcoming
+    ? upcoming.status === "active" ? "Active trip" : "Upcoming trip"
+    : "Most recent trip";
 
-  const destinations = activeTrip ? getDestinationsByTrip(activeTrip.id) : [];
-  const checklists = activeTrip ? getChecklistsByTrip(activeTrip.id) : [];
+  const destinations = headline ? getDestinationsByTrip(headline.id) : [];
+  const checklists = headline ? getChecklistsByTrip(headline.id) : [];
   let totalItems = 0;
   let checkedItems = 0;
   for (const cl of checklists) {
@@ -148,28 +156,28 @@ export default function Home() {
             <div className="space-y-1">
               <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-faint">
                 <Compass className="size-3.5" />
-                {activeTrip ? "Active trip" : "Trips"}
+                {headline ? headlineLabel : "Trips"}
               </span>
               <h2 className="font-display text-xl font-semibold text-foreground group-hover:text-accent-text">
-                {activeTrip ? activeTrip.name : "Plan your first trip"}
+                {headline ? headline.name : "Plan your first trip"}
               </h2>
             </div>
-            {activeTrip && (
-              <Badge variant={STATUS_VARIANT[activeTrip.status] ?? "secondary"} className="capitalize">
-                {activeTrip.status}
+            {headline && (
+              <Badge variant={STATUS_VARIANT[headline.status] ?? "secondary"} className="capitalize">
+                {headline.status}
               </Badge>
             )}
           </div>
 
-          {activeTrip ? (
+          {headline ? (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="size-4 text-faint" />
                 {destinations.length} destination{destinations.length === 1 ? "" : "s"}
               </span>
-              {formatDateRange(activeTrip.start_date, activeTrip.end_date) && (
+              {formatDateRange(headline.start_date, headline.end_date) && (
                 <span className="font-mono text-xs tabular-nums">
-                  {formatDateRange(activeTrip.start_date, activeTrip.end_date)}
+                  {formatDateRange(headline.start_date, headline.end_date)}
                 </span>
               )}
               {totalItems > 0 && (

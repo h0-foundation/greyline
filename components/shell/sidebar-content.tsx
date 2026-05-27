@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { footerNav, isActive, primaryNav, type NavItem } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { OfflineBadge } from "@/components/shell/offline-badge";
+import { Lauburu } from "@/components/brand/logo";
 
 function Brand() {
   return (
@@ -13,9 +14,7 @@ function Brand() {
       href="/"
       className="flex items-center gap-2.5 rounded-md px-2 py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
     >
-      <span className="flex size-7 items-center justify-center rounded-lg bg-primary shadow-sm">
-        <span className="h-0.5 w-3.5 rounded-full bg-primary-foreground" />
-      </span>
+      <Lauburu className="size-7 text-primary drop-shadow-sm" />
       <span className="font-display text-lg font-bold tracking-tight text-sidebar-foreground">
         Greyline
       </span>

@@ -9,12 +9,16 @@ import {
   Monitor,
   Plug,
   Info,
+  UserRound,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { CONNECTIONS } from "@/lib/connections";
+
+type Country = { code: string; name: string };
 
 type Toggle = { api_id: string; enabled: boolean; use_tor: boolean };
 
@@ -26,13 +30,18 @@ function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl border border-border bg-card p-5 shadow-xs">{children}</div>;
 }
 
-export function SettingsClient() {
+export function SettingsClient({ countries }: { countries: Country[] }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [units, setUnits] = useState("metric");
   const [offline, setOffline] = useState(false);
   const [toggles, setToggles] = useState<Toggle[]>([]);
+  const [homeCountry, setHomeCountry] = useState("");
+  const [passport, setPassport] = useState("");
+  const [currency, setCurrency] = useState("");
+
+  const clean = (v: string | undefined) => String(v ?? "").replace(/"/g, "");
 
   useEffect(() => {
     setMounted(true);
@@ -42,11 +51,24 @@ export function SettingsClient() {
     ])
       .then(([settings, tg]: [Record<string, string>, Toggle[]]) => {
         setOffline(truthy(settings.master_offline));
-        setUnits(String(settings.units ?? "metric").replace(/"/g, "") || "metric");
+        setUnits(clean(settings.units) || "metric");
+        setHomeCountry(clean(settings.home_country));
+        setPassport(clean(settings.passport_country));
+        setCurrency(clean(settings.home_currency));
         setToggles(tg);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  /** Resolve a typed name-or-code to an ISO2 code, then persist. */
+  function saveCountry(key: string, raw: string, setter: (v: string) => void) {
+    const match = countries.find(
+      (c) => c.code === raw.toUpperCase() || c.name.toLowerCase() === raw.toLowerCase(),
+    );
+    const value = match?.code ?? raw.toUpperCase();
+    setter(value);
+    void saveSetting(key, value);
+  }
 
   async function saveSetting(key: string, value: string) {
     await fetch("/api/settings", {
@@ -89,8 +111,51 @@ export function SettingsClient() {
 
   const enabledCount = toggles.filter((t) => t.enabled).length;
 
+  const countryName = (code: string) => countries.find((c) => c.code === code)?.name ?? code;
+
   return (
     <div className="space-y-6">
+      {/* Traveler profile — sets sensible defaults across the app */}
+      <Card>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <UserRound className="size-4 text-accent-text" /> Your profile
+        </h2>
+        <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+          Set this once and the tools match you — the visa checker defaults to your passport, the
+          currency converter to your home currency. Stored only on this machine.
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="home-country">Home country</Label>
+            <Input
+              id="home-country" list="profile-countries"
+              defaultValue={homeCountry ? countryName(homeCountry) : ""}
+              placeholder="e.g. United States"
+              onBlur={(e) => saveCountry("home_country", e.target.value, setHomeCountry)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="passport">Passport</Label>
+            <Input
+              id="passport" list="profile-countries"
+              defaultValue={passport ? countryName(passport) : ""}
+              placeholder="e.g. United States"
+              onBlur={(e) => saveCountry("passport_country", e.target.value, setPassport)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="home-currency">Home currency</Label>
+            <Input
+              id="home-currency" defaultValue={currency} placeholder="e.g. USD" maxLength={3}
+              onBlur={(e) => { const v = e.target.value.toUpperCase(); setCurrency(v); void saveSetting("home_currency", v); }}
+            />
+          </div>
+        </div>
+        <datalist id="profile-countries">
+          {countries.map((c) => <option key={c.code} value={c.name}>{c.code}</option>)}
+        </datalist>
+      </Card>
+
       {/* Master offline kill-switch */}
       <Card>
         <div className="flex items-start justify-between gap-4">

@@ -21,7 +21,7 @@ export const CONNECTIONS: ConnectionMeta[] = [
     id: "exchange-rates",
     label: "Exchange rates",
     description: "Live currency conversion for budgeting on the road.",
-    host: "open.er-api.com",
+    host: "cdn.jsdelivr.net",
   },
   {
     id: "travel-advisory",
