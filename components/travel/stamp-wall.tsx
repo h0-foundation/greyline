@@ -32,7 +32,7 @@ export function StampWall({ visited }: { visited: VisitedCountry[] }) {
           >
             <Link
               href={`/countries/${c.country_code}`}
-              className="group flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/35 bg-primary/[0.05] p-2 text-center transition-[transform,border-color,background-color] duration-200 ease-out hover:rotate-0 hover:scale-[1.05] hover:border-primary/60 hover:bg-primary/[0.09]"
+              className="group flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-primary/35 bg-primary/[0.05] p-2 text-center transition-[transform,border-color,background-color] duration-[var(--duration-snap)] ease-out hover:rotate-0 hover:scale-[1.05] hover:border-primary/60 hover:bg-primary/[0.09]"
             >
               <span className="text-2xl leading-none grayscale-[0.15] transition-[filter] group-hover:grayscale-0" aria-hidden>
                 {c.flag || "🏳️"}

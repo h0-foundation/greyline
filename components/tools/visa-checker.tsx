@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { VISA_LABEL, TONE_CLASS, TONE_DOT } from "@/lib/intel";
+import { TRANSITION } from "@/lib/motion";
 import {
   epochDay,
   fromEpochDay,
@@ -208,7 +209,7 @@ function SchengenCalculator() {
           key={`${status.used}-${status.windowEnd}`}
           initial={reduce ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          transition={TRANSITION.snap}
           className={cn("mt-5 rounded-xl border p-4", band.bg)}
         >
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
@@ -368,7 +369,7 @@ function PassportValidityChecker({
           key={`${result.ok}-${result.ruleMonths}-${result.requiredUntil}`}
           initial={reduce ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          transition={TRANSITION.snap}
           className={cn(
             "mt-5 rounded-xl border p-4",
             result.ok
@@ -623,9 +624,8 @@ function VisaMatrix({
                     initial={reduce ? false : { opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{
-                      duration: 0.22,
+                      ...TRANSITION.default,
                       delay: reduce ? 0 : Math.min(i, 12) * 0.015,
-                      ease: [0.16, 1, 0.3, 1],
                     }}
                     className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs"
                   >

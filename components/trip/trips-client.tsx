@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { formatTripDate, type DatePrecision } from "@/lib/trip-format";
+import { TRANSITION } from "@/lib/motion";
 import type { TripRow } from "@/app/trips/page";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
@@ -76,7 +77,7 @@ export function TripsClient({ initialTrips }: { initialTrips: TripRow[] }) {
               key={t.id}
               initial={reduce ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: reduce ? 0 : Math.min(i, 14) * 0.022, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ ...TRANSITION.snap, delay: reduce ? 0 : Math.min(i, 14) * 0.022 }}
               className="border-b border-border last:border-b-0"
             >
               <Link
@@ -84,7 +85,7 @@ export function TripsClient({ initialTrips }: { initialTrips: TripRow[] }) {
                 className="group relative flex items-center gap-4 py-3.5 pl-5 pr-4 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
               >
                 {/* accent left-edge bar on hover */}
-                <span className="absolute inset-y-0 left-0 w-0.5 origin-top scale-y-0 bg-primary transition-transform duration-200 group-hover:scale-y-100" />
+                <span className="absolute inset-y-0 left-0 w-0.5 origin-top scale-y-0 bg-primary transition-transform duration-[var(--duration-snap)] group-hover:scale-y-100" />
                 <span className="w-8 shrink-0 font-mono text-xs tabular-nums text-faint">
                   {String(initialTrips.length - i).padStart(3, "0")}
                 </span>

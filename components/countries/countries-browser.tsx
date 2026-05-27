@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
+import { TRANSITION } from "@/lib/motion";
 import {
   formatPopulation,
   sortRegions,
@@ -87,15 +88,11 @@ export function CountriesBrowser({ countries }: { countries: CountryListItem[] }
               key={c.code}
               initial={reduce ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.22,
-                delay: reduce ? 0 : Math.min(i, 12) * 0.015,
-                ease: [0.16, 1, 0.3, 1],
-              }}
+              transition={{ ...TRANSITION.default, delay: reduce ? 0 : Math.min(i, 12) * 0.015 }}
             >
               <Link
                 href={`/countries/${c.code}`}
-                className="group flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="surface-interactive group flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 <span className="text-2xl leading-none" aria-hidden>
                   {c.flag || "🏳️"}

@@ -148,12 +148,14 @@
   --chart-4: oklch(0.680 0.170 35);
   --chart-5: oklch(0.620 0.120 285);
 
-  /* Shadows are near-invisible on dark; keep them faint and rely on borders */
-  --gl-shadow-xs: 0 1px 2px hsl(0 0% 0% / 0.30);
-  --gl-shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.35);
-  --gl-shadow-md: 0 4px 8px hsl(0 0% 0% / 0.40);
-  --gl-shadow-lg: 0 12px 28px hsl(0 0% 0% / 0.45);
-  --gl-shadow-xl: 0 24px 48px hsl(0 0% 0% / 0.50);
+  /* Layered dark elevation: warm-green-black ambient + key shadow + a faint
+     top inner highlight to fake a light source. Depth reads "oak", not "void". */
+  --shadow-cast: 140 18% 2%;
+  --gl-shadow-xs: 0 1px 2px hsl(var(--shadow-cast) / 0.40), inset 0 1px 0 hsl(0 0% 100% / 0.025);
+  --gl-shadow-sm: 0 1px 2px hsl(var(--shadow-cast) / 0.40), 0 2px 4px hsl(var(--shadow-cast) / 0.30), inset 0 1px 0 hsl(0 0% 100% / 0.03);
+  --gl-shadow-md: 0 2px 4px hsl(var(--shadow-cast) / 0.40), 0 8px 16px hsl(var(--shadow-cast) / 0.34), inset 0 1px 0 hsl(0 0% 100% / 0.04);
+  --gl-shadow-lg: 0 4px 8px hsl(var(--shadow-cast) / 0.40), 0 16px 32px hsl(var(--shadow-cast) / 0.40), inset 0 1px 0 hsl(0 0% 100% / 0.05);
+  --gl-shadow-xl: 0 8px 16px hsl(var(--shadow-cast) / 0.44), 0 32px 64px hsl(var(--shadow-cast) / 0.48), inset 0 1px 0 hsl(0 0% 100% / 0.06);
 }
 
 @theme inline {
@@ -221,6 +223,13 @@
   --ease-in-quick: cubic-bezier(0.4, 0, 1, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /* Motion durations (Kowalski: ease-out default, exit faster than enter) */
+  --duration-snap: 150ms;
+  --duration-default: 240ms;
+  --duration-enter: 280ms;
+  --duration-exit: 180ms;
+  --duration-slow: 420ms;
+
   /* Diffuse shadows → `shadow-*` utilities (override defaults) */
   --shadow-xs: var(--gl-shadow-xs);
   --shadow-sm: var(--gl-shadow-sm);
@@ -250,6 +259,33 @@
   .font-display {
     letter-spacing: -0.022em;
   }
+  /* Visible keyboard focus everywhere (WCAG 2.4.13): a real 2px outline that
+     survives Windows High Contrast, not just a box-shadow. Components may still
+     layer their own ring; this is the floor. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  @media (forced-colors: active) {
+    :focus-visible { outline-color: Highlight; }
+  }
+}
+
+/* Tabular figures on any metric so digits never jitter as values change. */
+.data { font-variant-numeric: tabular-nums; }
+
+/* Elevation utilities — formalize the "this sits above that" decision.
+   `surface-interactive` lifts on hover; honors reduced-motion. */
+.surface-raised { box-shadow: var(--shadow-md); }
+.surface-interactive {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration-default) var(--ease-out-quint),
+              transform var(--duration-default) var(--ease-out-quint),
+              border-color var(--duration-default) var(--ease-out-quint);
+}
+.surface-interactive:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) {
+  .surface-interactive:hover { transform: none; }
 }
 
 /* Mono ALL-CAPS micro-label — the "technical overlay" / dossier voice */

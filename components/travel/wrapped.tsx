@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { Sparkles, Plane, CalendarClock, Globe2, Compass, ChevronDown } from "lucide-react";
 import { CountUp } from "@/components/count-up";
+import { TRANSITION } from "@/lib/motion";
 import type { YearInReview } from "$server/db/repositories/travel";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -57,7 +58,7 @@ export function Wrapped({ reviews }: { reviews: YearInReview[] }) {
       </div>
 
       {/* Headline numbers */}
-      <motion.div {...rise} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} className="relative mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <motion.div {...rise} transition={TRANSITION.slow} className="relative mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Big icon={Globe2} value={r.countries.length} label={r.countries.length === 1 ? "country" : "countries"} />
         <Big icon={Plane} value={r.trips} label={r.trips === 1 ? "trip" : "trips"} />
         <Big icon={CalendarClock} value={r.days} label="days abroad" />
@@ -65,13 +66,13 @@ export function Wrapped({ reviews }: { reviews: YearInReview[] }) {
       </motion.div>
 
       {/* Narrative line */}
-      <motion.p {...rise} transition={{ duration: 0.4, delay: 0.08, ease: [0.16, 1, 0.3, 1] }} className="relative mt-6 max-w-prose text-pretty text-sm leading-relaxed text-muted-foreground">
+      <motion.p {...rise} transition={{ ...TRANSITION.slow, delay: 0.08 }} className="relative mt-6 max-w-prose text-pretty text-sm leading-relaxed text-muted-foreground">
         {narrative(r)}
       </motion.p>
 
       {/* Country chips, biggest first; new ones sparked */}
       {r.countries.length > 0 && (
-        <motion.ul {...rise} transition={{ duration: 0.4, delay: 0.16, ease: [0.16, 1, 0.3, 1] }} className="relative mt-5 flex flex-wrap gap-2">
+        <motion.ul {...rise} transition={{ ...TRANSITION.slow, delay: 0.16 }} className="relative mt-5 flex flex-wrap gap-2">
           {r.countries.map((c) => (
             <li
               key={c.code}
@@ -89,7 +90,7 @@ export function Wrapped({ reviews }: { reviews: YearInReview[] }) {
       )}
 
       {/* Footnote highlights */}
-      <motion.div {...rise} transition={{ duration: 0.4, delay: 0.24, ease: [0.16, 1, 0.3, 1] }} className="relative mt-6 grid gap-3 border-t border-border pt-5 text-sm sm:grid-cols-2">
+      <motion.div {...rise} transition={{ ...TRANSITION.slow, delay: 0.24 }} className="relative mt-6 grid gap-3 border-t border-border pt-5 text-sm sm:grid-cols-2">
         {r.longestTrip && (
           <Highlight label="Longest trip">
             <Link href={`/trips/${r.longestTrip.tripId}`} className="text-accent-text hover:underline">

@@ -21,6 +21,7 @@ import {
   type StageKind,
   type ExposureBand,
 } from "@/lib/flying";
+import { TRANSITION } from "@/lib/motion";
 
 // --- Minimal ISO2 → name map (display only; falls back to the code) ----------
 const NAMES: Record<string, string> = {
@@ -294,7 +295,7 @@ export function FlyingTrail() {
               key={`${exposure.score}-${exposure.band}`}
               initial={reduce ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              transition={TRANSITION.snap}
               className="rounded-xl border border-border bg-accent-subtle p-4"
             >
               <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
@@ -344,9 +345,8 @@ export function FlyingTrail() {
                   initial={reduce ? false : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
-                    duration: 0.22,
+                    ...TRANSITION.default,
                     delay: reduce ? 0 : Math.min(i, 12) * 0.03,
-                    ease: [0.16, 1, 0.3, 1],
                   }}
                   className="relative flex gap-3 pl-0"
                 >

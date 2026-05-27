@@ -29,6 +29,7 @@ import {
   type ThreatLevel,
   type TravelerStatus,
 } from "@/lib/border";
+import { TRANSITION } from "@/lib/motion";
 
 type CoverageItem = { iso2: string; name: string };
 
@@ -221,7 +222,7 @@ export function BorderPrep({ coverage }: { coverage: CoverageItem[] }) {
             key={plan.score}
             initial={reduce ? false : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={TRANSITION.snap}
             className={cn("font-mono text-5xl font-semibold tabular-nums", bandColor)}
           >
             {plan.score}
@@ -258,9 +259,8 @@ export function BorderPrep({ coverage }: { coverage: CoverageItem[] }) {
                       initial={reduce ? false : { opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
-                        duration: 0.2,
+                        ...TRANSITION.snap,
                         delay: reduce ? 0 : Math.min(i, 8) * 0.03,
-                        ease: [0.16, 1, 0.3, 1],
                       }}
                     >
                       <p className="text-sm text-foreground">{a.text}</p>

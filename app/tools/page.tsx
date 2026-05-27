@@ -52,7 +52,7 @@ export default function ToolsPage() {
               <li key={t.href}>
                 <Link
                   href={t.href}
-                  className="group flex h-full items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:border-primary/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  className="surface-interactive group flex h-full items-start gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-subtle text-accent-text">
                     <t.icon className="size-5" />

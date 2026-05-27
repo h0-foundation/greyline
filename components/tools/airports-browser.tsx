@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { PlacePicker, type Place } from "@/components/tools/place-picker";
+import { TRANSITION } from "@/lib/motion";
 
 type Airport = {
   ident: string;
@@ -204,9 +205,8 @@ function NearestPlanner() {
                 initial={reduce ? false : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
-                  duration: 0.22,
+                  ...TRANSITION.default,
                   delay: reduce ? 0 : Math.min(i, 12) * 0.015,
-                  ease: [0.16, 1, 0.3, 1],
                 }}
                 className="rounded-xl border border-border bg-card p-3.5 shadow-xs"
               >
@@ -352,9 +352,8 @@ function AirportSearch() {
               initial={reduce ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
-                duration: 0.22,
+                ...TRANSITION.default,
                 delay: reduce ? 0 : Math.min(i, 12) * 0.015,
-                ease: [0.16, 1, 0.3, 1],
               }}
               className="rounded-xl border border-border bg-card p-3.5 shadow-xs"
             >

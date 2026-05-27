@@ -25,6 +25,7 @@ import {
   type Answers,
   type Grade,
 } from "@/lib/hotel";
+import { TRANSITION } from "@/lib/motion";
 
 const STORAGE_KEY = "greyline:hotel-score";
 
@@ -200,7 +201,7 @@ export function HotelAssessment() {
           key={result.grade}
           initial={reduce ? false : { opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.2 }}
+          transition={TRANSITION.snap}
           className={cn(
             "rounded-xl border bg-card p-5 text-center shadow-xs",
             band.ring,
@@ -248,7 +249,7 @@ export function HotelAssessment() {
                   key={gap.label}
                   initial={reduce ? false : { opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.18, delay: reduce ? 0 : i * 0.025 }}
+                  transition={{ ...TRANSITION.snap, delay: reduce ? 0 : i * 0.025 }}
                   className="rounded-lg border border-border bg-accent-subtle/30 p-2.5"
                 >
                   <div className="flex items-start justify-between gap-2">

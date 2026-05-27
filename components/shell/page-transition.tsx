@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
+import { TRANSITION } from "@/lib/motion";
 
 /**
  * Subtle enter-only transition on route change. App Router renders new content
@@ -16,7 +17,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       key={pathname}
       initial={reduce ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      transition={TRANSITION.default}
       className="h-full"
     >
       {children}

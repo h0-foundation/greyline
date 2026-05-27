@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { animate, useReducedMotion } from "motion/react";
+import { EASE } from "@/lib/motion";
 
 /** Eased count-up for headline stats. Honors reduced-motion (renders the final
  *  value immediately) and only runs once on mount. */
@@ -23,7 +24,7 @@ export function CountUp({
     ran.current = true;
     const controls = animate(0, to, {
       duration,
-      ease: [0.16, 1, 0.3, 1],
+      ease: EASE.outQuint,
       onUpdate: (v) => setValue(Math.round(v)),
     });
     return () => controls.stop();
