@@ -40,10 +40,15 @@ const securityHeaders = [
       // Tailwind v4 and shadcn primitives use inline styles.
       "style-src 'self' 'unsafe-inline'",
       // The grain SVG and the PNG-export pipeline use data:/blob: image URLs.
-      "img-src 'self' data: blob:",
+      // The OSINT map (`/map`) reaches public tile servers directly from the
+      // browser — CARTO basemap, NASA GIBS satellite, RainViewer radar.
+      // Server-proxied APIs (aircraft, quakes, disasters, cameras, geocode)
+      // stay same-origin via /api/* and don't need to be allow-listed here.
+      "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tilecache.rainviewer.com https://gibs.earthdata.nasa.gov",
       "font-src 'self'",
-      // Every external call is proxied through /api/* — same-origin only.
-      "connect-src 'self'",
+      // Same OSINT-map exception applies to connect-src — RainViewer's
+      // metadata endpoint is hit directly from the browser.
+      "connect-src 'self' https://api.rainviewer.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
