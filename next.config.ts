@@ -46,9 +46,11 @@ const securityHeaders = [
       // stay same-origin via /api/* and don't need to be allow-listed here.
       "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tilecache.rainviewer.com https://gibs.earthdata.nasa.gov",
       "font-src 'self'",
-      // Same OSINT-map exception applies to connect-src — RainViewer's
-      // metadata endpoint is hit directly from the browser.
-      "connect-src 'self' https://api.rainviewer.com",
+      // MapLibre v5 fetches raster tiles via `fetch()` (not <img>), so the
+      // browser enforces connect-src on them — not img-src. The CARTO/GIBS
+      // hosts have to be allow-listed here too. RainViewer's metadata JSON is
+      // hit directly from the browser as well.
+      "connect-src 'self' https://*.basemaps.cartocdn.com https://tilecache.rainviewer.com https://gibs.earthdata.nasa.gov https://api.rainviewer.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
