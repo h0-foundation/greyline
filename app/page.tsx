@@ -20,6 +20,7 @@ import { getAllSettings, getApiToggles } from "$server/db/repositories/settings"
 import { getTravelStats, getVisitedCountries } from "$server/db/repositories/travel";
 import { WorldMap } from "@/components/travel/world-map";
 import { formatTripDate, type DatePrecision } from "@/lib/trip-format";
+import { computeOnThisDay, yearsAgo } from "@/lib/on-this-day";
 
 // Reads local SQLite at request time.
 export const dynamic = "force-dynamic";
@@ -80,6 +81,9 @@ export default function Home() {
   const toggles = getApiToggles();
   const enabledConnections = toggles.filter((t) => t.enabled).length;
 
+  // "On this day" — same-MM-DD trips across any prior year. Quiet daily surface.
+  const otd = computeOnThisDay(trips);
+
   return (
     <div className="space-y-6">
       {/* Reassurance — the privacy through-line, always visible */}
@@ -103,6 +107,29 @@ export default function Home() {
             : `${enabledConnections} optional connection${enabledConnections === 1 ? "" : "s"} on`}
         </Badge>
       </div>
+
+      {/* On This Day — a hairline, not a card. Surfaces only when there is something to say. */}
+      {otd.length > 0 && (
+        <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-y border-border py-3.5 text-sm">
+          <span className="label-caps shrink-0">On this day</span>
+          {otd.slice(0, 2).map((e, i) => {
+            const n = yearsAgo(e);
+            return (
+              <span key={e.tripId} className="text-muted-foreground">
+                {i > 0 && <span className="mx-2 text-faint">·</span>}
+                <Link
+                  href={`/trips/${e.tripId}`}
+                  className="text-foreground transition-colors hover:text-accent-text"
+                >
+                  {n === 0 ? "today" : `${n} year${n === 1 ? "" : "s"} ago`}
+                </Link>
+                <span className="text-faint"> — </span>
+                {e.name}
+              </span>
+            );
+          })}
+        </p>
+      )}
 
       {/* Travel hero — your visited world, the emotional anchor */}
       {travel.totalTrips > 0 && (
