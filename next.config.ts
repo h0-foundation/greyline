@@ -28,8 +28,13 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
+      // 'unsafe-inline' is required by Next 15+/16 App Router: RSC streams page
+      // chunks via inline `<script>self.__next_f.push(...)</script>` tags.
+      // Without it, the static shell renders but no content streams in.
+      // A future upgrade path is nonce-based CSP via middleware; for a local
+      // same-origin app this is acceptable defense-in-depth.
       // 'wasm-unsafe-eval' is required by MapLibre's WebGL/WASM path.
-      "script-src 'self' 'wasm-unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
       // protomaps/MapLibre workers come from blob:.
       "worker-src 'self' blob:",
       // Tailwind v4 and shadcn primitives use inline styles.
