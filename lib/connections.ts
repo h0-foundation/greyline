@@ -25,9 +25,15 @@ export const CONNECTIONS: ConnectionMeta[] = [
   },
   {
     id: "travel-advisory",
-    label: "Travel advisories",
-    description: "US State Department advisory levels and safety notes by country.",
+    label: "Travel advisories — US State Dept",
+    description: "US State Department advisory levels (1–4) and safety notes by country.",
     host: "cadataapi.state.gov",
+  },
+  {
+    id: "uk-fcdo",
+    label: "Travel advisories — UK FCDO",
+    description: "UK Foreign, Commonwealth & Development Office travel advice, fetched via the gov.uk Content API.",
+    host: "www.gov.uk",
   },
   {
     id: "nominatim",
