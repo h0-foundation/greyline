@@ -1,0 +1,75 @@
+name: Bug report
+description: Something is broken or behaving unexpectedly.
+title: "bug: "
+labels: ["type/bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Greyline runs entirely on your machine, so
+        reproducing requires a few specifics: your OS, how you started the app
+        (`pnpm dev` / `pnpm start` / Docker), and whether any optional connectors
+        were enabled.
+
+        **Do NOT** paste your `data/greyline.db` or any vault contents — they
+        contain your travel history. If a bug requires DB state to reproduce,
+        describe the shape (e.g. "1 trip with 3 destinations, no flights").
+  - type: input
+    id: version
+    attributes:
+      label: Greyline commit / version
+      description: "Output of `git rev-parse --short HEAD`."
+      placeholder: "e85481a"
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: How you ran it
+      options:
+        - pnpm dev
+        - pnpm build && pnpm start
+        - docker compose up
+        - standalone (node .next/standalone/server.js)
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS + browser
+      placeholder: "macOS 15.1 · Chrome 132"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Numbered, minimal, deterministic.
+      placeholder: |
+        1. Open /trips
+        2. Create a trip "X"
+        3. Add a destination "DE"
+        4. Observe …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs. actual
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console + server logs
+      description: Browser DevTools console + the terminal running pnpm. Strip PII first.
+      render: text
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I've searched existing issues for duplicates.
+          required: true
+        - label: This is reproducible against `main` (or I noted the SHA above).
+          required: true

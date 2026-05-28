@@ -1,12 +1,20 @@
 version: 2
 updates:
-  # npm (lockfile + manifest)
+  # npm — application + tooling.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    labels:
+      - "deps"
+      - "needs-triage"
+    commit-message:
+      prefix: "build(deps)"
+      prefix-development: "build(deps-dev)"
+      include: scope
+    # Group related ecosystems so we don't drown in 30 separate PRs every Monday.
     groups:
       next-and-react:
         patterns:
@@ -26,11 +34,46 @@ updates:
       types:
         patterns:
           - "@types/*"
+      eslint:
+        patterns:
+          - eslint
+          - "@eslint/*"
+          - typescript-eslint
+      playwright:
+        patterns:
+          - "@playwright/test"
+          - playwright
+          - "@axe-core/*"
 
-  # GitHub Actions
+  # GitHub Actions — pin updates here.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 3
+    labels:
+      - "deps"
+      - "area/infra"
+      - "needs-triage"
+    commit-message:
+      prefix: "ci"
+      include: scope
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Docker base image.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    labels:
+      - "deps"
+      - "area/infra"
+    commit-message:
+      prefix: "ops"
+      include: scope

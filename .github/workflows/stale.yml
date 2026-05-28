@@ -1,0 +1,34 @@
+# Stale-bot — closes issues + PRs after a long idle period. Tuned to NOT kill
+# momentum: 4-month grace, then a 1-month warning, then close. Project-pinned
+# items get an exempt label so they don't get reaped.
+name: Stale
+
+on:
+  schedule:
+    - cron: "31 1 * * *"           # Daily at 01:31 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: 120
+          days-before-close: 30
+          stale-issue-message: |
+            This issue has been idle for 4 months. If it's still relevant, please add a comment or it'll be auto-closed in 30 days. Use the `pinned` label to keep it open indefinitely.
+          stale-pr-message: |
+            This PR has been idle for 4 months. If you're still working on it, rebase + push or comment to keep it open. It'll be auto-closed in 30 days.
+          close-issue-message: "Closed automatically. Reopen anytime with new context."
+          close-pr-message: "Closed automatically. Reopen + rebase when ready."
+          exempt-issue-labels: "pinned,security,roadmap"
+          exempt-pr-labels: "pinned,security"
+          stale-issue-label: "stale"
+          stale-pr-label: "stale"
+          operations-per-run: 50

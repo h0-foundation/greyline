@@ -1,0 +1,8 @@
+# CODEOWNERS — every path's default reviewer.
+# Greyline is a single-maintainer repo today; this gates merges via the
+# branch-protection 'require review from Code Owners' setting and surfaces
+# a reviewer on every PR automatically.
+#
+# Syntax docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+* @ark-232

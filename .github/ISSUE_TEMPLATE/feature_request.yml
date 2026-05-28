@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose a new capability or improvement.
+title: "feat: "
+labels: ["type/feature", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Greyline is opinionated: local-first, offline-first, no telemetry, no
+        accounts. Features that violate those principles will be declined.
+        See the **What could be coming soon** section in the README for the
+        kind of work we're actively interested in.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Start with the user, not the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Short and concrete. UI mockups + data sources welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Privacy alignment
+      options:
+        - label: This feature does not require an account or cloud service.
+        - label: This feature can be turned off without losing core functionality.
+        - label: If it adds an outbound call, it's behind a per-API toggle.
+        - label: If it bundles data, a public/permissive license exists for it.

@@ -1,0 +1,5 @@
+# Sponsorship surface for the repo's "Sponsor" button.
+# Empty values are skipped; uncomment + populate when you want to accept funds.
+# github: [ark-232]
+# custom: ["https://your-domain/donate"]
+github: []

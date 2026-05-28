@@ -1,0 +1,59 @@
+# Path → label mapping for actions/labeler.
+
+"area/ui":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "app/**"
+          - "components/**"
+          - "app/globals.css"
+
+"area/server":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "server/**"
+          - "app/api/**"
+
+"area/data":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "data/templates/**"
+          - "server/db/migrations/**"
+          - "scripts/build-*.ts"
+
+"area/infra":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "Dockerfile"
+          - "docker-compose.yml"
+          - "next.config.ts"
+
+"area/security":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "server/crypto/**"
+          - "server/services/vault.ts"
+          - "SECURITY.md"
+          - "next.config.ts"
+
+"area/docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "README.md"
+          - "CONTRIBUTING.md"
+          - "CODE_OF_CONDUCT.md"
+          - "SECURITY.md"
+          - "docs/**"
+          - ".research/**"
+
+"area/e2e":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "e2e/**"
+          - "playwright.config.*"
+
+"deps":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "package.json"
+          - "pnpm-lock.yaml"
