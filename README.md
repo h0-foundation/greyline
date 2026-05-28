@@ -2,9 +2,29 @@
 
 **Your private lifetime travel log — kept, mapped, and explained on your own machine. Nothing leaves it.**
 
-Greyline is a local-only, offline-first travel app for people who want a complete, durable record of every trip they've ever taken — and a calm way to plan the ones still ahead — without handing that history to anyone else.
+Greyline is a local-only, offline-first travel intelligence app. It holds every trip you've taken in a single SQLite file, auto-generates the briefing for every trip you're planning (advisories, packing list, documents needed, airline rules, layover risk), and renders a dark editorial cockpit at `/` answering one question: *what needs my attention right now?*
 
 No accounts. No cloud. No telemetry. One folder of files on your computer, and one app you control.
+
+---
+
+## Table of contents
+
+1. [Why this exists](#why-this-exists)
+2. [Quick start](#quick-start)
+3. [Architecture at a glance](#architecture-at-a-glance)
+4. [Pages — every surface, what it does](#pages--every-surface-what-it-does)
+5. [Tools — what each computes locally](#tools--what-each-computes-locally)
+6. [Auto-generated trip kit](#auto-generated-trip-kit)
+7. [Data layer — every table, every bundle](#data-layer--every-table-every-bundle)
+8. [Build scripts — how the bundles get there](#build-scripts--how-the-bundles-get-there)
+9. [External connectors](#external-connectors)
+10. [Cyber & posture analysis](#cyber--posture-analysis)
+11. [Tech stack](#tech-stack)
+12. [Project layout](#project-layout)
+13. [All commands](#all-commands)
+14. [What could be coming soon](#what-could-be-coming-soon)
+15. [License](#license)
 
 ---
 
@@ -16,23 +36,27 @@ Greyline takes the opposite stance:
 
 - **Your whole travel life, in one private record.** Every trip you've taken, every country day-counted, every passport you've held — kept locally, exportable on demand, deletable at will.
 - **SF-86-grade rigor, civilian-useful.** The same disclosure logic the U.S. government uses for foreign-travel reporting (the 7-year rolling window, per-country day totals, residency, Schengen 90/180) — without ever calling it "SF-86." For most people it's just *"the record I'd want if I ever had to remember exactly where I was."*
-- **Decision tools, not engagement loops.** Visa eligibility, weather-as-go/no-go, currency, country briefings, hotel-room security, border device-prep, EXIF stripping, self-doxxing audits — all computed locally from bundled data.
-- **A map of you, only for you.** A hero scratch-map fills in every country you've been — fully offline, click any country for its briefing, export the whole thing as a PNG.
+- **Decision tools, not engagement loops.** Multi-government advisories, packing recipes, document requirements, airline carry-on rules, layover risk, weather-as-go/no-go, currency, country dossiers — all computed locally from bundled data.
+- **A cockpit, not a feed.** The home page is designed against 47 sources of primary HCI research (`.research/`): a single "what needs my attention?" tile, temporal chunks (today / upcoming / recent), data-ink-ratio numbers strip, and a hero scratch-map showing every country you've been.
 
-Built for journalists, frequent travelers, security-minded professionals, people with public profiles, dual citizens, and anyone who would rather not feed their movement history to ad-tech. AGPL-3.0 — you can read every line of code that touches your data.
+Built for journalists, frequent travelers, security-minded professionals, dual citizens, NGO field staff, and anyone who would rather not feed their movement history to ad-tech. AGPL-3.0.
 
 ---
 
 ## Quick start
 
 ```bash
-# 1. clone, install, create the local SQLite db, seed default settings
+# 1. clone, install, create the local SQLite DB, seed default settings
 git clone https://github.com/h0-foundation/greyline.git
 cd greyline
 pnpm setup
 
-# 2. (optional) bundle 250 country profiles for the briefings
-pnpm build:countries
+# 2. (optional but recommended) bundle the dossier + advisory + trip-data layers
+pnpm build:countries    # ~250 country profiles (REST Countries)
+pnpm build:data         # ~45k airports (OurAirports) + visa matrix (passport-index)
+pnpm build:dossier      # CPI, RSF, visa-free counts, CIA Factbook (per country)
+pnpm build:advisories   # US State Dept + UK FCDO travel advisories
+pnpm build:trip-data    # Packing / OPSEC / airline / document templates
 
 # 3. run it
 pnpm dev
@@ -44,109 +68,349 @@ Open **http://localhost:3000**. That's it.
 
 **Prefer a production build?** `pnpm build && pnpm start` — same port, faster, no hot reload.
 
-**Prefer Docker?** `docker compose up -d` — exposes the app at **http://localhost:3000** (loopback-only). Your `data/` is volume-mounted, so it survives container restarts.
+**Prefer Docker?** `docker compose up -d` — exposes the app at `127.0.0.1:3000` (loopback-only). Your `data/` is volume-mounted, so it survives container restarts.
 
 ---
 
-## What's in it
-
-**24 pages, 32 local API routes**, all rendering at request time from local SQLite. Every external network call is **off by default** and goes through a local proxy you control.
-
-### The lifetime record
-- **Dashboard** — scratch-map + lifetime stats (countries · % of world · days · continents), most-recent trip, privacy posture, OPSEC readiness.
-- **Trips atlas** (`/trips`) — full-width animated scratch-map, year-by-year days bar, "On this day," Greyline Wrapped per-year recaps, passport-stamp wall, the full lifetime trip ledger.
-- **Trip detail** — destinations, threat model (assets · adversaries · capability · consequence), destination-aware OPSEC checklists with readiness scoring.
-- **Countries** — searchable 250-country directory + per-country briefing (capital · currencies · languages · timezones · neighbors · airports · emergency numbers · power specs · privacy posture).
-- **Vault** — AES-256-GCM encrypted document store, passphrase-protected (Argon2id KDF). No recovery — by design.
-- **Map** — offline MapLibre OSINT map with destinations, rally points, surveillance sightings, plus optional layers (GDACS disasters, USGS earthquakes, OSM cameras, live ADS-B).
-- **Surveillance** — TEDD-principle counter-surveillance log with repeat-pattern detection + rally-point manager.
-
-### The hero scratch-map
-The emotional anchor — your visited world made visible. Bundled Natural Earth geometry (177 features, 248 KB; zero network), oak-green visited / gold home / stone unvisited.
-
-- **Hover** → flag · trips · days · year range.
-- **Click any country** → its briefing.
-- **First-load fill** → countries light up most-traveled-first (`prefers-reduced-motion` skips to the final state instantly).
-- **Export "My world" as PNG** → theme-matched, title-banded, downloads locally.
-- **Theme-reactive** → light/dark toggle recolors live without replaying the animation.
-
-### Tools (11, all linkable from `/tools`)
-| | Tool | What it computes |
-|---|---|---|
-| ✈ | **Airports** | Search 85k airports; nearest scheduled airports + bearing + dispersion (egress check). Offline. |
-| 🪪 | **Visa checker** | Your passport → any destination (offline matrix). Schengen 90/180 days. Passport validity rules. Offline. |
-| ☁ | **Weather** | 7-day Open-Meteo forecast + go/no-go signal (heat, UV, photography light). Connection optional. |
-| ⚠ | **Travel advisories** | Per-country risk scores. Connection optional. |
-| 💱 | **Currency** | Live (cached) exchange + per-diem math. Connection optional. |
-| 🏨 | **Hotel & room security** | Room-selection scoring (executive-protection tradecraft) + on-arrival walkthrough checklist. Offline. |
-| 🛂 | **Border crossing** | Device-prep exposure score by destination/status/threat + before/at/after checklist. Offline. |
-| 🛩 | **Data footprint of flying** | What API/PNR/EU EES/ETIAS/US biometric/transit systems capture when you fly. Offline reference. |
-| 🧳 | **Packing** | Threat-aware packing checklist (6 sections). Offline. |
-| 🖼 | **EXIF stripper** | Drag-and-drop GPS/metadata removal. Processed in-memory, never uploaded. |
-| 👁 | **Self-doxxing audit** | Generated search queries + broker opt-out tracker. Doesn't search anything — just shows you what to check, in private. |
-
-### Settings + data
-- **Settings** — units, locale, home country, passport country, per-connection toggles, traveler profile.
-- **Data management** (`/settings/data`) — back up, restore, or wipe your local data (JSON export/import).
-- **Data sources** (`/about/data-sources`) — every bundled dataset and optional connection, with its license and what it returns.
-
----
-
-## Your data, your machine
+## Architecture at a glance
 
 ```
-data/
-├── greyline.db            ← SQLite (trips, destinations, countries, settings, cache)
-├── greyline.db-wal        ← Write-ahead log (auto-managed)
-├── greyline.db-shm        ← Shared memory file (auto-managed)
-└── vault/
-    ├── .verify            ← Argon2id-derived passphrase verifier
-    └── *.enc              ← Your encrypted documents (AES-256-GCM)
+┌─────────────────────────────────────────────────────────────────┐
+│  Browser (single tab, localhost)                                │
+│  ─ React 19 + shadcn/ui (Radix), Tailwind 4, motion/react       │
+│  ─ MapLibre GL 5 (offline scratch-map + online OSINT layer)     │
+│  ─ View Transitions API (cross-route shared elements)           │
+└─────────────────────────────────────────────────────────────────┘
+                              │ HTTP (loopback only)
+┌─────────────────────────────────────────────────────────────────┐
+│  Next.js 16 server  (single process)                            │
+│  ─ App Router with server components doing direct SQLite reads  │
+│  ─ Route handlers under /api for CRUD + JSON                    │
+│  ─ Security headers: HSTS · COOP · CORP · CSP · Permissions-PT  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────────┐
+        ▼                     ▼                         ▼
+┌──────────────┐   ┌──────────────────────┐   ┌──────────────────┐
+│ SQLite (WAL) │   │ Vault (AES-256-GCM)  │   │ External proxies │
+│ better-sqlite3│  │ Argon2id KDF         │   │ (gateway)         │
+│ ─ 22 tables  │   │ per-doc nonce + tag  │   │ ─ disabled by     │
+│ ─ migrations │   │ no recovery          │   │   default          │
+│ ─ data_sources│  └──────────────────────┘   │ ─ user-toggled    │
+└──────────────┘                              │ ─ all responses   │
+                                              │   cached locally  │
+                                              └──────────────────┘
 ```
 
-**Back it up:** `cp -r data/ data-backup-$(date +%F)/`
-**Start the DB over (keeps the vault):** `rm data/greyline.db* && pnpm migrate && pnpm seed`
-**Nuke everything:** `rm -rf data/ && pnpm setup`. Encrypted vault docs are unrecoverable after this.
+Everything runs as one Node process. There is no background worker, no cron, no daemon. Server components do reads at request time; the home page is a `force-dynamic` route that aggregates from 8+ tables on every request and renders straight to RSC stream.
 
 ---
 
-## External connections (all off by default)
+## Pages — every surface, what it does
 
-Greyline makes **zero outbound network requests** until you turn one on. Each is a discrete toggle in Settings → Connections, and a master "Fully offline" switch blocks them all instantly. When enabled, every request goes through a local proxy that:
+The app has **14 user-facing routes** plus **32 local API handlers**. Every route is server-rendered from local data.
 
-- strips identifying headers (`User-Agent`, `Referer`),
-- respects the master offline switch,
-- caches responses in SQLite to minimize repeats.
+### Cockpit & navigation
 
-| Source | Used for | Limit |
+| Route | What it does | Pulls from |
 |---|---|---|
-| Open-Meteo | Weather forecasts | 10k/day |
-| travel-advisory.info | Country risk scores | Unlimited |
-| fawazahmed0/exchange-api | Currency rates (150+) | Unlimited |
-| Nominatim (OSM) | Geocoding | 1 req/sec |
-| Overpass (OSM) | Surveillance camera locations | Fair use |
-| GDELT | Global events | Unlimited |
-| USGS | Earthquakes (past day, M2.5+) | Unlimited |
-| GDACS | Global disaster alerts | Unlimited |
-| ADSB.lol | Live ADS-B aircraft | Unlimited |
+| `/` | The **cockpit**. Status hairline (date · privacy posture) → cockpit tile for the trip needing attention now (Fraunces lede, four 44×44 instruments) → Up Next + Recent columns → six-KPI numbers strip → scratch map → On-this-day → conditional Hotspots panel → four primary actions. Built from 47 sources of primary research. | trips, destinations, flights, checklists, dossier, indices, advisories, vault, settings |
+| `/trips` | **Planning focus.** Lists active + planning trips only with rich row cards (destinations, flights, carriers, packing %, docs %, peak advisory). New-trip dialog. | trips (filtered), checklists, flights, peak advisories |
+| `/logbook` | **The archive.** Wrapped trips index, the full lifetime atlas with the animated scratch-map, year-by-year Wrapped recaps. Read-only. | trips (wrapped), travel stats, visited |
+| `/trips/[id]` | **Trip detail.** Threat dial, destinations, flights + layover analysis, trip-limits card (tightest carry-on/lithium/liquids across carriers), auto-generated briefing per destination, documents checklist, packing list. | trips, destinations, flights, airline rules, dossier, intel, practical, visa, exchange rates |
+| `/disclosure` | **SF-86-style export.** 7-year rolling window, per-country day totals, Schengen 90/180. Markdown + JSON download. | trips, destinations |
 
-No API keys required for any of them — they're all free and open.
+### Country intelligence
+
+| Route | What it does | Pulls from |
+|---|---|---|
+| `/countries` | **Browser.** 250-country index with filter chips by region + advisory threshold. Each row shows the peak advisory dot + level chip. Deep-link `?advisory=N`. | country_profiles, peak advisories |
+| `/countries/[code]` | **Full dossier.** Editorial Fraunces header (flag, name, region, population, coordinates) → multi-source advisories stack → indices grid (CPI, RSF, visa-free reach) → at-a-glance facts → money / languages / time zones / neighbors / arrival / airports → privacy posture → CIA Factbook accordion (Government / Economy / People / Comms / Transport / Military). | every dossier table |
+
+### Map & field
+
+| Route | What it does | Pulls from |
+|---|---|---|
+| `/map` | **Online OSINT layer.** MapLibre raster basemap (CARTO dark), optional toggles for satellite (NASA GIBS), radar (RainViewer), aircraft (ADS-B), earthquakes (USGS), disasters (GDACS), surveillance cameras (OSM Overpass). Click-to-place rally points. | destinations, sightings, rally points + live overlays |
+| `/surveillance` | **TEDD-principle counter-surveillance log.** Sightings + repeat-pattern detection + rally-point manager. | counter_surveillance_log, rally_points |
+
+### Vault & settings
+
+| Route | What it does | Pulls from |
+|---|---|---|
+| `/vault` | **Encrypted document store.** Passphrase unlock (Argon2id KDF, in-memory only) → list with categories → upload/download/delete. Locked titles render as redaction bars; unlock sweeps them away. | vault_docs |
+| `/settings` | Units, locale, home country, passport country, **per-connection toggles** (one switch per external API, OFF by default), master "Fully offline" switch. | settings, api_toggles |
+| `/settings/data` | **Local data management.** JSON export + import + wipe. | settings |
+| `/about/data-sources` | **Attributions page.** Every bundled dataset and every optional connection with license + URL + row count + last-updated. | data_sources |
+
+### Tools index
+
+| Route | What it does |
+|---|---|
+| `/tools` | Workflow-grouped index of the 10 individual tools below. |
 
 ---
 
-## Tech
+## Tools — what each computes locally
+
+All tools are server-rendered + run computation locally. Anything that needs a live connection clearly labels it; everything else has the "Offline" tag.
+
+| Tool | Route | What it computes | Mode |
+|---|---|---|---|
+| **Airports** | `/tools/airports` | Search ~45k airports by IATA / ICAO / name. Nearest scheduled airports with bearing + dispersion (egress check). Country filters. | Offline |
+| **Visa matrix** | `/tools/visa` | Your passport → any destination from the offline ilyankou matrix. Schengen 90/180 calculator. Passport-validity-rule check. | Offline |
+| **Weather** | `/tools/weather` | 7-day Open-Meteo forecast + go/no-go signal (heat, UV, photography light). | Live opt-in |
+| **Currency** | `/tools/currency` | Live (cached) rate, per-diem math, channel-cost variance (ATM vs cash vs XE). | Live opt-in |
+| **Packing library** | `/tools/packing` | Filterable explorer over the 50 bundled packing templates (climate / activity / threat tier). The *trip-aware* persistent list lives on the trip detail page. | Offline |
+| **Border crossing** | `/tools/border` | Device-prep exposure score by destination + status + threat → before / at / after checklist. | Offline |
+| **Hotel & room security** | `/tools/hotel` | Room-selection scorecard (executive-protection tradecraft) + on-arrival walkthrough + front-desk request script. | Offline |
+| **Data footprint of flying** | `/tools/flying` | What API/PNR/EU EES/ETIAS/US biometric/transit systems capture when you fly. Reference + per-route exposure. | Offline |
+| **EXIF stripper** | `/tools/exif` | Drag-and-drop GPS / device-fingerprint / timestamp removal. Browser-only — no upload. | Offline (client-only) |
+| **Self-doxxing audit** | `/tools/self-doxxing` | Generates copy-ready OSINT queries (name / email / phone / username / reverse-image) + broker opt-out tracker. Doesn't search anything — shows you what to check in private. | Offline |
+
+---
+
+## Auto-generated trip kit
+
+The biggest piece of the recent build: **every tool's output is auto-baked into every trip.** Open `/trips/[id]` and Greyline assembles, server-side, from the trip's destinations + threat tier + flights:
+
+### 1. Briefing (per destination)
+- **Advisories** — every source we have for that country, colour-keyed Level 1..4, summary, last-updated, deep-link.
+- **Entry & cash** — visa requirement from your home passport → that country, cash declaration threshold, exchange rate if the connector is on.
+- **Posture** — VPN / SIM-registration / device-unlock-compulsion / LGBTQ+ legal risk / photography legality (from `country_intel`).
+- **Practical** — emergency numbers, plug types + voltage + driving side.
+- **Airports** — nearest scheduled airports by IATA/ICAO.
+- **Pre-departure checklist** — auto-generated bullets (apply for KR e-Visa, carry IDP for Italy, declare cash > USD 10,000 for US, etc.).
+
+### 2. Flights & layovers
+- **Flights editor** — add carrier IATA, flight number, dep/arr IATA + times, seat, status (planned / booked / flown / cancelled).
+- **Inline carry-on chip** per flight — when the carrier IATA is known, the row shows that carrier's cabin dimensions inline.
+- **Layover analysis** — detects tight (< 60 min), overnight, and misroute (arrival ≠ next departure) connections. Enriches each layover with transit country, transit-visa requirement (your passport → that country), peak advisory, and posture flags (SIM registration, device unlock, APIS/PNR).
+- **Route exposure score** — single number rolling everything up.
+- **Trip limits card** — most-restrictive carry-on dims, weight, liquids ml, lithium Wh across every carrier on the trip, with the source carrier called out.
+
+### 3. Documents
+Auto-generated from `document_templates`:
+- **Universal** — passport ≥ 6 months past departure, 2 blank pages, onward ticket, proof of funds, insurance card, emergency contact, vaccination card, license + IDP, prescription letter.
+- **Country-specific** — ESTA (US), ETIAS (Schengen), UK ETA, AU ETA, K-ETA, NZeTA, Canadian eTA, India / Türkiye / Egypt e-Visa; yellow fever for Kenya / Uganda / Tanzania / Ghana / Brazil / Peru; insurance proof for Cuba / Schengen visa applicants; IDP requirement for Japan / Korea / Italy / Greece / Australia; cash declarations for US / EU / UK.
+- **Check-state persisted** locally via the existing `checklists` table.
+
+### 4. Packing
+Auto-generated from `packing_templates` filtered by climate (inferred from destination latitude band), activity tags, threat tier, and country-specific items. 50 items across documents / money / electronics / OPSEC / clothing / health / ground. Each item has a "rationale chip" telling you *why* it showed up (e.g. "tropical · hike · tier ≥ 2"). Source URLs on every item (REI, FAA, EFF SSD, AAA, CDC). Check-state persisted.
+
+### 5. OPSEC
+50 templates across four phases — **pre-trip / border / during / post-trip** — threat-tiered and cited (EFF SSD, CPJ, GIJN, CBP Directive 3340-049A, UK Schedule 7, FAA, HIBP). The trip's threat dial selects which items apply.
+
+---
+
+## Data layer — every table, every bundle
+
+### Schema (SQLite, 13 migrations)
+
+| Table | Purpose | Size |
+|---|---|---|
+| `settings` | User preferences + master offline switch | ~10 rows |
+| `api_toggles` | Per-connector enable + use-Tor flag | 10 rows |
+| `api_cache` | Server-proxied response cache with TTL | grows |
+| `data_sources` | Attribution registry — every bundled dataset's name, license, URL, row count, downloaded_at | ~12 rows |
+| `trips` | User-created trips (name, status, dates, date_precision, notes) | user |
+| `destinations` | Per-trip stops (country, city, lat/lng, dates, sort_order) | user |
+| `trip_flights` | Flights belonging to a trip (carrier_iata, flight_number, dep/arr IATA + times, seat, status) | user |
+| `checklists` | Generic checklist rows (type='packing' / 'documents' / 'opsec' / custom), items JSON | user |
+| `threat_models` | Per-trip wizard answers + computed level (routine / elevated / high / extreme) | user |
+| `incident_log` | Trip-scoped events (border / surveillance / theft / detention / other) | user |
+| `counter_surveillance_log` | TEDD-principle sightings + repeat detection | user |
+| `rally_points` | Named safe locations with lat/lng | user |
+| `vault_docs` | Encrypted document records (filename, mime, size, ciphertext, nonce, tag) | user |
+| `country_profiles` | REST Countries JSON per country (name, region, capital, currencies, languages, borders, flags, timezones) | ~250 rows |
+| `country_intel` | **Curated** privacy/security per country — freedom score, advisory level, VPN legality, decryption compulsion, SIM registration, GDPR adequacy, LGBTQ+ risk, photography legality, APIS/PNR note, biometric entry note | ~150 rows |
+| `country_practical` | Emergency numbers (JSON), plug types, voltage, frequency, driving side, IDP required, cash declaration threshold | ~250 rows |
+| `country_indices` | Comparable indices: Corruption Perceptions Index, RSF Press Freedom score + rank, visa-free destination count for that passport | ~250 rows |
+| `country_advisories` | Multi-source travel advisories — one row per (iso2, source). Sources today: `us_state`, `uk_fcdo` | ~400 rows |
+| `country_factbook` | Full CIA World Factbook JSON per country (~10–20 KB each) | ~236 rows |
+| `airports` | OurAirports master — IATA / ICAO / name / coords / runway / scheduled flag | ~45,000 |
+| `visas` | Passport × destination matrix from ilyankou/passport-index-dataset | ~50,000 rows |
+| `packing_templates` | 50 packing items tagged by category / climate / activity / threat tier / iso2 | 50 |
+| `airline_rules` | Cabin / personal / checked / liquids / lithium per IATA carrier | 24 |
+| `opsec_templates` | OPSEC items by phase, threat tier, category, with source URLs | 50 |
+| `document_templates` | Universal + per-country docs with fee / processing / when-required + source URL | 39 |
+
+### Bundled datasets
+
+Every dataset Greyline ships **runs offline**. Sources:
+
+| Dataset | Source | License | Size |
+|---|---|---|---|
+| Country profiles | [REST Countries](https://restcountries.com) | MPL-2.0 (data) | ~1.5 MB |
+| Country intel (curated) | EFF SSD, Freedom House, CPJ, government legal references | CC-BY where applicable | ~80 KB |
+| Country practical | Curated (emergency numbers, electrical standards, driving) | Public-domain facts | ~30 KB |
+| Indices — CPI | [Transparency International via OWID](https://ourworldindata.org/grapher/ti-corruption-perception-index) | CC-BY 4.0 | ~50 KB |
+| Indices — RSF | [Reporters Without Borders via OWID](https://ourworldindata.org/grapher/press-freedom-index-rsf) | CC-BY 4.0 | ~30 KB |
+| Indices — visa-free | computed from the visas matrix | derived (MIT) | tiny |
+| CIA World Factbook | [factbook/factbook.json](https://github.com/factbook/factbook.json) | Public domain | ~3 MB |
+| Airports | [OurAirports CSV](https://davidmegginson.github.io/ourairports-data/airports.csv) | Public domain | ~7 MB |
+| Visa matrix | [ilyankou/passport-index-dataset](https://github.com/ilyankou/passport-index-dataset) | MIT | ~1.5 MB |
+| Natural Earth (map) | [Natural Earth 1:110m](https://www.naturalearthdata.com/) | Public domain | 248 KB |
+| Packing / OPSEC / airline / docs templates | Curated from EFF SSD, REI, FAA 49 CFR 175.10, IATA, CBP / UK FCDO / AAA / CDC | AGPL-3.0 | ~60 KB |
+
+The full registry is queryable at `/about/data-sources`.
+
+---
+
+## Build scripts — how the bundles get there
+
+Run any time. All idempotent (upsert).
+
+| Command | What it does | Time |
+|---|---|---|
+| `pnpm setup` | install + migrate + seed | ~30s |
+| `pnpm migrate` | apply DB migrations | <1s |
+| `pnpm seed` | seed default settings + toggles | <1s |
+| `pnpm build:countries` | fetch REST Countries → upsert ~250 country profiles | ~10s |
+| `pnpm build:data` | fetch OurAirports + visa matrix → upsert ~45k airports + 50k visa rows | ~30s |
+| `pnpm build:dossier` | fetch OWID CPI + RSF, compute visa-free counts, fetch factbook per country | ~60s |
+| `pnpm build:advisories` | fetch US State Dept + UK FCDO advisories, upsert into `country_advisories` | ~40s |
+| `pnpm build:trip-data` | seed packing / airline / OPSEC / documents from `data/templates/*.json` | <1s |
+| `pnpm typecheck` | `tsc --noEmit` | ~5s |
+| `pnpm lint` | ESLint | ~5s |
+| `pnpm e2e` | build + Playwright | ~90s |
+
+All build scripts temporarily enable the API toggles they need (and restore the prior state afterward), so they work even on a fresh install with everything off.
+
+---
+
+## External connectors
+
+**Every connector is OFF by default.** Each is a discrete toggle in Settings → Connections. A master "Fully offline" switch blocks them all instantly.
+
+When enabled, requests go through `server/services/api-gateway.ts`, which:
+
+- checks the master offline switch + the per-API toggle,
+- strips `User-Agent` (replaces with a generic `Greyline/0.1` identifier where the upstream requires one — Nominatim / Overpass / gov.uk),
+- caches responses in `api_cache` with a per-call TTL,
+- never accepts cookies, never sets `Authorization` headers (no API keys exist).
+
+| `api_id` | Source host | What it returns | Used by |
+|---|---|---|---|
+| `open-meteo` | `api.open-meteo.com` | Hourly + daily forecast for coords | `/tools/weather`, trip briefing weather column |
+| `exchange-rates` | `cdn.jsdelivr.net` (fawazahmed0) | 150+ currency rates, base-relative | `/tools/currency`, trip briefing rate row |
+| `travel-advisory` | `cadataapi.state.gov` | US State Department advisories | `country_advisories.source='us_state'` |
+| `uk-fcdo` | `www.gov.uk` (Content API) | UK Foreign Office travel advice with structured `alert_status` | `country_advisories.source='uk_fcdo'` |
+| `nominatim` | `nominatim.openstreetmap.org` | Geocoding + reverse | place picker |
+| `overpass` | `overpass-api.de` | OSM POI queries (cameras, embassies, hospitals) | `/map` camera layer |
+| `gdelt` | `api.gdeltproject.org` | Recent events / news signals | reserved for trip briefing news |
+| `adsb` | `api.adsb.lol` | Live ADS-B aircraft positions | `/map` aircraft layer |
+| `usgs` | `earthquake.usgs.gov` | M2.5+ earthquakes past day | `/map` quakes layer |
+| `gdacs` | `www.gdacs.org` | Global disaster alerts (cyclone / flood / volcano / wildfire) | `/map` disasters layer |
+
+The `/map` page additionally fetches **map tiles directly from the browser** (no proxy) — CARTO basemap, NASA GIBS satellite, RainViewer radar. These are explicitly allow-listed in the CSP `img-src` + `connect-src` (because MapLibre v5 uses `fetch()` for tiles, not `<img>`). Documented in `next.config.ts`.
+
+No API keys are required for any connector. They're all free and open. Where a provider requires a User-Agent (Nominatim / Overpass usage policy), Greyline sends `Greyline/0.1 (privacy-first local travel app; self-hosted)` — the software name only, never the user.
+
+---
+
+## Cyber & posture analysis
+
+Greyline aims for a **local-first, minimal-attack-surface, defense-in-depth** posture. This section is the honest version — what's protected, what's not, what an attacker can still see.
+
+### Threat model
+
+| Threat | Mitigation |
+|---|---|
+| **Network adversary** (Wi-Fi sniffer, ISP, captive portal) | Greyline makes no outbound calls unless you toggle one on; when toggled on, all requests go through the local proxy with a generic UA, no cookies, no auth headers. Master "Fully offline" switch hard-blocks every connector. |
+| **Web tracker / ad-tech** | Zero analytics, zero third-party scripts, zero remote fonts (Fraunces is bundled locally). CSP `default-src 'self'`. |
+| **Compromised browser tab / extension** | App is loopback-only (`127.0.0.1:3000`) so external pages can't reach it (no DNS rebinding because there's no public hostname); `X-Frame-Options: DENY` + `frame-ancestors 'none'` block iframe embedding; `Permissions-Policy` denies camera / mic / geolocation / payment / USB / Bluetooth / serial / topics / cohort. |
+| **MITM on optional connectors** | All external calls upgrade-insecure-requests + use HTTPS endpoints. Tiles are CSP-pinned to known hosts. |
+| **Data exfiltration via misconfigured site** | CSP `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`. RSC streaming requires `'unsafe-inline'` on `script-src` (Next 15+/16 limitation — upgrade path: nonce-based CSP via middleware, on the roadmap). |
+| **Encrypted vault contents at rest** | AES-256-GCM, per-doc 12-byte nonce, 16-byte auth tag. Key derived via **Argon2id** (64 MiB / 3 iterations / 4 lanes parallelism). Passphrase never stored — only an Argon2id-derived verifier on disk. |
+| **Vault passphrase brute force** | Argon2id parameters are tuned to roughly 1s per attempt on modern hardware. No recovery mode by design. |
+| **Disk forensics on the rest of the DB** | The travel log itself is in **plaintext SQLite**. Anyone with disk access reads every trip. *This is a known gap — see "What's not protected" below.* |
+| **Supply-chain via dependencies** | Pinned versions; small set of well-known maintainers; CI runs `gitleaks` before every commit; Dependabot weekly grouped updates. AGPL-3.0 forces forks to publish modifications. |
+| **OS-level compromise** | Out of scope. Greyline trusts the OS it runs on — same trust model as any local app. Recommendation: run inside a fresh user account / VM / container if you operate at that threat tier. |
+
+### Security headers shipped (`next.config.ts`)
+
+```
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Permissions-Policy: camera=() microphone=() geolocation=() payment=() usb=()
+                    bluetooth=() serial=() browsing-topics=() interest-cohort=()
+Content-Security-Policy:
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval';
+  worker-src 'self' blob:;
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob:
+          https://*.basemaps.cartocdn.com
+          https://tilecache.rainviewer.com
+          https://gibs.earthdata.nasa.gov;
+  font-src 'self';
+  connect-src 'self'
+          https://*.basemaps.cartocdn.com
+          https://tilecache.rainviewer.com
+          https://gibs.earthdata.nasa.gov
+          https://api.rainviewer.com;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+  frame-ancestors 'none';
+  upgrade-insecure-requests;
+```
+
+### What's protected
+
+- **Vault contents** — AES-256-GCM + Argon2id.
+- **Network egress** — opt-in per connector, master kill switch, cached + cleaned at the proxy.
+- **Telemetry** — none. No analytics, no error reporting, no remote fonts, no images from third parties (except map tiles when `/map` is loaded).
+- **Identity at upstream APIs** — generic UA, no cookies, no auth, no referrer.
+- **Site-level XSS** — CSP enforces same-origin scripts (with the noted `'unsafe-inline'` caveat).
+- **Clickjacking / iframe attacks** — `frame-ancestors 'none'`.
+- **Permission surface** — every browser permission API is denied (`Permissions-Policy`).
+- **Data destruction** — `rm -rf data/` is *the* delete. There is no copy elsewhere.
+
+### What's not protected (be honest)
+
+- **Plaintext SQLite for the travel log itself.** Trips, destinations, intel, advisories, and dossier rows are queryable by anyone with read access to the file. Only the vault is encrypted. *Mitigation today: run on a FileVault / BitLocker / LUKS volume. Roadmap: optional at-rest encryption for the whole DB via SQLite Multiple Ciphers.*
+- **Vault passphrase lives in browser memory while unlocked.** A RAM-dump of the unlocked tab recovers the key. Lock the vault when you're done.
+- **Single-factor vault.** No hardware-key second factor yet (Yubikey + WebAuthn is on the roadmap).
+- **No anti-forensic / duress passphrase.** A second-passphrase plausible-deniability volume is on the roadmap.
+- **`'unsafe-inline'` on `script-src`.** Required by Next 16's RSC streaming. The upgrade path is nonce-based CSP via middleware — not a fundamental blocker, just hasn't been built yet.
+- **Map tile hosts are CSP-allow-listed.** Loading `/map` reveals to CARTO / GIBS / RainViewer that *some* browser fetched their tiles (IP + timing). The trade-off was conscious — the alternative is bundling 7+ GB of PMTiles for the world. **`/map` doesn't load unless you navigate to it; the rest of the app is fully offline.**
+- **No Tor proxy yet.** Each `api_toggles` row has a `use_tor` flag, but no SOCKS proxy is wired through. Roadmap.
+- **No tamper-evident logging.** The incident log is regular SQLite; an attacker who edits the DB can rewrite history. Roadmap: Merkle-chained log rows.
+- **Self-doxxing tool generates queries you can paste into public search engines.** That's by design — you copy them and run them against the engine of your choice — but the resulting searches are not anonymous unless you take care.
+
+### Defense in depth: the layers
+
+1. **Don't talk** — no connector enabled = no outbound traffic.
+2. **Talk minimally** — when enabled, proxy strips identifying headers, caches aggressively.
+3. **Talk over CSP** — every external host is allow-listed; default-deny.
+4. **Encrypt where it matters** — vault is AES-256-GCM + Argon2id.
+5. **Don't run as root** — Docker image runs as uid 1001, non-root user with no shell.
+6. **Make the supply chain auditable** — pinned versions, Dependabot, gitleaks, AGPL-3.0.
+7. **Make the user's exit clean** — `rm -rf data/` is the entire delete operation.
+
+---
+
+## Tech stack
 
 | Layer | Choice | Why |
 |---|---|---|
-| Framework | **Next.js 16** (App Router, Turbopack) | One process; server components read SQLite directly; route handlers for the local APIs. |
-| UI | **React 19** + **shadcn/ui** (Radix) | Vendored primitives — no design lock-in, full control. |
-| Styling | **Tailwind CSS 4** + OKLCH design tokens | "Oak & Gold" palette (deep oak-green + gold spark), warm-neutral stone surfaces, "Field Atlas / Dossier" voice. Dark by default. |
-| Motion | **motion/react** + `lib/motion.ts` token system | Single source of truth for durations and easings; honors `prefers-reduced-motion`. |
-| DB | **SQLite (better-sqlite3)** in WAL mode | One file. Zero config. Backup = copy a file. |
-| Vault | **AES-256-GCM** + **Argon2id** | 256-bit authenticated encryption; memory-hard KDF. |
-| Maps | **MapLibre GL JS 5** + bundled **Natural Earth** GeoJSON | Vector, offline, no tile-server dependency. |
-| Package manager | **pnpm** | Fast, disk-efficient. |
-| License | **AGPL-3.0** | Copyleft — forks must stay open. |
+| Framework | **Next.js 16** (App Router, Turbopack, standalone output) | One process; server components read SQLite directly; route handlers for the local APIs. |
+| UI | **React 19** + **shadcn/ui** (Radix primitives, vendored under `components/ui/`) | Vendored — no design lock-in, full control. |
+| Styling | **Tailwind CSS 4** + OKLCH design tokens + `@plugin "@tailwindcss/typography"` | "Oak & Gold" palette (deep oak-green + gold spark) + warm-neutral stone surfaces. Dark by default. Editorial Fraunces + JetBrains-ish mono pairing. |
+| Motion | **motion** (Matt Perry's post-Framer fork) + `lib/motion.ts` token system | Single source of truth for durations + easings; honors `prefers-reduced-motion`. View Transitions API used for `/countries` → `/countries/[code]`. |
+| Maps | **MapLibre GL JS v5** + bundled Natural Earth 1:110m | Offline scratch-map on `/`, `/trips`, `/logbook`. Online raster basemap on `/map`. |
+| DB | **better-sqlite3** in WAL mode | One file. Zero config. Backup = copy a file. Native addon, marked as `serverExternalPackages`. |
+| Vault crypto | **AES-256-GCM** (Node `crypto`) + **Argon2id** (`argon2` package) | 256-bit AEAD; memory-hard KDF tuned to ~1s per attempt. |
+| Form runtime | Zod absent — small hand-rolled validators in `/api/*` route handlers. | Keeps surface tiny. |
+| Type system | **TypeScript** strict mode, `tsc --noEmit` in CI | No `any` in app code. |
+| Process | **One Node process** | No daemons, no background workers, no cron. Server components do reads at request time. |
+| License | **AGPL-3.0-only** | Copyleft — forks must stay open. |
 
 ---
 
@@ -154,30 +418,84 @@ No API keys required for any of them — they're all free and open.
 
 ```
 greyline/
-├── app/                      Next.js App Router
-│   ├── page.tsx              dashboard
-│   ├── trips/                trips atlas + per-trip detail
-│   ├── countries/            country directory + briefings
-│   ├── map/                  OSINT map
-│   ├── surveillance/         counter-surveillance log
-│   ├── tools/                11 tools (airports, visa, weather, …)
-│   ├── vault/                encrypted document vault
-│   ├── settings/             app + connections + traveler profile
-│   ├── about/data-sources/   bundled datasets + connections inventory
-│   ├── api/                  32 route handlers (all local)
-│   ├── loading.tsx           shared skeleton
-│   └── error.tsx             client error boundary
-├── components/               shell, ui/*, travel/world-map.tsx, tools/*, …
-├── lib/                      countries.ts, motion.ts, connections.ts, …
+├── app/                              Next.js App Router
+│   ├── page.tsx                      cockpit home (research-backed)
+│   ├── trips/                        planning + active list, detail
+│   ├── logbook/                      lifetime archive + atlas
+│   ├── countries/                    browser + per-country dossier
+│   ├── map/                          online OSINT map
+│   ├── surveillance/                 counter-surveillance log
+│   ├── tools/                        10 tools
+│   ├── vault/                        encrypted document vault
+│   ├── settings/                     connections + preferences + data
+│   ├── disclosure/                   SF-86-style 7-year export
+│   ├── about/data-sources/           attributions
+│   ├── api/                          32+ route handlers
+│   ├── loading.tsx                   shared skeleton
+│   └── error.tsx                     client error boundary
+├── components/
+│   ├── ui/                           shadcn primitives (vendored)
+│   ├── travel/                       world-map, atlas, wrapped
+│   ├── trip/                         planning-list, trip-briefing,
+│   │                                 flights-editor, itinerary-panel,
+│   │                                 trip-limits, trip-packing, trip-documents
+│   ├── intel/                        advisory-stack, indices-grid,
+│   │                                 factbook-panel, privacy-posture
+│   ├── countries/                    countries-browser (advisory filter)
+│   ├── tools/                        packing-explorer, exif-stripper, …
+│   ├── map/                          map-view (online OSINT)
+│   ├── vault/                        vault-client (redaction sweep)
+│   ├── shell/                        sidebar, top-bar, page-transition
+│   └── …
+├── lib/
+│   ├── motion.ts                     motion tokens (single source)
+│   ├── nav.ts                        sidebar definition
+│   ├── trip-kit.ts                   packing / docs / airline aggregators
+│   ├── trip-briefing.ts              per-destination briefing payload
+│   ├── itinerary.ts                  layover detection + enrichment
+│   ├── opsec.ts                      OPSEC template lookups (lib-side)
+│   ├── countries.ts                  REST Countries normalizers
+│   ├── disclosure.ts                 SF-86 7-year window
+│   ├── on-this-day.ts                anniversary computation
+│   └── …
 ├── server/
-│   ├── db/                   index + migrations + repositories
-│   ├── services/             api-gateway, vault, exif
-│   ├── crypto/               encryption, key-derivation
-│   └── api-clients/          per-source wrappers (open-meteo, nominatim, …)
-├── scripts/                  migrate, seed, build-country-data, build-data
-├── public/geo/               countries-110m.geojson (Natural Earth, 248 KB)
-├── data/                     local SQLite + vault (gitignored)
-└── e2e/                      Playwright specs
+│   ├── db/
+│   │   ├── index.ts                  better-sqlite3 connection
+│   │   ├── migrations/               13 SQL migrations
+│   │   └── repositories/             trip, flight, dossier, templates,
+│   │                                 knowledge, intel, airports, settings,
+│   │                                 vault, threat, checklist, travel, …
+│   ├── services/
+│   │   ├── api-gateway.ts            proxyFetch with toggle + cache + UA strip
+│   │   ├── vault.ts                  encrypt / decrypt + KDF
+│   │   └── exif.ts
+│   ├── crypto/                       AES-GCM, Argon2id wrappers
+│   └── api-clients/                  open-meteo, exchange-rates,
+│                                      travel-advisory, advisories-multi,
+│                                      nominatim, overpass, gdelt,
+│                                      adsb, gdacs
+├── scripts/
+│   ├── migrate.ts                    apply migrations
+│   ├── seed-db.ts                    seed default toggles + settings
+│   ├── build-country-data.ts         REST Countries upsert
+│   ├── build-data.ts                 OurAirports + visa matrix upsert
+│   ├── build-dossier.ts              CPI + RSF + visa-free + factbook
+│   ├── build-advisories.ts           multi-source advisory aggregator
+│   └── build-trip-data.ts            packing / airlines / opsec / docs
+├── data/
+│   ├── greyline.db                   SQLite (gitignored)
+│   ├── greyline.db-wal
+│   ├── greyline.db-shm
+│   ├── vault/                        encrypted docs
+│   └── templates/                    packing.json, airlines.json,
+│                                      opsec.json, documents.json (tracked)
+├── .research/                        design rationale docs (47-source home study)
+├── public/geo/                       Natural Earth countries-110m.geojson
+├── e2e/                              Playwright specs (incl. axe a11y sweep)
+├── next.config.ts                    security headers + standalone output
+├── docker-compose.yml                loopback-only port mapping
+├── Dockerfile                        multi-stage, non-root, healthcheck
+└── .github/workflows/ci.yml          lint + typecheck + build + e2e
 ```
 
 ---
@@ -189,28 +507,75 @@ greyline/
 | `pnpm setup` | Install + migrate + seed (first-time) |
 | `pnpm dev` | Next dev server on :3000 |
 | `pnpm build` | Production build |
-| `pnpm start` | Run the production build |
+| `pnpm start` | Run the production build (use `node .next/standalone/server.js` for standalone) |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | ESLint |
 | `pnpm migrate` | Apply DB migrations |
 | `pnpm seed` | Seed default settings + toggles |
-| `pnpm build:countries` | Bundle the 250 country profiles |
-| `pnpm build:data` | Build the dataset index for `/about/data-sources` |
+| `pnpm build:countries` | Bundle the ~250 country profiles |
+| `pnpm build:data` | Build airports + visa matrix |
+| `pnpm build:dossier` | Build CPI + RSF + visa-free + factbook |
+| `pnpm build:advisories` | Fetch US + UK advisories |
+| `pnpm build:trip-data` | Seed packing / airline / OPSEC / docs templates |
 | `pnpm e2e` | Build + Playwright e2e |
 | `pnpm e2e:headed` | Playwright headed (debug) |
 
 ---
 
-## Security model
+## What could be coming soon
 
-- **Vault** — AES-256-GCM per file, random 12-byte IV, auth tag. Key = Argon2id(passphrase, salt, 64 MiB / 3 iters). No recovery — the passphrase is never stored.
-- **No telemetry** — zero analytics, crash reporting, or usage tracking. No outbound call leaves the machine unless you toggle a connection on.
-- **Proxy** — every external request strips `User-Agent` and `Referer`, respects the master offline switch, and is cached.
-- **Localhost only** — Next dev binds to localhost; Docker exposes `127.0.0.1:3000` on the host. Nothing is reachable from other machines on the network.
-- **Data destruction** — `rm -rf data/` removes the DB, WAL files, and the encrypted vault. There is no copy elsewhere.
+These are concrete, scoped extensions — every one is something we already have the data layer or schema column for. None of them require new dependencies.
+
+### Security & posture
+- **Nonce-based CSP** via middleware to drop the `'unsafe-inline'` on `script-src`.
+- **Tor SOCKS proxy** wired through to the existing `use_tor` flag on every `api_toggles` row.
+- **SQLite-level at-rest encryption** for the whole DB (SQLite Multiple Ciphers / SEE), so the travel log itself is opaque to disk forensics.
+- **Plausible-deniability vault** — a second passphrase that opens a different volume; gives a credible "I unlocked it, there's nothing in there" answer at borders.
+- **Yubikey / WebAuthn 2FA on the vault** — second factor on top of the passphrase.
+- **Tamper-evident incident log** — Merkle-chained rows; any edit invalidates the chain.
+- **Wipe-on-duress passphrase** — typing a designated phrase irreversibly destroys the vault.
+
+### Data layer
+- **AU Smartraveller + CA Global Affairs + DE Auswärtiges Amt + FR France-Diplomatie** advisory aggregators. Same schema, more sources per country.
+- **Fragile States Index + Global Peace Index + Freedom in the World** added to `country_indices` (CSVs already identified in the dossier research).
+- **WHO Yellow Fever bulk dataset** to replace the curated subset in `document_templates`.
+- **AAA IDP country list** in full — currently 5 example countries.
+- **OurAirports runways + frequencies tables** so airport tools can show ILS / runway-length / pattern info.
+- **OpenStreetMap embassy + hospital POIs** baked into per-country dossiers (currently only fetched live in `/map`).
+
+### Trip kit
+- **Per-trip packing custom items** — let the user add to the auto-generated list and persist them.
+- **Document scanning into the vault** — drag a passport PDF and it goes straight to vault as `category='passport'` (currently manual upload).
+- **Per-flight seat-map heuristics** — emergency-row / over-wing / lavatory-adjacency from carrier metadata.
+- **Itinerary import** — TripIt-style ICS + email parsing to auto-create flights + destinations.
+- **Layover dining / lounge data** — when carriers offer lounge access on the trip's status.
+- **Climate calendars** — best-time-to-visit + monsoon windows from open climate data.
+
+### Map & field
+- **Offline tile bundle** (PMTiles) for the user's home region so `/map` works fully air-gapped.
+- **Surveillance heatmap** — density layer generated from OSM cameras across destination cities.
+- **Drone route avoidance** — OpenDroneID feed overlay.
+- **OSINT-route SDR generator** — given two points, suggest a surveillance-detection route through the city's geometry.
+- **ADS-B route reconstruction** — given a trip's flight numbers, replay the historical ADS-B trail from the trip ledger.
+- **Photo geofence sanity check** — given a photo's EXIF and your itinerary, flag inconsistencies before you share.
+
+### UX & build
+- **Native shell** (Tauri or Electron-lite) with a system-tray launcher and FileVault-style at-rest disk locking on close.
+- **Local-only AI assistant** (`llama.cpp` quantized 7B) for itinerary review + briefing summarization — model runs in-process, never leaves the machine.
+- **Mobile companion** as a PWA first, native shell second.
+- **Signed disclosure-grade PDF export** for SF-86-equivalent foreign-travel reporting.
+- **Air-gap export** — single signed ZIP to USB, including the vault, the travel log, and the dossier snapshots.
+- **Wrapped → MP4** — auto-render a private year-in-review video from the trip ledger.
+- **Trip planning AI assistant** that watches your dossier + draft itinerary and surfaces "what you've forgotten" (consular notification, vaccination boosters, currency declaration thresholds).
+
+Most of these are 1–3 day extensions on top of the existing architecture.
 
 ---
 
 ## License
 
 [AGPL-3.0](LICENSE). If you fork and distribute, your modifications stay open — no closed, hosted, telemetry-laden Greyline can be made from this code.
+
+If you're packaging or redistributing, see `NOTICE` and `THIRD_PARTY_LICENSES.md` for required attributions (REST Countries / MPL-2.0, OurAirports / public domain, passport-index-dataset / MIT, Natural Earth / public domain, OWID / CC-BY 4.0, factbook.json / public domain).
+
+Security disclosures: see [`SECURITY.md`](SECURITY.md).
