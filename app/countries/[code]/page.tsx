@@ -93,23 +93,48 @@ export default async function CountryBriefingPage({
         All countries
       </Link>
 
-      <header className="flex items-start gap-4">
-        <span className="text-5xl leading-none" aria-hidden>
-          {c.flag || "🏳️"}
-        </span>
-        <div className="min-w-0 space-y-1.5">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+      {/* Editorial dossier header — Fraunces display + mono caption row.
+          This is the country's signature moment; the rest of the page is a grid of records. */}
+      <header className="space-y-3 border-b border-border pb-7">
+        <div className="label-caps flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span>{c.code}</span>
+          <span aria-hidden className="text-faint/60">·</span>
+          <span>{c.region}</span>
+          {c.subregion && (
+            <>
+              <span aria-hidden className="text-faint/60">·</span>
+              <span>{c.subregion}</span>
+            </>
+          )}
+          {c.unMember && (
+            <>
+              <span aria-hidden className="text-faint/60">·</span>
+              <span>UN member</span>
+            </>
+          )}
+          {c.landlocked && (
+            <>
+              <span aria-hidden className="text-faint/60">·</span>
+              <span>Landlocked</span>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-baseline gap-4 sm:gap-6">
+          <span className="text-5xl leading-none sm:text-6xl" aria-hidden>
+            {c.flag || "🏳️"}
+          </span>
+          <h1 className="font-display text-5xl font-semibold leading-[0.95] text-foreground sm:text-7xl">
             {c.name}
           </h1>
-          <p className="text-sm text-muted-foreground">{c.official}</p>
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            <Badge variant="outline" className="font-mono">{c.code}</Badge>
-            <Badge variant="secondary">{c.region}</Badge>
-            {c.subregion && <Badge variant="secondary">{c.subregion}</Badge>}
-            {c.unMember && <Badge variant="outline">UN member</Badge>}
-            {c.landlocked && <Badge variant="outline">Landlocked</Badge>}
-          </div>
         </div>
+
+        <p className="font-mono text-xs text-faint tabular-nums sm:text-sm">
+          <span className="text-muted-foreground">{c.official}</span>
+          {c.capital.length ? <> · capital <span className="text-foreground">{c.capital.join(", ")}</span></> : null}
+          {c.latlng ? <> · <span className="text-foreground">{c.latlng[0].toFixed(2)}°, {c.latlng[1].toFixed(2)}°</span></> : null}
+          {c.population ? <> · pop. <span className="text-foreground">{formatPopulation(c.population)}</span></> : null}
+        </p>
       </header>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

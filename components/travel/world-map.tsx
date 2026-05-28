@@ -161,7 +161,15 @@ export function WorldMap({
       if (!interactive) return;
       const iso = ((e.features?.[0]?.properties as { iso?: string })?.iso ?? "").toUpperCase();
       if (!iso || iso === "-99" || !clickable.has(iso)) return;
-      routerRef.current.push(`/countries/${iso}`);
+      const navigate = () => routerRef.current.push(`/countries/${iso}`);
+      // Native View Transitions — gentle cross-fade where supported; graceful
+      // fallback elsewhere. Honors `prefers-reduced-motion` via the browser.
+      const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+      if (typeof doc.startViewTransition === "function") {
+        doc.startViewTransition(navigate);
+      } else {
+        navigate();
+      }
     });
 
     if (willAnimate) {
