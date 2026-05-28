@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { FileText } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { TripsClient } from "@/components/trip/trips-client";
 import { TravelAtlas } from "@/components/travel/travel-atlas";
@@ -35,6 +37,14 @@ export default function TripsPage() {
         title="Trips"
         description="Your lifetime travel log — every trip, country, and day, stored only on this machine."
       />
+      <div className="flex justify-end">
+        <Link
+          href="/disclosure"
+          className="inline-flex items-center gap-1.5 text-sm text-accent-text transition-colors hover:underline"
+        >
+          <FileText className="size-4" /> Disclosure-grade report
+        </Link>
+      </div>
       {reviews.length > 0 && <Wrapped reviews={reviews} />}
       <TravelAtlas stats={stats} visited={visited} onThisDay={computeOnThisDay(trips)} home={home} knownCodes={knownCodes} />
       <div className="space-y-4">
