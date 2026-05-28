@@ -1,0 +1,46 @@
+[
+  {"id":"u-passport-validity","kind":"universal","category":"visa","label":"Passport valid ≥ 6 months past departure","description":"Many countries refuse entry with less. Check yours.","source_url":"https://travel.state.gov/content/travel/en/passports.html","sort_order":1},
+  {"id":"u-blank-pages","kind":"universal","category":"visa","label":"≥ 2 blank passport pages for entry stamps","sort_order":2},
+  {"id":"u-itinerary","kind":"universal","category":"other","label":"Printed itinerary + hotel confirmations","sort_order":3},
+  {"id":"u-onward","kind":"universal","category":"visa","label":"Onward / return ticket (some countries require proof at check-in)","sort_order":4},
+  {"id":"u-proof-funds","kind":"universal","category":"proof_of_funds","label":"Proof of sufficient funds (some borders ask)","sort_order":5},
+  {"id":"u-insurance","kind":"universal","category":"insurance","label":"Travel insurance card + 24h assistance number","sort_order":6},
+  {"id":"u-emergency","kind":"universal","category":"other","label":"Emergency contact card (in passport)","sort_order":7},
+  {"id":"u-vaccination","kind":"universal","category":"health","label":"Vaccination card (yellow fever where required)","source_url":"https://wwwnc.cdc.gov/travel/yellowbook/2024/preparing/yellow-fever-vaccine-malaria-prevention-by-country","sort_order":8},
+  {"id":"u-driver","kind":"universal","category":"driving","label":"Driver license + IDP if you'll drive","source_url":"https://www.aaa.com/vacation/idpf.html","sort_order":9},
+  {"id":"u-rx","kind":"universal","category":"health","label":"Prescription letter for medications (incl. controlled drugs)","sort_order":10},
+
+  {"id":"e-esta-us","kind":"country","iso2":"US","category":"visa","label":"ESTA (Visa Waiver Program)","description":"Required for VWP nationals. Apply at least 72h before travel.","fee":"USD 21","processing":"≤ 72 hours","source_url":"https://esta.cbp.dhs.gov/","sort_order":20},
+  {"id":"e-etias-eu","kind":"country","iso2":"FR","category":"visa","label":"ETIAS (Schengen entry authorisation)","description":"Required for visa-exempt non-EU citizens entering 30 European countries.","fee":"EUR 20","processing":"Usually minutes; up to 30 days","source_url":"https://travel-europe.europa.eu/etias_en","sort_order":21},
+  {"id":"e-etias-de","kind":"country","iso2":"DE","category":"visa","label":"ETIAS (Schengen entry authorisation)","fee":"EUR 20","processing":"Usually minutes","source_url":"https://travel-europe.europa.eu/etias_en","sort_order":21},
+  {"id":"e-etias-es","kind":"country","iso2":"ES","category":"visa","label":"ETIAS (Schengen entry authorisation)","fee":"EUR 20","processing":"Usually minutes","source_url":"https://travel-europe.europa.eu/etias_en","sort_order":21},
+  {"id":"e-etias-it","kind":"country","iso2":"IT","category":"visa","label":"ETIAS (Schengen entry authorisation)","fee":"EUR 20","processing":"Usually minutes","source_url":"https://travel-europe.europa.eu/etias_en","sort_order":21},
+  {"id":"e-eta-uk","kind":"country","iso2":"GB","category":"visa","label":"UK ETA (Electronic Travel Authorisation)","fee":"GBP 16","processing":"≤ 3 working days","source_url":"https://www.gov.uk/guidance/apply-for-an-electronic-travel-authorisation-eta","sort_order":22},
+  {"id":"e-eta-au","kind":"country","iso2":"AU","category":"visa","label":"Australian ETA (subclass 601)","fee":"AUD 20","processing":"Minutes — hours","source_url":"https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/electronic-travel-authority-601","sort_order":23},
+  {"id":"e-nzeta-nz","kind":"country","iso2":"NZ","category":"visa","label":"NZeTA + IVL","fee":"NZD 17 + NZD 100 IVL","processing":"Up to 72h","source_url":"https://www.immigration.govt.nz/new-zealand-visas/apply-for-a-visa/about-visa/nzeta","sort_order":24},
+  {"id":"e-keta-kr","kind":"country","iso2":"KR","category":"visa","label":"K-ETA","fee":"KRW 10,000","processing":"Up to 72h","source_url":"https://www.k-eta.go.kr/","sort_order":25},
+  {"id":"e-evisa-in","kind":"country","iso2":"IN","category":"visa","label":"e-Visa India","fee":"From USD 25","processing":"≤ 4 working days","source_url":"https://indianvisaonline.gov.in/evisa/tvoa.html","sort_order":26},
+  {"id":"e-evisa-tr","kind":"country","iso2":"TR","category":"visa","label":"Türkiye e-Visa","fee":"From USD 50","processing":"Minutes","source_url":"https://www.evisa.gov.tr/","sort_order":27},
+  {"id":"e-evisa-eg","kind":"country","iso2":"EG","category":"visa","label":"Egypt e-Visa","fee":"USD 25","processing":"Up to 7 days","source_url":"https://www.visa2egypt.gov.eg/","sort_order":28},
+  {"id":"e-canada-eta","kind":"country","iso2":"CA","category":"visa","label":"Canadian eTA","fee":"CAD 7","processing":"Minutes — hours","source_url":"https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/eta.html","sort_order":29},
+
+  {"id":"h-yf-ke","kind":"country","iso2":"KE","category":"health","label":"Yellow Fever certificate required for entry","source_url":"https://wwwnc.cdc.gov/travel/yellowbook/2024/preparing/yellow-fever-vaccine-malaria-prevention-by-country","sort_order":40},
+  {"id":"h-yf-ug","kind":"country","iso2":"UG","category":"health","label":"Yellow Fever certificate required","source_url":"https://wwwnc.cdc.gov/travel/yellowbook/2024/preparing/yellow-fever-vaccine-malaria-prevention-by-country","sort_order":40},
+  {"id":"h-yf-tz","kind":"country","iso2":"TZ","category":"health","label":"Yellow Fever certificate (if arriving from endemic area)","source_url":"https://wwwnc.cdc.gov/travel/yellowbook/2024/preparing/yellow-fever-vaccine-malaria-prevention-by-country","sort_order":40},
+  {"id":"h-yf-gh","kind":"country","iso2":"GH","category":"health","label":"Yellow Fever certificate required","source_url":"https://wwwnc.cdc.gov/travel/yellowbook/2024/preparing/yellow-fever-vaccine-malaria-prevention-by-country","sort_order":40},
+  {"id":"h-yf-br","kind":"country","iso2":"BR","category":"health","label":"Yellow Fever vaccination strongly recommended (mandatory for some states)","source_url":"https://wwwnc.cdc.gov/travel/yellowbook/2024/preparing/yellow-fever-vaccine-malaria-prevention-by-country","sort_order":40},
+  {"id":"h-yf-pe","kind":"country","iso2":"PE","category":"health","label":"Yellow Fever recommended for Amazon regions","source_url":"https://wwwnc.cdc.gov/travel/yellowbook/2024/preparing/yellow-fever-vaccine-malaria-prevention-by-country","sort_order":40},
+
+  {"id":"ins-cu","kind":"country","iso2":"CU","category":"insurance","label":"Travel medical insurance required for entry (Cuba)","source_url":"https://embacu.cubaminrex.cu/en","sort_order":50},
+  {"id":"ins-schengen","kind":"country","iso2":"FR","category":"insurance","label":"Schengen medical insurance min €30,000 for visa applicants","source_url":"https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa_en","sort_order":51},
+
+  {"id":"cust-us","kind":"country","iso2":"US","category":"customs","label":"Declare cash > USD 10,000 (FinCEN 105)","source_url":"https://www.cbp.gov/travel/international-visitors/kbyg/money","sort_order":60},
+  {"id":"cust-eu","kind":"country","iso2":"DE","category":"customs","label":"Declare cash > EUR 10,000 entering or leaving the EU","source_url":"https://taxation-customs.ec.europa.eu/customs-4/cash-controls_en","sort_order":61},
+  {"id":"cust-uk","kind":"country","iso2":"GB","category":"customs","label":"Declare cash > GBP 10,000 to UK Border Force","source_url":"https://www.gov.uk/bringing-cash-into-uk","sort_order":62},
+
+  {"id":"idp-jp","kind":"country","iso2":"JP","category":"driving","label":"IDP required to drive (1949 Geneva Convention)","source_url":"https://www.aaa.com/vacation/idpf.html","sort_order":70},
+  {"id":"idp-kr","kind":"country","iso2":"KR","category":"driving","label":"IDP required to drive","source_url":"https://www.aaa.com/vacation/idpf.html","sort_order":70},
+  {"id":"idp-it","kind":"country","iso2":"IT","category":"driving","label":"IDP required to drive (Italy enforces)","source_url":"https://www.aaa.com/vacation/idpf.html","sort_order":70},
+  {"id":"idp-gr","kind":"country","iso2":"GR","category":"driving","label":"IDP required to drive","source_url":"https://www.aaa.com/vacation/idpf.html","sort_order":70},
+  {"id":"idp-au","kind":"country","iso2":"AU","category":"driving","label":"Most states allow driving on home license + IDP recommended","source_url":"https://www.aaa.com/vacation/idpf.html","sort_order":70}
+]

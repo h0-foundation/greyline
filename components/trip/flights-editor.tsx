@@ -141,10 +141,29 @@ function NewFlightForm({ tripId, onAdded, onCancel }: { tripId: string; onAdded:
   );
 }
 
-export function FlightsEditor({ tripId, initial }: { tripId: string; initial: FlightRowUi[] }) {
+// Carrier IATA → known-rule lookup, so we can chip in basic limits inline.
+export type FlightRuleSummary = {
+  carrier_iata: string;
+  carrier_name: string;
+  cabin_l_cm: number | null;
+  cabin_w_cm: number | null;
+  cabin_h_cm: number | null;
+  cabin_weight_kg: number | null;
+  liquids_ml: number;
+  source_url: string | null;
+};
+
+export function FlightsEditor({
+  tripId, initial, rules,
+}: {
+  tripId: string;
+  initial: FlightRowUi[];
+  rules?: Record<string, FlightRuleSummary>;
+}) {
   const router = useRouter();
   const [flights, setFlights] = useState(initial);
   const [adding, setAdding] = useState(false);
+  const ruleByIata = rules ?? {};
 
   async function reload() {
     const res = await fetch(`/api/trips/${tripId}/flights`);
@@ -182,7 +201,9 @@ export function FlightsEditor({ tripId, initial }: { tripId: string; initial: Fl
       )}
       {flights.length > 0 && (
         <ul className="space-y-2">
-          {flights.map((f) => (
+          {flights.map((f) => {
+            const rule = f.carrier_iata ? ruleByIata[f.carrier_iata] : undefined;
+            return (
             <li
               key={f.id}
               className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-card p-3.5"
@@ -192,6 +213,15 @@ export function FlightsEditor({ tripId, initial }: { tripId: string; initial: Fl
                 <span className="font-mono text-sm font-semibold text-foreground">
                   {f.carrier_iata || "—"} {f.flight_number || ""}
                 </span>
+                {rule && (
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-wide text-faint"
+                    title={`${rule.carrier_name} carry-on rules${rule.source_url ? " · " + rule.source_url : ""}`}
+                  >
+                    {rule.cabin_l_cm}×{rule.cabin_w_cm}×{rule.cabin_h_cm}cm
+                    {rule.cabin_weight_kg != null && ` · ${rule.cabin_weight_kg}kg`}
+                  </span>
+                )}
               </div>
               <div className="font-mono text-sm text-muted-foreground">
                 <span className="text-foreground">{f.dep_iata || "—"}</span>
@@ -222,7 +252,8 @@ export function FlightsEditor({ tripId, initial }: { tripId: string; initial: Fl
                 <Trash2 className="size-4" />
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BookOpenText, Plane } from "lucide-react";
+import { ArrowLeft, BookOpenText, Plane, ListChecks, FileBadge } from "lucide-react";
 import {
   getTripById,
   getDestinationsByTrip,
@@ -23,14 +23,23 @@ import { getAirportByIata } from "$server/db/repositories/airports";
 import { getSetting } from "$server/db/repositories/settings";
 import { getExchangeRates } from "$server/api-clients/exchange-rates";
 import { getFlightsByTrip } from "$server/db/repositories/flight";
+import {
+  getPackingTemplates,
+  getAirlineRules,
+  getDocTemplates,
+} from "$server/db/repositories/templates";
 import { toListItem } from "@/lib/countries";
-import { suggestThreatLevel, type ThreatLevel } from "@/lib/intel";
+import { suggestThreatLevel, THREAT, type ThreatLevel } from "@/lib/intel";
 import { aggregateBriefing, type CountryProfileLite, type DestIntel, type DestPractical } from "@/lib/trip-briefing";
 import { detectLayovers, enrichLayover, routeExposureScore, type AirportLite } from "@/lib/itinerary";
+import { buildPackingList, buildDocChecklist, aggregateAirlineRules, inferClimateTags } from "@/lib/trip-kit";
 import { TripDetail } from "@/components/trip/trip-detail";
 import { TripBriefing } from "@/components/trip/trip-briefing";
-import { FlightsEditor } from "@/components/trip/flights-editor";
+import { FlightsEditor, type FlightRuleSummary } from "@/components/trip/flights-editor";
 import { ItineraryPanel } from "@/components/trip/itinerary-panel";
+import { TripLimitsCard } from "@/components/trip/trip-limits";
+import { TripPacking } from "@/components/trip/trip-packing";
+import { TripDocuments } from "@/components/trip/trip-documents";
 
 export const dynamic = "force-dynamic";
 
@@ -177,6 +186,58 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   );
   const exposureScore = routeExposureScore(layovers);
 
+  // ── Airline rules per carrier on this trip ─
+  const carriers = Array.from(new Set(flights.map((f) => (f.carrier_iata ?? "").toUpperCase()).filter(Boolean)));
+  const rulesRows = getAirlineRules(carriers);
+  const tripLimits = aggregateAirlineRules(rulesRows);
+  const flightRulesByIata: Record<string, FlightRuleSummary> = {};
+  for (const r of rulesRows) {
+    flightRulesByIata[r.carrier_iata] = {
+      carrier_iata: r.carrier_iata,
+      carrier_name: r.carrier_name,
+      cabin_l_cm: r.cabin_l_cm,
+      cabin_w_cm: r.cabin_w_cm,
+      cabin_h_cm: r.cabin_h_cm,
+      cabin_weight_kg: r.cabin_weight_kg,
+      liquids_ml: r.liquids_ml,
+      source_url: r.source_url,
+    };
+  }
+
+  // ── Packing + Documents auto-generated from templates ─
+  // Threat tier index (0..3) from existing computed_level or suggestedLevel.
+  const tier = THREAT[(threatModel?.computed_level as ThreatLevel) ?? "routine"].index ?? 0;
+  // Climate tags from destination lat (cheap heuristic).
+  const destInputs = destinations.map((d) => ({
+    country_code: d.country_code,
+    climate_tags: inferClimateTags(d.lat),
+    activity_tags: [] as string[],
+  }));
+  const packingTemplates = getPackingTemplates();
+  const packingGroups = buildPackingList({
+    templates: packingTemplates,
+    threat_tier: tier,
+    destinations: destInputs,
+  });
+  const docTemplates = getDocTemplates({ iso2s: [...uniqIsos] });
+  const docsGroups = buildDocChecklist(docTemplates);
+
+  // Restore checklists' saved state (if any) by matching ids against the templates.
+  type SavedItem = { id: string; label: string; checked: boolean };
+  let packingChecklistId: string | null = null;
+  let storedPacking: SavedItem[] = [];
+  let docsChecklistId: string | null = null;
+  let storedDocs: SavedItem[] = [];
+  for (const c of checklists) {
+    if (c.type === "packing" && !packingChecklistId) {
+      packingChecklistId = c.id;
+      try { storedPacking = (JSON.parse(c.items) as SavedItem[]) ?? []; } catch { /* skip */ }
+    } else if (c.type === "documents" && !docsChecklistId) {
+      docsChecklistId = c.id;
+      try { storedDocs = (JSON.parse(c.items) as SavedItem[]) ?? []; } catch { /* skip */ }
+    }
+  }
+
   const briefingPayload = aggregateBriefing({
     destinations,
     countriesByIso,
@@ -228,7 +289,10 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
           </h2>
           <span className="font-mono text-xs text-faint">optional — add tickets to compute layover risk</span>
         </div>
-        <FlightsEditor tripId={trip.id} initial={flights} />
+        <FlightsEditor tripId={trip.id} initial={flights} rules={flightRulesByIata} />
+        {carriers.length > 0 && (
+          <TripLimitsCard limits={tripLimits} carrierCount={carriers.length} />
+        )}
         {layovers.length > 0 && (
           <ItineraryPanel layovers={layovers} exposureScore={exposureScore} />
         )}
@@ -245,6 +309,42 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
           <span className="font-mono text-xs text-faint">auto-generated from your dossier</span>
         </div>
         <TripBriefing payload={briefingPayload} />
+      </section>
+
+      {/* Required documents — universal + per-destination (visas, vaccinations, IDP, customs). */}
+      <section className="space-y-4">
+        <div className="flex items-baseline gap-2">
+          <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
+            <FileBadge className="size-4 text-faint" />
+            Documents
+          </h2>
+          <span className="font-mono text-xs text-faint">auto-generated · per destination requirements</span>
+        </div>
+        <TripDocuments
+          tripId={trip.id}
+          groups={docsGroups}
+          checklistId={docsChecklistId}
+          storedItems={storedDocs}
+        />
+      </section>
+
+      {/* Auto-baked packing list — climate + activity + threat-tier aware. */}
+      <section className="space-y-4">
+        <div className="flex items-baseline gap-2">
+          <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
+            <ListChecks className="size-4 text-faint" />
+            Packing
+          </h2>
+          <span className="font-mono text-xs text-faint">
+            tier {tier} · {destInputs.flatMap((d) => d.climate_tags).join(", ") || "no climate inferred"}
+          </span>
+        </div>
+        <TripPacking
+          tripId={trip.id}
+          groups={packingGroups}
+          checklistId={packingChecklistId}
+          storedItems={storedPacking}
+        />
       </section>
     </div>
   );
