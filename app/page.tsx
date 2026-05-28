@@ -1,521 +1,621 @@
+/**
+ * Home — the cockpit.
+ *
+ * Designed from research (.research/greyline-home-research-2026-05-27.md, 47 sources):
+ *   • Sunsama / Things 3 / Granola — single question answered: "what needs my
+ *     attention?" Temporal chunks (Today → Upcoming → Planning → Recent) override
+ *     chronological order.
+ *   • Tufte data-ink ratio — numbers strip is hairline-separated, no cards, no
+ *     shadows. Typography weight does the hierarchy.
+ *   • Hick's Law — 3–4 primary actions visible, the rest are progressive
+ *     disclosure on `/tools` and `/settings`.
+ *   • Linear 2025 refresh — monochrome + one accent; consistency over decoration.
+ *   • Polarsteps / Wanderer — map is part of the cockpit, not decoration; it
+ *     answers "where am I in the world right now" at a glance.
+ *   • Things 3 — "This Today" pattern. Highest-priority *single* item leads.
+ */
 import Link from "next/link";
 import {
-  ShieldCheck, Compass, Globe, Lock, ArrowRight, Plug, WifiOff,
-  Plane, BookOpenText, Eye, ImageOff, ListChecks, FileBadge, MapPin,
-  Sparkles, AlertTriangle, Stamp, Banknote, CloudSun,
+  ArrowRight, Plus, Plane, MapPin, ShieldAlert, ListChecks, FileBadge,
+  Compass, Lock, Wrench, BookText, AlertTriangle, Eye, WifiOff, Plug, Calendar,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { CountUp } from "@/components/count-up";
+import { Badge } from "@/components/ui/badge";
 import { getCountryListRows } from "$server/db/repositories/knowledge";
-import { getAllTrips, getDestinationsByTrip } from "$server/db/repositories/trip";
+import {
+  getAllTrips, getDestinationsByTrip,
+} from "$server/db/repositories/trip";
 import { getChecklistsByTrip } from "$server/db/repositories/checklist";
 import { getFlightsByTrip } from "$server/db/repositories/flight";
 import { getAllVaultDocs } from "$server/db/repositories/vault";
 import { getAllSettings, getApiToggles } from "$server/db/repositories/settings";
 import { getTravelStats, getVisitedCountries } from "$server/db/repositories/travel";
 import {
-  getPeakAdvisories,
-  getCountryIndices,
+  getPeakAdvisories, getCountryIndices,
 } from "$server/db/repositories/dossier";
-import {
-  getAirlineRules,
-  getDocTemplates,
-  getPackingTemplates,
-} from "$server/db/repositories/templates";
+import { getAirlineRules } from "$server/db/repositories/templates";
 import { WorldMap } from "@/components/travel/world-map";
 import { formatTripDate, type DatePrecision } from "@/lib/trip-format";
 import { computeOnThisDay, yearsAgo } from "@/lib/on-this-day";
-import {
-  aggregateAirlineRules,
-  buildDocChecklist,
-  buildPackingList,
-  inferClimateTags,
-} from "@/lib/trip-kit";
+import { aggregateAirlineRules } from "@/lib/trip-kit";
 
-// Reads local SQLite at request time.
 export const dynamic = "force-dynamic";
 
+// ─ Local types ────────────────────────────────────────────────────────────
 type Trip = {
-  id: string;
-  name: string;
-  status: string;
-  start_date: string | null;
-  end_date: string | null;
-  date_precision: string;
+  id: string; name: string; status: string;
+  start_date: string | null; end_date: string | null; date_precision: string;
+  notes: string | null;
 };
-
 type Destination = {
   id: string; country_code: string | null; city: string | null;
   arrival_date: string | null; departure_date: string | null;
   sort_order: number; notes: string | null; lat: number | null; lng: number | null;
 };
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
-  planning: "secondary",
-  active: "default",
-  wrapped: "outline",
-};
-
-function readinessFor(tripId: string): { packing: number | null; docs: number | null } {
-  const lists = getChecklistsByTrip(tripId);
-  function pct(items: string): number {
-    try {
-      const arr = JSON.parse(items) as Array<{ checked: boolean }>;
-      if (arr.length === 0) return 0;
-      return Math.round((arr.filter((i) => i.checked).length / arr.length) * 100);
-    } catch { return 0; }
-  }
-  const pack = lists.find((l) => l.type === "packing");
-  const docs = lists.find((l) => l.type === "documents");
-  return {
-    packing: pack ? pct(pack.items) : null,
-    docs: docs ? pct(docs.items) : null,
-  };
+// ─ Pure helpers ───────────────────────────────────────────────────────────
+function daysUntil(start: string | null): number | null {
+  if (!start) return null;
+  const t = Date.parse(start);
+  if (!Number.isFinite(t)) return null;
+  return Math.round((t - Date.now()) / 86400000);
 }
 
+function pctOf(items: string): number {
+  try {
+    const arr = JSON.parse(items) as Array<{ checked: boolean }>;
+    if (arr.length === 0) return 0;
+    return Math.round((arr.filter((i) => i.checked).length / arr.length) * 100);
+  } catch { return 0; }
+}
+
+const ADV_DOT: Record<number, string> = {
+  1: "bg-success",
+  2: "bg-warning",
+  3: "bg-accent-text",
+  4: "bg-destructive",
+};
+const ADV_TEXT: Record<number, string> = {
+  1: "text-success",
+  2: "text-warning",
+  3: "text-accent-text",
+  4: "text-destructive",
+};
+
+// ─ Page ───────────────────────────────────────────────────────────────────
 export default function Home() {
-  // ── Foundations ─────────────────────────────────────────────────────────
-  const countryRows = getCountryListRows();
-  const knownCodes = countryRows.map((r) => r.country_code);
+  // 1. Settings & connections (always-on context).
   const settings = getAllSettings();
   const fullyOffline = settings.master_offline === "true";
-  const toggles = getApiToggles();
-  const enabledConnections = toggles.filter((t) => t.enabled).length;
   const home_iso2 = (settings.home_country ?? "").replace(/"/g, "") || null;
-  const homeIndices = home_iso2 ? getCountryIndices(home_iso2) : undefined;
+  const enabledConnections = getApiToggles().filter((t) => t.enabled).length;
 
-  // ── Trips ───────────────────────────────────────────────────────────────
+  // 2. Trips + temporal partition.
   const trips = getAllTrips() as Trip[];
-  const upcoming =
-    trips.find((t) => t.status === "active") ??
-    trips.find((t) => t.status === "planning") ??
-    null;
-  const recent = [...trips]
-    .filter((t) => t.end_date)
-    .sort((a, b) => (b.end_date ?? "").localeCompare(a.end_date ?? ""))[0] ?? null;
-  const headline = upcoming ?? recent;
-  const headlineLabel = upcoming
-    ? upcoming.status === "active" ? "Active trip" : "Upcoming trip"
-    : "Most recent trip";
+  const planning = trips.filter((t) => t.status === "planning");
+  const active = trips.filter((t) => t.status === "active");
+  const wrappedAll = trips.filter((t) => t.status === "wrapped");
 
-  // ── Travel atlas ────────────────────────────────────────────────────────
-  const travel = getTravelStats();
-  const visited = getVisitedCountries();
-  const vaultCount = getAllVaultDocs().length;
+  // Enrich planning + active with their cockpit data.
+  const peaks = getPeakAdvisories();
+  type EnrichedTrip = Trip & {
+    daysUntil: number | null;
+    destinations: Destination[];
+    flagsRow: string;
+    flightsCount: number;
+    carriersCount: number;
+    packingPct: number | null;
+    docsPct: number | null;
+    peakLevel: number | null;
+    tightestCarrier: string | null;
+    tightestCabin: { l: number | null; w: number | null; h: number | null; kg: number | null } | null;
+  };
 
-  // ── Per-trip enrichment for the headline ────────────────────────────────
-  const headlineDestinations: Destination[] = headline ? getDestinationsByTrip(headline.id) as Destination[] : [];
-  const headlineFlights = headline ? getFlightsByTrip(headline.id) : [];
-  const headlineCarriers = Array.from(new Set(headlineFlights.map((f) => (f.carrier_iata ?? "").toUpperCase()).filter(Boolean)));
-  const headlineRules = headlineCarriers.length ? getAirlineRules(headlineCarriers) : [];
-  const headlineLimits = headlineCarriers.length ? aggregateAirlineRules(headlineRules) : null;
-  const headlineReadiness = headline ? readinessFor(headline.id) : { packing: null, docs: null };
-
-  // Auto-template counts (to show "potential items" in readiness state).
-  let docsPlanned = 0, packingPlanned = 0;
-  if (headline && headlineDestinations.length) {
-    const isos = [...new Set(headlineDestinations.map((d) => d.country_code).filter(Boolean) as string[])];
-    docsPlanned = buildDocChecklist(getDocTemplates({ iso2s: isos })).reduce((n, g) => n + g.items.length, 0);
-    packingPlanned = buildPackingList({
-      templates: getPackingTemplates(),
-      threat_tier: 3,
-      destinations: headlineDestinations.map((d) => ({
-        country_code: d.country_code,
-        climate_tags: inferClimateTags(d.lat),
-      })),
-    }).reduce((n, g) => n + g.items.length, 0);
+  function enrich(t: Trip): EnrichedTrip {
+    const destinations = getDestinationsByTrip(t.id) as Destination[];
+    const flights = getFlightsByTrip(t.id);
+    const carriers = [...new Set(flights.map((f) => (f.carrier_iata ?? "").toUpperCase()).filter(Boolean))];
+    const checklists = getChecklistsByTrip(t.id);
+    const pack = checklists.find((c) => c.type === "packing");
+    const docs = checklists.find((c) => c.type === "documents");
+    let peakLevel: number | null = null;
+    for (const d of destinations) {
+      if (!d.country_code) continue;
+      const p = peaks.get(d.country_code.toUpperCase());
+      if (p && (peakLevel == null || p.level > peakLevel)) peakLevel = p.level;
+    }
+    const flagsRow = destinations
+      .map((d) => d.country_code ? (countryFlagByIso.get(d.country_code) ?? "") : "")
+      .filter(Boolean)
+      .slice(0, 6)
+      .join(" ");
+    let tightestCarrier: string | null = null;
+    let tightestCabin: EnrichedTrip["tightestCabin"] = null;
+    if (carriers.length) {
+      const rules = getAirlineRules(carriers);
+      const agg = aggregateAirlineRules(rules);
+      tightestCarrier = agg.source_carrier;
+      tightestCabin = {
+        l: agg.cabin_l_cm, w: agg.cabin_w_cm, h: agg.cabin_h_cm,
+        kg: agg.cabin_weight_kg,
+      };
+    }
+    return {
+      ...t,
+      daysUntil: daysUntil(t.start_date),
+      destinations,
+      flagsRow,
+      flightsCount: flights.length,
+      carriersCount: carriers.length,
+      packingPct: pack ? pctOf(pack.items) : null,
+      docsPct: docs ? pctOf(docs.items) : null,
+      peakLevel,
+      tightestCarrier,
+      tightestCabin,
+    };
   }
 
-  // ── Hotspot advisories — countries on planning/active trips at L3+ ──────
-  const peaks = getPeakAdvisories();
+  // Country flag lookup — load once for the cockpit + map.
+  const countryRows = getCountryListRows();
+  const countryFlagByIso = new Map<string, string>();
+  for (const r of countryRows) {
+    try {
+      const rc = JSON.parse(r.rest_countries ?? "{}") as { flag?: string };
+      if (rc.flag) countryFlagByIso.set(r.country_code, rc.flag);
+    } catch { /* skip */ }
+  }
+  const knownCodes = countryRows.map((r) => r.country_code);
+
+  // Decide "what needs my attention now" — the headline tile.
+  // Priority: active trips → planning ≤14d → planning >14d → nothing-in-flight CTA.
+  const enrichedActive = active.map(enrich);
+  const enrichedPlanning = planning.map(enrich).sort((a, b) => (a.daysUntil ?? 1e9) - (b.daysUntil ?? 1e9));
+  const headline: EnrichedTrip | null =
+    enrichedActive[0] ?? enrichedPlanning[0] ?? null;
+
+  // Upcoming list = planning trips minus the headline, capped at 3.
+  const upcoming = enrichedPlanning
+    .filter((t) => t.id !== headline?.id)
+    .slice(0, 3);
+
+  // Recent wrapped — for the bottom hairline link.
+  const recentWrapped = wrappedAll
+    .filter((t) => t.end_date)
+    .sort((a, b) => (b.end_date ?? "").localeCompare(a.end_date ?? ""))
+    .slice(0, 2);
+
+  // Hotspots — countries on planning/active trips at L3+. Direct-labeled.
   const futureIsos = new Set<string>();
-  for (const t of trips) {
-    if (t.status === "wrapped") continue;
-    for (const d of getDestinationsByTrip(t.id) as Destination[]) {
-      if (d.country_code) futureIsos.add(d.country_code.toUpperCase());
-    }
+  for (const t of [...enrichedActive, ...enrichedPlanning]) {
+    for (const d of t.destinations) if (d.country_code) futureIsos.add(d.country_code.toUpperCase());
   }
   const hotspots = [...futureIsos]
     .map((iso) => peaks.get(iso))
     .filter((p): p is NonNullable<typeof p> => !!p && p.level >= 3)
     .sort((a, b) => b.level - a.level);
 
-  // On This Day across all trips.
+  // Travel atlas roll-up.
+  const travel = getTravelStats();
+  const visited = getVisitedCountries();
+  const homeIndices = home_iso2 ? getCountryIndices(home_iso2) : undefined;
+  const vaultCount = getAllVaultDocs().length;
+
+  // On-this-day across all trips.
   const otd = computeOnThisDay(trips);
 
   return (
     <div className="space-y-10">
-      {/* ── EDITORIAL HEADER ────────────────────────────────────────────── */}
-      <header className="relative space-y-4 pb-2">
-        <p className="label-caps text-faint">
-          Greyline · private travel intelligence
-        </p>
-        <h1 className="font-display text-balance text-4xl font-semibold leading-[1.05] text-foreground sm:text-6xl">
-          Every country you&apos;ve been.
-          <span className="block text-muted-foreground">Everywhere you&apos;re going.</span>
-        </h1>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-          <p className="max-w-prose text-pretty text-sm text-muted-foreground">
-            A lifetime logbook + per-trip briefing — mapped, threat-aware, and stored only on this machine.
-          </p>
-          <Badge
-            variant={fullyOffline ? "secondary" : "outline"}
-            className="gap-1.5 px-2.5 py-1 text-xs"
-          >
-            {fullyOffline ? <WifiOff className="size-3.5" /> : <Plug className="size-3.5" />}
-            {fullyOffline
-              ? "Fully offline — no connections"
-              : `${enabledConnections} optional connection${enabledConnections === 1 ? "" : "s"} on`}
-          </Badge>
-        </div>
-      </header>
+      {/* ────────────────────────────────────────────────────────────────
+          STATUS HAIRLINE — date · privacy posture. Always present.
+          Tufte: above the headline because it's context, not content.
+        ──────────────────────────────────────────────────────────────── */}
+      <div className="-mt-2 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3 font-mono text-[11px] uppercase tracking-wide text-faint">
+        <span>{new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
+        <span className="inline-flex items-center gap-1.5">
+          {fullyOffline ? (
+            <><WifiOff className="size-3" /> fully offline</>
+          ) : (
+            <><Plug className="size-3" /> {enabledConnections} connection{enabledConnections === 1 ? "" : "s"} on</>
+          )}
+        </span>
+      </div>
 
-      {/* ── KPI STRIP ───────────────────────────────────────────────────── */}
+      {/* ────────────────────────────────────────────────────────────────
+          THE COCKPIT TILE
+          The one thing that needs attention. Editorial Fraunces lede.
+          Per Sunsama: explicit hierarchy — what's most important *now*.
+        ──────────────────────────────────────────────────────────────── */}
+      {headline ? <CockpitTile trip={headline} /> : <NothingInFlight />}
+
+      {/* ────────────────────────────────────────────────────────────────
+          TEMPORAL CHUNKS
+          Things 3: today / upcoming / past. We surface Upcoming + Recent.
+          (Today is already the cockpit tile.)
+        ──────────────────────────────────────────────────────────────── */}
+      {(upcoming.length > 0 || recentWrapped.length > 0) && (
+        <section className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+          {upcoming.length > 0 && (
+            <UpcomingColumn trips={upcoming} />
+          )}
+          {recentWrapped.length > 0 && (
+            <RecentColumn trips={recentWrapped} totalWrapped={wrappedAll.length} />
+          )}
+        </section>
+      )}
+
+      {/* ────────────────────────────────────────────────────────────────
+          NUMBERS — data-ink ratio. Hairline-separated, no cards.
+          Mono-tabular, single line of context per metric.
+        ──────────────────────────────────────────────────────────────── */}
       <section
-        aria-label="Travel at a glance"
-        className="grid grid-cols-2 gap-6 border-b border-border pb-6 sm:grid-cols-3 lg:grid-cols-6"
+        aria-label="At a glance"
+        className="grid grid-cols-2 gap-x-8 gap-y-6 border-y border-border py-5 sm:grid-cols-3 lg:grid-cols-6"
       >
-        <Kpi label="Trips" value={trips.length} href="/trips" />
-        <Kpi label="Countries" value={travel.countries} href="/countries" />
-        <Kpi label="Days abroad" value={travel.totalDays} href="/trips" />
-        <Kpi label="Continents" value={travel.continents} href="/countries" />
-        <Kpi
+        <Metric label="Trips" value={trips.length} href="/trips" />
+        <Metric label="Countries" value={travel.countries} href="/logbook" />
+        <Metric label="Days abroad" value={travel.totalDays} href="/logbook" />
+        <Metric label="Continents" value={travel.continents} href="/logbook" />
+        <Metric
           label="Visa-free reach"
           value={homeIndices?.visa_free_count ?? 0}
           suffix={homeIndices?.visa_free_count ? " / 199" : ""}
-          href="/tools/visa"
+          href={home_iso2 ? `/countries/${home_iso2}` : "/tools/visa"}
         />
-        <Kpi label="Vault docs" value={vaultCount} href="/vault" />
+        <Metric label="Vault docs" value={vaultCount} href="/vault" />
       </section>
 
-      {/* ── ON THIS DAY hairline ────────────────────────────────────────── */}
-      {otd.length > 0 && (
-        <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 -mt-4 text-sm">
-          <span className="label-caps shrink-0">On this day</span>
-          {otd.slice(0, 3).map((e, i) => {
-            const n = yearsAgo(e);
-            return (
-              <span key={e.tripId} className="text-muted-foreground">
-                {i > 0 && <span className="mx-2 text-faint">·</span>}
-                <Link
-                  href={`/trips/${e.tripId}`}
-                  className="text-foreground transition-colors hover:text-accent-text"
-                >
-                  {n === 0 ? "today" : `${n} year${n === 1 ? "" : "s"} ago`}
-                </Link>
-                <span className="text-faint"> — </span>
-                {e.name}
-              </span>
-            );
-          })}
-        </p>
+      {/* ────────────────────────────────────────────────────────────────
+          MAP + ON-THIS-DAY
+          Polarsteps/Wanderer pattern — map is a cockpit instrument, not
+          decoration. Paired with the editorial "on this day" hairline.
+        ──────────────────────────────────────────────────────────────── */}
+      {travel.totalTrips > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-base font-semibold text-foreground">
+              Where you've been
+            </h2>
+            <Link
+              href="/logbook"
+              className="font-mono text-xs uppercase tracking-wide text-faint transition-colors hover:text-accent-text"
+            >
+              Open logbook →
+            </Link>
+          </div>
+          <WorldMap
+            home={home_iso2 ?? ""}
+            knownCodes={knownCodes}
+            visited={visited.map((v) => ({
+              code: v.country_code, name: v.name, days: v.days, trips: v.trips,
+              flag: v.flag, first: v.first, last: v.last,
+            }))}
+          />
+          {otd.length > 0 && (
+            <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-border pt-3 text-sm">
+              <span className="label-caps shrink-0">On this day</span>
+              {otd.slice(0, 3).map((e, i) => {
+                const n = yearsAgo(e);
+                return (
+                  <span key={e.tripId} className="text-muted-foreground">
+                    {i > 0 && <span className="mx-2 text-faint">·</span>}
+                    <Link href={`/trips/${e.tripId}`} className="text-foreground transition-colors hover:text-accent-text">
+                      {n === 0 ? "today" : `${n} year${n === 1 ? "" : "s"} ago`}
+                    </Link>
+                    <span className="text-faint"> — </span>
+                    {e.name}
+                  </span>
+                );
+              })}
+            </p>
+          )}
+        </section>
       )}
 
-      {/* ── HOTSPOT ADVISORIES — countries on upcoming trips at L3+ ─────── */}
+      {/* ────────────────────────────────────────────────────────────────
+          HOTSPOTS — conditional. Direct-labeled per Pirolli information scent.
+        ──────────────────────────────────────────────────────────────── */}
       {hotspots.length > 0 && (
-        <section className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 surface-raised">
-          <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-destructive/20 pb-2">
-            <h2 className="font-display text-sm font-semibold text-destructive inline-flex items-center gap-2">
-              <AlertTriangle className="size-4" />
-              Hotspot advisories on upcoming trips
+        <section className="space-y-3">
+          <div className="flex items-baseline gap-3">
+            <h2 className="font-display text-base font-semibold text-destructive inline-flex items-center gap-2">
+              <AlertTriangle className="size-4" /> Hotspots on your route
             </h2>
-            <p className="font-mono text-[11px] text-faint">multi-source · highest level shown</p>
+            <span className="font-mono text-[11px] uppercase tracking-wide text-faint">
+              L3 or higher · upcoming trips
+            </span>
           </div>
-          <ul className="mt-3 space-y-1.5">
+          <ul className="divide-y divide-border rounded-md border border-destructive/30 bg-destructive/5">
             {hotspots.slice(0, 5).map((h) => (
-              <li key={h.iso2} className="flex items-baseline gap-3 text-sm">
+              <li key={h.iso2}>
                 <Link
                   href={`/countries/${h.iso2}`}
-                  className="font-mono text-xs text-destructive hover:underline"
+                  className="group flex items-baseline gap-3 px-3.5 py-2.5 text-sm transition-colors duration-[var(--duration-snap)] hover:bg-destructive/10"
                 >
-                  {h.iso2}
+                  <span className={`inline-block size-2 shrink-0 rounded-full ${ADV_DOT[h.level]}`} aria-hidden />
+                  <span className="font-mono text-xs text-destructive">{h.iso2}</span>
+                  <span className="text-foreground">{h.level_label}</span>
+                  <span className="line-clamp-1 flex-1 truncate text-muted-foreground">{h.summary}</span>
+                  <span className="shrink-0 font-mono text-[10px] text-faint">L{h.level} · {h.sources_count}src</span>
                 </Link>
-                <span className="text-foreground">{h.level_label}</span>
-                <span className="text-muted-foreground line-clamp-1 text-pretty flex-1">{h.summary}</span>
-                <span className="shrink-0 font-mono text-[10px] text-faint">
-                  L{h.level} · {h.sources_count}src
-                </span>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      {/* ── MAP + UPCOMING TRIP RAIL ────────────────────────────────────── */}
-      {travel.totalTrips > 0 ? (
-        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
-          <div>
-            <WorldMap
-              home={home_iso2 ?? ""}
-              knownCodes={knownCodes}
-              visited={visited.map((v) => ({ code: v.country_code, name: v.name, days: v.days, trips: v.trips, flag: v.flag, first: v.first, last: v.last }))}
-            />
-          </div>
-
-          {/* Upcoming-trip rail */}
-          <aside className="space-y-5">
-            {headline ? (
-              <Link
-                href={`/trips/${headline.id}`}
-                className="surface-interactive group block rounded-xl border border-border bg-card p-5 hover:border-primary/30"
-              >
-                <div className="flex items-baseline justify-between gap-2 border-b border-border pb-2">
-                  <span className="label-caps inline-flex items-center gap-1.5 text-faint">
-                    <Compass className="size-3" /> {headlineLabel}
-                  </span>
-                  <Badge variant={STATUS_VARIANT[headline.status] ?? "secondary"} className="capitalize">
-                    {headline.status}
-                  </Badge>
-                </div>
-                <h2 className="mt-3 font-display text-2xl font-semibold leading-tight text-foreground group-hover:text-accent-text">
-                  {headline.name}
-                </h2>
-                <p className="font-mono text-xs tabular-nums text-faint">
-                  {formatTripDate(headline.start_date, headline.end_date, headline.date_precision as DatePrecision) || "—"}
-                </p>
-
-                <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
-                  <Stat
-                    label="Destinations"
-                    value={String(headlineDestinations.length)}
-                    icon={MapPin}
-                  />
-                  <Stat
-                    label="Flights"
-                    value={String(headlineFlights.length)}
-                    icon={Plane}
-                  />
-                  <Stat
-                    label="Carriers"
-                    value={String(headlineCarriers.length || "—")}
-                    icon={Plane}
-                  />
-                </div>
-
-                {headlineLimits && (
-                  <div className="mt-3 rounded-md border border-border bg-background/40 p-3 text-xs">
-                    <p className="label-caps text-faint">Tightest cabin limit</p>
-                    <p className="mt-1 font-mono tabular-nums text-foreground">
-                      {headlineLimits.cabin_l_cm ?? "—"}×{headlineLimits.cabin_w_cm ?? "—"}×{headlineLimits.cabin_h_cm ?? "—"} cm
-                      {headlineLimits.cabin_weight_kg != null && (
-                        <span className="text-faint"> · {headlineLimits.cabin_weight_kg}kg</span>
-                      )}
-                    </p>
-                    {headlineLimits.source_carrier && (
-                      <p className="text-[10px] text-faint">{headlineLimits.source_carrier}</p>
-                    )}
-                  </div>
-                )}
-
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <ReadinessTile
-                    label="Packing"
-                    pct={headlineReadiness.packing}
-                    planned={packingPlanned}
-                    icon={ListChecks}
-                  />
-                  <ReadinessTile
-                    label="Documents"
-                    pct={headlineReadiness.docs}
-                    planned={docsPlanned}
-                    icon={FileBadge}
-                  />
-                </div>
-
-                <p className="mt-4 inline-flex items-center gap-1 text-sm text-accent-text">
-                  Open trip <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-                </p>
-              </Link>
-            ) : (
-              <div className="rounded-xl border border-border bg-card p-5">
-                <p className="label-caps text-faint">No active trip</p>
-                <h2 className="mt-2 font-display text-lg font-semibold text-foreground">Plan your first trip</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  The briefing, packing list, and document checklist auto-fill the moment you add destinations.
-                </p>
-                <Link
-                  href="/trips"
-                  className="mt-3 inline-flex items-center gap-1 text-sm text-accent-text hover:underline"
-                >
-                  Open trips <ArrowRight className="size-4" />
-                </Link>
-              </div>
-            )}
-
-            {/* Atlas roll-up tile — points to the logbook now that history
-                lives there, separate from the trip planner. */}
-            <Link
-              href="/logbook"
-              className="surface-interactive group block rounded-xl border border-border bg-card p-5 hover:border-primary/30"
-            >
-              <span className="label-caps text-faint inline-flex items-center gap-1.5">
-                <Sparkles className="size-3" /> Logbook
-              </span>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <SmallStat value={travel.countries} label="countries" />
-                <SmallStat value={`${travel.pctOfWorld}%`} label="of the world" />
-                <SmallStat value={travel.totalDays} label="days" />
-                <SmallStat value={travel.continents} label="continents" />
-              </div>
-              <p className="mt-4 inline-flex items-center gap-1 text-sm text-accent-text">
-                Open logbook <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-              </p>
-            </Link>
-          </aside>
-        </section>
-      ) : (
-        <section className="rounded-xl border border-border bg-card p-8 text-center">
-          <h2 className="font-display text-2xl font-semibold text-foreground">No trips yet</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Add your first trip and Greyline builds the briefing, packing, and document checklist around it.
-          </p>
-          <Link
-            href="/trips"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-          >
-            Start a trip <ArrowRight className="size-4" />
-          </Link>
-        </section>
-      )}
-
-      {/* ── WORKFLOW — every tool routed by lifecycle phase ─────────────── */}
-      <section className="space-y-5">
-        <h2 className="font-display text-lg font-semibold text-foreground">Workflow</h2>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <WorkflowCard
-            phase="Plan"
-            tools={[
-              { href: "/tools/visa", icon: Stamp, label: "Visa matrix" },
-              { href: "/countries?advisory=2", icon: AlertTriangle, label: "Advisories" },
-              { href: "/tools/airports", icon: Plane, label: "Airports" },
-              { href: "/tools/currency", icon: Banknote, label: "Currency" },
-              { href: "/tools/weather", icon: CloudSun, label: "Weather" },
-            ]}
-          />
-          <WorkflowCard
-            phase="Pack"
-            tools={[
-              { href: "/tools/packing", icon: ListChecks, label: "Packing library" },
-              { href: "/tools/border", icon: ShieldCheck, label: "Border kit" },
-              { href: "/tools/hotel", icon: Lock, label: "Hotel security" },
-              { href: "/tools/exif", icon: ImageOff, label: "EXIF strip" },
-              { href: "/tools/self-doxxing", icon: Eye, label: "Self-doxxing" },
-            ]}
-          />
-          <WorkflowCard
-            phase="Go"
-            tools={[
-              { href: "/map", icon: MapPin, label: "OSINT map" },
-              { href: "/surveillance", icon: Eye, label: "Surveillance log" },
-              { href: "/vault", icon: Lock, label: "Vault" },
-              { href: "/disclosure", icon: BookOpenText, label: "Disclosure export" },
-              { href: "/settings", icon: Plug, label: "Connections" },
-            ]}
-          />
-        </div>
+      {/* ────────────────────────────────────────────────────────────────
+          QUICK ACTIONS — Hick's Law: exactly four. Everything else lives
+          in /tools or the sidebar.
+        ──────────────────────────────────────────────────────────────── */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <ActionTile href="/trips" icon={Compass} label="Trips" />
+        <ActionTile href="/countries" icon={MapPin} label="Countries" />
+        <ActionTile href="/tools" icon={Wrench} label="Tools" />
+        <ActionTile href="/vault" icon={Lock} label="Vault" />
       </section>
     </div>
   );
+
+  // ── Internal compositions (closures over enrich+flag map; keep here so
+  //    the cockpit can stay a single-file read.) ────────────────────────
+
+  function CockpitTile({ trip }: { trip: EnrichedTrip }) {
+    const status =
+      trip.status === "active" ? "On the ground" :
+      (trip.daysUntil != null && trip.daysUntil <= 1) ? "Departing today" :
+      (trip.daysUntil != null && trip.daysUntil <= 14) ? `Departing in ${trip.daysUntil}d` :
+      "Up next";
+    const cabin = trip.tightestCabin;
+    return (
+      <section aria-labelledby="cockpit-headline">
+        <p className="label-caps text-faint">{status}</p>
+        <h1
+          id="cockpit-headline"
+          className="mt-2 font-display text-balance text-4xl font-semibold leading-[1.05] text-foreground sm:text-5xl"
+        >
+          {trip.name}
+          {trip.flagsRow && (
+            <span aria-hidden className="ml-3 align-middle text-3xl leading-none">
+              {trip.flagsRow}
+            </span>
+          )}
+        </h1>
+        <p className="mt-2 inline-flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono text-xs tabular-nums text-faint">
+          <span className="inline-flex items-center gap-1">
+            <Calendar className="size-3" />
+            {formatTripDate(trip.start_date, trip.end_date, trip.date_precision as DatePrecision) ?? "no dates"}
+          </span>
+          {trip.daysUntil != null && (
+            <span className={trip.daysUntil <= 1 ? "text-accent-text" : ""}>
+              {trip.daysUntil > 0 ? `${trip.daysUntil} day${trip.daysUntil === 1 ? "" : "s"} until departure` :
+                trip.daysUntil === 0 ? "today" :
+                `started ${-trip.daysUntil} day${-trip.daysUntil === 1 ? "" : "s"} ago`}
+            </span>
+          )}
+        </p>
+
+        {/* Cockpit instruments row — each is one piece of information.
+            Each is a deep link (Fitts: target ≥ 44×44).
+            Direct labeled per Pirolli; no nested legends. */}
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Instrument
+            href={`/trips/${trip.id}#flights`}
+            label="Flights"
+            primary={trip.flightsCount > 0 ? String(trip.flightsCount) : "—"}
+            sub={trip.carriersCount > 0 ? `${trip.carriersCount} carrier${trip.carriersCount === 1 ? "" : "s"}` : "add a ticket"}
+            icon={Plane}
+          />
+          <Instrument
+            href={`/trips/${trip.id}#packing`}
+            label="Packing"
+            primary={trip.packingPct != null ? `${trip.packingPct}%` : "—"}
+            sub={trip.packingPct != null ? "ready" : "not started"}
+            icon={ListChecks}
+            tone={trip.packingPct == null ? "muted" : trip.packingPct >= 80 ? "success" : trip.packingPct >= 40 ? "warning" : "destructive"}
+          />
+          <Instrument
+            href={`/trips/${trip.id}#documents`}
+            label="Documents"
+            primary={trip.docsPct != null ? `${trip.docsPct}%` : "—"}
+            sub={trip.docsPct != null ? "filed" : "auto-generated"}
+            icon={FileBadge}
+            tone={trip.docsPct == null ? "muted" : trip.docsPct >= 80 ? "success" : trip.docsPct >= 40 ? "warning" : "destructive"}
+          />
+          <Instrument
+            href={`/trips/${trip.id}`}
+            label="Advisory"
+            primary={trip.peakLevel != null ? `L${trip.peakLevel}` : "—"}
+            sub={trip.peakLevel ? "across all stops" : "no warnings"}
+            icon={ShieldAlert}
+            dotClass={trip.peakLevel != null ? ADV_DOT[trip.peakLevel] : undefined}
+            primaryClass={trip.peakLevel != null ? ADV_TEXT[trip.peakLevel] : undefined}
+          />
+        </div>
+
+        {/* Tightest carry-on — only when carriers known. Single-purpose row. */}
+        {cabin && trip.tightestCarrier && (
+          <p className="mt-3 inline-flex items-baseline gap-2 font-mono text-xs text-faint">
+            <Plane className="size-3" />
+            tightest carry-on
+            <span className="text-foreground">
+              {cabin.l ?? "—"}×{cabin.w ?? "—"}×{cabin.h ?? "—"} cm
+              {cabin.kg != null && ` · ${cabin.kg}kg`}
+            </span>
+            <span>·</span>
+            <span>{trip.tightestCarrier}</span>
+          </p>
+        )}
+
+        <Link
+          href={`/trips/${trip.id}`}
+          className="group mt-5 inline-flex items-center gap-1.5 text-sm text-accent-text transition-colors hover:underline"
+        >
+          Open the trip
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      </section>
+    );
+  }
+
+  function UpcomingColumn({ trips }: { trips: EnrichedTrip[] }) {
+    return (
+      <div className="space-y-3">
+        <h2 className="font-display text-base font-semibold text-foreground inline-flex items-center gap-2">
+          Up next
+          <span className="font-mono text-xs text-faint">· {trips.length} planning</span>
+        </h2>
+        <ul className="divide-y divide-border">
+          {trips.map((t) => (
+            <li key={t.id}>
+              <Link
+                href={`/trips/${t.id}`}
+                className="group flex items-baseline justify-between gap-3 py-3 text-sm transition-colors duration-[var(--duration-snap)]"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-foreground group-hover:text-accent-text">
+                    {t.name} {t.flagsRow && <span aria-hidden className="ml-1 align-baseline">{t.flagsRow}</span>}
+                  </span>
+                  <span className="font-mono text-[11px] text-faint">
+                    {formatTripDate(t.start_date, t.end_date, t.date_precision as DatePrecision) ?? "no dates"}
+                  </span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="font-mono text-sm tabular-nums text-foreground">
+                    {t.daysUntil != null ? `${t.daysUntil}d` : "—"}
+                  </span>
+                  <span className="block text-[10px] text-faint">until departure</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  function RecentColumn({ trips, totalWrapped }: { trips: Trip[]; totalWrapped: number }) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="font-display text-base font-semibold text-foreground inline-flex items-center gap-2">
+            <BookText className="size-4 text-faint" /> Recent
+            <span className="font-mono text-xs text-faint">· {totalWrapped} wrapped</span>
+          </h2>
+          <Link href="/logbook" className="font-mono text-[11px] uppercase tracking-wide text-faint transition-colors hover:text-accent-text">
+            Logbook →
+          </Link>
+        </div>
+        <ul className="divide-y divide-border">
+          {trips.map((t) => (
+            <li key={t.id}>
+              <Link
+                href={`/trips/${t.id}`}
+                className="group flex items-baseline justify-between gap-3 py-3 text-sm"
+              >
+                <span className="min-w-0 flex-1 truncate text-muted-foreground group-hover:text-accent-text">
+                  {t.name}
+                </span>
+                <span className="shrink-0 font-mono text-[11px] text-faint tabular-nums">
+                  {t.end_date?.slice(0, 7) ?? "—"}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  function NothingInFlight() {
+    return (
+      <section>
+        <p className="label-caps text-faint">Nothing in flight</p>
+        <h1 className="mt-2 font-display text-balance text-4xl font-semibold leading-[1.05] text-foreground sm:text-5xl">
+          Plan the next one.
+        </h1>
+        <p className="mt-3 max-w-prose text-pretty text-sm text-muted-foreground">
+          Add a trip and Greyline auto-generates the briefing, packing list, and document
+          checklist around it — pulled from every dossier your local database holds.
+        </p>
+        <Link
+          href="/trips"
+          className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Plus className="size-4" /> Start a trip
+        </Link>
+      </section>
+    );
+  }
 }
 
-// ── Primitives ──────────────────────────────────────────────────────────────
+// ── Reusable primitives ────────────────────────────────────────────────────
 
-function Kpi({
+function Metric({
   label, value, suffix, href,
 }: {
   label: string; value: number; suffix?: string; href: string;
 }) {
   return (
-    <Link
-      href={href}
-      className="group block space-y-1 transition-colors duration-[var(--duration-snap)]"
-    >
+    <Link href={href} className="group block space-y-0.5 transition-colors duration-[var(--duration-snap)]">
       <p className="label-caps text-faint">{label}</p>
-      <p className="font-mono text-3xl font-semibold tabular-nums text-foreground group-hover:text-accent-text">
+      <p className="font-mono text-2xl font-semibold tabular-nums text-foreground group-hover:text-accent-text">
         <CountUp to={value} />{suffix ?? ""}
       </p>
     </Link>
   );
 }
 
-function Stat({
-  label, value, icon: Icon,
+function Instrument({
+  href, label, primary, sub, icon: Icon, tone, dotClass, primaryClass,
 }: {
-  label: string; value: string; icon: React.ComponentType<{ className?: string }>;
+  href: string;
+  label: string;
+  primary: string;
+  sub?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone?: "success" | "warning" | "destructive" | "muted";
+  dotClass?: string;
+  primaryClass?: string;
 }) {
+  const TONE: Record<"success" | "warning" | "destructive" | "muted", string> = {
+    success: "text-success", warning: "text-warning",
+    destructive: "text-destructive", muted: "text-faint",
+  };
   return (
-    <div className="space-y-0.5">
-      <p className="label-caps text-faint inline-flex items-center gap-1">
+    <Link
+      href={href}
+      className="group block rounded-md border border-border bg-card p-3 transition-colors duration-[var(--duration-snap)] hover:border-primary/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    >
+      <p className="label-caps text-faint inline-flex items-center gap-1.5">
         <Icon className="size-3" /> {label}
       </p>
-      <p className="font-mono text-sm font-medium tabular-nums text-foreground">{value}</p>
-    </div>
+      <p className={`mt-1 font-mono text-lg font-semibold tabular-nums inline-flex items-center gap-1.5 ${primaryClass ?? (tone ? TONE[tone] : "text-foreground")}`}>
+        {dotClass && <span className={`inline-block size-1.5 rounded-full ${dotClass}`} aria-hidden />}
+        {primary}
+      </p>
+      {sub && <p className="mt-0.5 text-[11px] text-faint">{sub}</p>}
+    </Link>
   );
 }
 
-function SmallStat({ value, label }: { value: string | number; label: string }) {
-  return (
-    <div>
-      <p className="font-mono text-xl font-semibold tabular-nums text-foreground"><CountUp to={typeof value === "number" ? value : 0} />{typeof value === "string" ? value : ""}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-function ReadinessTile({
-  label, pct, planned, icon: Icon,
+function ActionTile({
+  href, icon: Icon, label,
 }: {
-  label: string; pct: number | null; planned: number; icon: React.ComponentType<{ className?: string }>;
-}) {
-  const has = pct != null;
-  return (
-    <div className="rounded-md border border-border bg-background/40 p-2.5">
-      <p className="label-caps text-faint inline-flex items-center gap-1">
-        <Icon className="size-3" /> {label}
-      </p>
-      <p className="mt-1 font-mono text-sm font-medium tabular-nums">
-        {has ? (
-          <>
-            <span className="text-foreground">{pct}%</span>
-          </>
-        ) : (
-          <span className="text-faint">untouched</span>
-        )}
-      </p>
-      <p className="text-[10px] text-faint">
-        {has ? "ready" : `${planned} items waiting`}
-      </p>
-    </div>
-  );
-}
-
-function WorkflowCard({
-  phase,
-  tools,
-}: {
-  phase: string;
-  tools: Array<{ href: string; icon: React.ComponentType<{ className?: string }>; label: string }>;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 surface-raised">
-      <p className="label-caps text-faint">{phase}</p>
-      <ul className="mt-3 space-y-1">
-        {tools.map((t) => (
-          <li key={t.href}>
-            <Link
-              href={t.href}
-              className="-mx-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors duration-[var(--duration-snap)] hover:bg-accent hover:text-foreground"
-            >
-              <t.icon className="size-3.5 text-faint" />
-              <span>{t.label}</span>
-              <ArrowRight className="ml-auto size-3 opacity-0 transition-opacity group-hover:opacity-100" />
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Link
+      href={href}
+      className="surface-interactive group flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    >
+      <Icon className="size-4 text-faint group-hover:text-foreground" />
+      <span className="text-sm font-medium text-foreground group-hover:text-accent-text">{label}</span>
+      <ArrowRight className="ml-auto size-3.5 text-faint opacity-0 transition-opacity group-hover:opacity-100" />
+    </Link>
   );
 }
 
-// suppress unused-import lint while keeping the icons exported for future moves
-void Globe;
+// quiet unused-import warnings while keeping the icons available for future moves
+void Eye; void Compass;
