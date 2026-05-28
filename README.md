@@ -1,397 +1,216 @@
 # Greyline
 
-**Your travel data stays on your machine. Always.**
+**Your private lifetime travel log — kept, mapped, and explained on your own machine. Nothing leaves it.**
 
-Greyline is a privacy-first, offline-first travel planning application built for people who take their operational security seriously. It runs entirely on your computer — no accounts, no cloud, no tracking, no telemetry.
+Greyline is a local-only, offline-first travel app for people who want a complete, durable record of every trip they've ever taken — and a calm way to plan the ones still ahead — without handing that history to anyone else.
 
----
-
-## Why This Exists
-
-Most travel apps want your data. Your itineraries, passport scans, location history, financial details — all stored on someone else's server, all one breach away from exposure.
-
-Greyline exists because travelers who care about privacy shouldn't have to choose between convenience and control. Whether you're a journalist working in sensitive regions, a security professional, a digital nomad, or simply someone who doesn't want their travel patterns monetized — this tool is for you.
-
-### The Gray Man Philosophy
-
-In security tradecraft, a "gray man" is someone who blends in — unremarkable, unmemorable, invisible in a crowd. Greyline applies this principle to both its design and your travel planning:
-
-- **The app itself blends in.** Clean, minimal UI. No tactical branding, no spy imagery, no military aesthetics. It looks like any other travel planner on your screen.
-- **Privacy by default.** All external API calls go through a local gateway that strips identifying headers (User-Agent, Referer). Every API is off by default — you enable only what you need.
-- **Real tradecraft, practical application.** OPSEC checklists, cultural blending guides, counter-surveillance awareness, and hotel security protocols are drawn from CIA, MI6, FBI, Special Forces, and SERE frameworks — adapted for civilian travel.
-- **No digital footprint.** Photo EXIF stripping removes GPS coordinates and device fingerprints. The encrypted vault protects sensitive documents with AES-256-GCM. Nothing phones home.
-
-This isn't about paranoia. It's about having a reasonable, practical baseline of operational security when you travel.
+No accounts. No cloud. No telemetry. One folder of files on your computer, and one app you control.
 
 ---
 
-## Getting Started
+## Why this exists
 
-### Prerequisites
+Every existing travel app wants to be the place your itinerary lives. They have to — the data is the product. But your **lifetime movement history** is the single richest piece of personal information you produce, and the consequences of it leaking (or being mined, or quietly profiled, or one day subpoenaed) are real.
 
-- [Node.js](https://nodejs.org/) 20+ (LTS recommended)
-- [pnpm](https://pnpm.io/) package manager
+Greyline takes the opposite stance:
 
-If you don't have pnpm:
+- **Your whole travel life, in one private record.** Every trip you've taken, every country day-counted, every passport you've held — kept locally, exportable on demand, deletable at will.
+- **SF-86-grade rigor, civilian-useful.** The same disclosure logic the U.S. government uses for foreign-travel reporting (the 7-year rolling window, per-country day totals, residency, Schengen 90/180) — without ever calling it "SF-86." For most people it's just *"the record I'd want if I ever had to remember exactly where I was."*
+- **Decision tools, not engagement loops.** Visa eligibility, weather-as-go/no-go, currency, country briefings, hotel-room security, border device-prep, EXIF stripping, self-doxxing audits — all computed locally from bundled data.
+- **A map of you, only for you.** A hero scratch-map fills in every country you've been — fully offline, click any country for its briefing, export the whole thing as a PNG.
+
+Built for journalists, frequent travelers, security-minded professionals, people with public profiles, dual citizens, and anyone who would rather not feed their movement history to ad-tech. AGPL-3.0 — you can read every line of code that touches your data.
+
+---
+
+## Quick start
 
 ```bash
-npm install -g pnpm
-```
-
-### 1. Clone and Install
-
-```bash
-git clone https://github.com/user/greyline.git
+# 1. clone, install, create the local SQLite db, seed default settings
+git clone https://github.com/h0-foundation/greyline.git
 cd greyline
 pnpm setup
-```
 
-`pnpm setup` does three things: installs dependencies, creates the local SQLite database with migrations, and seeds default settings. No external services are contacted. No accounts are created.
-
-### 2. Seed Country Data (Optional)
-
-To populate the knowledge base with 250+ country profiles:
-
-```bash
+# 2. (optional) bundle 250 country profiles for the briefings
 pnpm build:countries
-```
 
-This downloads from REST Countries and CIA World Factbook (~3 MB). You only need to run this once. The app works without it — you just won't have country profile data.
-
-### 3. Run in Development Mode
-
-```bash
+# 3. run it
 pnpm dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173). The app is running.
+Open **http://localhost:3000**. That's it.
 
-The dev server binds to `127.0.0.1` only — it is not accessible from other machines on your network. Hot-reload is enabled: changes to source files appear instantly in the browser.
+`Ctrl+C` to stop. Your data lives in `data/` and persists between sessions; next time, just `pnpm dev` again.
 
-### 4. Stop the App
+**Prefer a production build?** `pnpm build && pnpm start` — same port, faster, no hot reload.
 
-Press `Ctrl+C` in the terminal where the dev server is running. That's it. Your data is saved in `data/greyline.db` and persists between sessions. Next time you want to use the app, just run `pnpm dev` again.
-
----
-
-## Production Build
-
-For a faster, optimized version without hot-reload:
-
-```bash
-# Build the production bundle
-pnpm build
-
-# Run it
-pnpm start
-```
-
-Open [http://localhost:5173](http://localhost:5173). The production build is leaner and faster than dev mode.
-
-To stop: press `Ctrl+C`.
+**Prefer Docker?** `docker compose up -d` — exposes the app at **http://localhost:5173** (per `docker-compose.yml`). Your `data/` is volume-mounted, so it survives container restarts.
 
 ---
 
-## Docker Deployment
+## What's in it
 
-If you prefer containers or don't want to install Node.js:
+**24 pages, 32 local API routes**, all rendering at request time from local SQLite. Every external network call is **off by default** and goes through a local proxy you control.
 
-```bash
-# Build and start in the background
-docker compose up -d
+### The lifetime record
+- **Dashboard** — scratch-map + lifetime stats (countries · % of world · days · continents), most-recent trip, privacy posture, OPSEC readiness.
+- **Trips atlas** (`/trips`) — full-width animated scratch-map, year-by-year days bar, "On this day," Greyline Wrapped per-year recaps, passport-stamp wall, the full lifetime trip ledger.
+- **Trip detail** — destinations, threat model (assets · adversaries · capability · consequence), destination-aware OPSEC checklists with readiness scoring.
+- **Countries** — searchable 250-country directory + per-country briefing (capital · currencies · languages · timezones · neighbors · airports · emergency numbers · power specs · privacy posture).
+- **Vault** — AES-256-GCM encrypted document store, passphrase-protected (Argon2id KDF). No recovery — by design.
+- **Map** — offline MapLibre OSINT map with destinations, rally points, surveillance sightings, plus optional layers (GDACS disasters, USGS earthquakes, OSM cameras, live ADS-B).
+- **Surveillance** — TEDD-principle counter-surveillance log with repeat-pattern detection + rally-point manager.
 
-# Check it's running
-docker compose ps
+### The hero scratch-map
+The emotional anchor — your visited world made visible. Bundled Natural Earth geometry (177 features, 248 KB; zero network), oak-green visited / gold home / stone unvisited.
 
-# View logs
-docker compose logs -f
-```
+- **Hover** → flag · trips · days · year range.
+- **Click any country** → its briefing.
+- **First-load fill** → countries light up most-traveled-first (`prefers-reduced-motion` skips to the final state instantly).
+- **Export "My world" as PNG** → theme-matched, title-banded, downloads locally.
+- **Theme-reactive** → light/dark toggle recolors live without replaying the animation.
 
-Open [http://localhost:5173](http://localhost:5173).
+### Tools (11, all linkable from `/tools`)
+| | Tool | What it computes |
+|---|---|---|
+| ✈ | **Airports** | Search 85k airports; nearest scheduled airports + bearing + dispersion (egress check). Offline. |
+| 🪪 | **Visa checker** | Your passport → any destination (offline matrix). Schengen 90/180 days. Passport validity rules. Offline. |
+| ☁ | **Weather** | 7-day Open-Meteo forecast + go/no-go signal (heat, UV, photography light). Connection optional. |
+| ⚠ | **Travel advisories** | Per-country risk scores. Connection optional. |
+| 💱 | **Currency** | Live (cached) exchange + per-diem math. Connection optional. |
+| 🏨 | **Hotel & room security** | Room-selection scoring (executive-protection tradecraft) + on-arrival walkthrough checklist. Offline. |
+| 🛂 | **Border crossing** | Device-prep exposure score by destination/status/threat + before/at/after checklist. Offline. |
+| 🛩 | **Data footprint of flying** | What API/PNR/EU EES/ETIAS/US biometric/transit systems capture when you fly. Offline reference. |
+| 🧳 | **Packing** | Threat-aware packing checklist (6 sections). Offline. |
+| 🖼 | **EXIF stripper** | Drag-and-drop GPS/metadata removal. Processed in-memory, never uploaded. |
+| 👁 | **Self-doxxing audit** | Generated search queries + broker opt-out tracker. Doesn't search anything — just shows you what to check, in private. |
 
-### Stop and restart
-
-```bash
-# Stop (preserves your data)
-docker compose down
-
-# Start again later
-docker compose up -d
-```
-
-### Full removal
-
-```bash
-# Stop and remove the container
-docker compose down
-
-# Remove the Docker image
-docker compose down --rmi all
-```
-
-Your data lives in the `data/` directory on your host machine (mounted as a volume), so it survives container restarts and removals. To delete your data too, remove the `data/` folder manually.
+### Settings + data
+- **Settings** — units, locale, home country, passport country, per-connection toggles, traveler profile.
+- **Data management** (`/settings/data`) — back up, restore, or wipe your local data (JSON export/import).
+- **Data sources** (`/about/data-sources`) — every bundled dataset and optional connection, with its license and what it returns.
 
 ---
 
-## Managing Your Data
-
-### Where data is stored
-
-All data lives in the `data/` directory:
+## Your data, your machine
 
 ```
 data/
-├── greyline.db          ← SQLite database (trips, settings, country profiles, cache)
-├── greyline.db-wal      ← Write-ahead log (auto-managed by SQLite)
-├── greyline.db-shm      ← Shared memory file (auto-managed by SQLite)
-└── vault/               ← Encrypted document files
-    ├── .verify           ← Vault passphrase verification token
-    └── *.enc             ← Your encrypted documents
+├── greyline.db            ← SQLite (trips, destinations, countries, settings, cache)
+├── greyline.db-wal        ← Write-ahead log (auto-managed)
+├── greyline.db-shm        ← Shared memory file (auto-managed)
+└── vault/
+    ├── .verify            ← Argon2id-derived passphrase verifier
+    └── *.enc              ← Your encrypted documents (AES-256-GCM)
 ```
 
-### Back up your data
-
-```bash
-# Simple backup
-cp -r data/ data-backup-$(date +%Y%m%d)/
-
-# Or just the database (if you don't use the vault)
-cp data/greyline.db greyline-backup.db
-```
-
-### Reset everything
-
-```bash
-# Wipe the database and recreate it empty
-pnpm reset
-```
-
-This removes the SQLite database and WAL files, then runs migrations and seeds fresh. Your vault files in `data/vault/` are NOT removed by `pnpm reset`.
-
-### Nuclear option — delete all data
-
-```bash
-# Remove everything: database, vault, all local data
-rm -rf data/
-
-# Recreate a fresh database
-pnpm setup
-```
-
-After this, the app is back to first-run state. Any encrypted vault documents are permanently gone.
-
-### Clean build artifacts
-
-```bash
-# Remove build output, .svelte-kit cache, and database
-pnpm clean
-```
+**Back it up:** `cp -r data/ data-backup-$(date +%F)/`
+**Start the DB over (keeps the vault):** `rm data/greyline.db* && pnpm migrate && pnpm seed`
+**Nuke everything:** `rm -rf data/ && pnpm setup`. Encrypted vault docs are unrecoverable after this.
 
 ---
 
-## Vault Security
+## External connections (all off by default)
 
-The document vault uses AES-256-GCM encryption with Argon2id key derivation.
+Greyline makes **zero outbound network requests** until you turn one on. Each is a discrete toggle in Settings → Connections, and a master "Fully offline" switch blocks them all instantly. When enabled, every request goes through a local proxy that:
 
-- **First use**: You set a passphrase (minimum 8 characters). This encrypts a verification token stored in `data/vault/.verify`.
-- **Subsequent use**: Your passphrase is verified against this token before the vault unlocks.
-- **No recovery**: If you forget your passphrase, your encrypted documents are unrecoverable. This is by design.
-- **Reset the vault**: Delete `data/vault/` to wipe all encrypted files and start fresh with a new passphrase.
+- strips identifying headers (`User-Agent`, `Referer`),
+- respects the master offline switch,
+- caches responses in SQLite to minimize repeats.
 
----
-
-## Enabling External APIs
-
-By default, Greyline makes zero outbound network requests. All external APIs are disabled.
-
-To enable APIs: go to **Settings → API Toggles** and switch on what you need. A master offline switch at the top blocks all external connections instantly.
-
-When enabled, all API calls go through a local privacy gateway that:
-- Strips identifying headers (`User-Agent`, `Referer`)
-- Caches responses in SQLite to minimize repeat requests
-- Respects the master offline switch
-
----
-
-## Features
-
-### Trip Planning
-Create and manage trips with multiple destinations, dates, notes, and linked country profiles. Each destination gets auto-generated checklists (packing, hotel security, border crossing, digital hygiene) with progress tracking.
-
-### Encrypted Document Vault
-Store passport copies, visas, insurance documents, and other sensitive files encrypted with AES-256-GCM. Protected by a passphrase you set on first use — derived via Argon2id key derivation. No recovery mechanism by design. If you forget your passphrase, the data is gone.
-
-### OPSEC Dashboard
-Security posture overview with checklist-based scoring across multiple categories. Tracks your operational security readiness for active trips.
-
-### Country Knowledge Base
-Aggregated profiles for 250+ countries from REST Countries and CIA World Factbook data. Geography, demographics, languages, currencies, borders, and practical travel info — all stored locally.
-
-### Tools
-
-| Tool | Description |
-|------|-------------|
-| **Photo EXIF Stripper** | Drag-and-drop metadata removal — GPS, device info, timestamps, camera settings |
-| **Packing List Generator** | Gray-man gear lists by climate, duration, travel type, and risk level (82 items across 7 categories) |
-| **Wardrobe Planner** | Clothing recommendations by destination, season, and context — what to wear to blend in, what to avoid |
-| **Hotel Security Checklist** | CIA-derived room security verification — entry points, surveillance, communications security |
-| **Room Sweep Guide** | TSCM-informed hotel room inspection protocol |
-| **Border Crossing Prep** | Region-specific customs procedures, document requirements, digital security at borders, behavioral guidance |
-| **Financial OPSEC Planner** | Cash vs card norms by region, ATM safety, payment culture, budget planning, financial gray man tips |
-| **SDR Route Generator** | Surveillance detection route planning with timing stops and cover stops |
-| **Extraction Planner** | Emergency evacuation routes to embassies, hospitals, airports, and borders |
-| **Currency Converter** | Live and cached exchange rates for 150+ currencies with offline fallback |
-| **Weather** | 16-day forecasts via Open-Meteo with hourly breakdowns and offline caching |
-| **Travel Advisories** | Risk scores from travel-advisory.info with country-level threat assessment |
-
-### Surveillance Awareness
-Camera location data from OpenStreetMap, counter-surveillance logging, and situational awareness tools.
-
-### Command Palette
-`Cmd+K` (Mac) / `Ctrl+K` (Windows/Linux) for quick navigation to any page or tool.
-
----
-
-## Technology Choices
-
-Every technology choice serves the core principles: privacy, offline capability, simplicity, and local-first operation.
-
-| Layer | Choice | Why |
-|-------|--------|-----|
-| **Framework** | SvelteKit | Full-stack with API routes for backend logic. Runs on localhost as both server and client. No separate backend needed. |
-| **Frontend** | Svelte 5 | Compiles to vanilla JS with no virtual DOM. Small bundles, fast rendering. Reactive by default with runes (`$state`, `$derived`, `$effect`). |
-| **Styling** | Tailwind CSS 4 | Utility-first with custom design tokens. Dark mode default. Neon-on-dark theme (accent: `#EAFF5E` on near-black surfaces). |
-| **Database** | SQLite (better-sqlite3) | Single local file. Zero config. No database server. WAL mode for performance. Your data is one file you can back up or destroy. |
-| **Encryption** | Node.js crypto (AES-256-GCM) | Built-in, no external dependencies for the core encryption. 256-bit keys, authenticated encryption with associated data. |
-| **Key Derivation** | Argon2id | Memory-hard KDF resistant to GPU/ASIC attacks. Passphrase → encryption key with unique salt per operation. |
-| **Maps** | MapLibre GL JS + PMTiles | Open-source vector maps with offline tile support. No API keys, no tracking, BSD licensed. |
-| **Package Manager** | pnpm | Fast, disk-efficient, strict dependency resolution. |
-| **Container** | Docker | Optional. One-command deployment with `docker compose up`. Data persisted via volume mount. |
-| **License** | AGPL-3.0 | Copyleft. Anyone can use, modify, and distribute — but modifications must remain open source. Prevents proprietary forks. |
-
-### Why Not [X]?
-
-- **Why not Electron/Tauri?** SvelteKit on localhost gives you a full app with zero desktop framework overhead. Works in any browser. No installation beyond `pnpm dev`.
-- **Why not PostgreSQL/MySQL?** SQLite is one file. No server process. Easy to back up (`cp data/greyline.db backup.db`), easy to destroy (`rm data/greyline.db`). Perfect for single-user local apps.
-- **Why not cloud sync?** By design. Your data never leaves your machine. If you want backups, copy the `data/` directory to an encrypted drive.
-- **Why AGPL?** Trust. You can read every line of code that touches your data. No one can take this and make a closed-source version that phones home.
-
----
-
-## Architecture
-
-```
-Your Machine (localhost:5173)
-├── SvelteKit App
-│   ├── Browser        → Svelte 5 + Tailwind CSS 4
-│   ├── Server         → API routes (bound to 127.0.0.1 only)
-│   ├── Database       → SQLite (data/greyline.db)
-│   ├── Vault          → AES-256-GCM encrypted files (data/vault/)
-│   └── API Gateway    → Privacy-preserving proxy with per-API toggles
-│
-├── Server Services
-│   ├── /api/trip/          → Trip CRUD + destination management
-│   ├── /api/vault/         → Encrypted document storage
-│   ├── /api/knowledge/     → Country profiles + search
-│   ├── /api/settings/      → App config + API toggles
-│   ├── /api/tools/         → EXIF stripping, checklists
-│   ├── /api/weather/       → Open-Meteo proxy
-│   ├── /api/advisories/    → Travel risk scores
-│   ├── /api/currency/      → Exchange rates
-│   └── /api/geocode/       → Nominatim proxy
-│
-└── Data Layer
-    ├── data/greyline.db    → SQLite database (gitignored)
-    └── data/vault/*.enc    → Encrypted document files (gitignored)
-```
-
-All API routes run on localhost. The server never binds to `0.0.0.0` in development — only `127.0.0.1`.
-
----
-
-## External APIs
-
-All disabled by default. No API keys required for any of these — they are all free and open.
-
-| API | Purpose | Rate Limit |
-|-----|---------|-----------|
-| Open-Meteo | Weather forecasts, elevation | 10k/day |
+| Source | Used for | Limit |
+|---|---|---|
+| Open-Meteo | Weather forecasts | 10k/day |
 | travel-advisory.info | Country risk scores | Unlimited |
 | fawazahmed0/exchange-api | Currency rates (150+) | Unlimited |
-| Nominatim | Geocoding, address search | 1 req/sec |
+| Nominatim (OSM) | Geocoding | 1 req/sec |
 | Overpass (OSM) | Surveillance camera locations | Fair use |
-| GDELT | Global news/events | Unlimited |
-| ADSB.lol | Flight tracking | Unlimited |
-| IP-API | IP geolocation check | 45/min |
+| GDELT | Global events | Unlimited |
+| USGS | Earthquakes (past day, M2.5+) | Unlimited |
+| GDACS | Global disaster alerts | Unlimited |
+| ADSB.lol | Live ADS-B aircraft | Unlimited |
+
+No API keys required for any of them — they're all free and open.
 
 ---
 
-## All Commands
+## Tech
 
-| Command | What it does |
-|---------|-------------|
-| `pnpm setup` | First-time install: dependencies + database + seed |
-| `pnpm dev` | Start dev server at localhost:5173 |
-| `pnpm build` | Build for production |
-| `pnpm start` | Run production build |
-| `pnpm build:countries` | Download country data bundle (250+ countries) |
-| `pnpm check` | Type-check the codebase |
-| `pnpm test` | Run unit tests |
-| `pnpm test:e2e` | Run end-to-end tests (Playwright) |
-| `pnpm reset` | Wipe database and recreate from scratch |
-| `pnpm clean` | Remove build artifacts, database, and WAL files |
+| Layer | Choice | Why |
+|---|---|---|
+| Framework | **Next.js 16** (App Router, Turbopack) | One process; server components read SQLite directly; route handlers for the local APIs. |
+| UI | **React 19** + **shadcn/ui** (Radix) | Vendored primitives — no design lock-in, full control. |
+| Styling | **Tailwind CSS 4** + OKLCH design tokens | "Oak & Gold" palette (deep oak-green + gold spark), warm-neutral stone surfaces, "Field Atlas / Dossier" voice. Dark by default. |
+| Motion | **motion/react** + `lib/motion.ts` token system | Single source of truth for durations and easings; honors `prefers-reduced-motion`. |
+| DB | **SQLite (better-sqlite3)** in WAL mode | One file. Zero config. Backup = copy a file. |
+| Vault | **AES-256-GCM** + **Argon2id** | 256-bit authenticated encryption; memory-hard KDF. |
+| Maps | **MapLibre GL JS 5** + bundled **Natural Earth** GeoJSON | Vector, offline, no tile-server dependency. |
+| Package manager | **pnpm** | Fast, disk-efficient. |
+| License | **AGPL-3.0** | Copyleft — forks must stay open. |
 
 ---
 
-## Project Structure
+## Project layout
 
 ```
 greyline/
-├── src/
-│   ├── routes/              → SvelteKit pages and API routes
-│   │   ├── +page.svelte     → Dashboard
-│   │   ├── trip/            → Trip list + detail pages
-│   │   ├── vault/           → Encrypted document vault
-│   │   ├── opsec/           → OPSEC dashboard
-│   │   ├── knowledge/       → Country profiles
-│   │   ├── map/             → Offline map viewer
-│   │   ├── surveillance/    → Camera data + CS log
-│   │   ├── tools/           → All standalone tools
-│   │   ├── training/        → Training modules
-│   │   ├── settings/        → App settings + API toggles
-│   │   └── api/             → Server-side API endpoints
-│   └── lib/
-│       ├── components/ui/   → Shared UI components
-│       ├── stores/          → Svelte stores (app state)
-│       ├── types/           → TypeScript type definitions
-│       └── services/        → Client-side API wrappers
+├── app/                      Next.js App Router
+│   ├── page.tsx              dashboard
+│   ├── trips/                trips atlas + per-trip detail
+│   ├── countries/            country directory + briefings
+│   ├── map/                  OSINT map
+│   ├── surveillance/         counter-surveillance log
+│   ├── tools/                11 tools (airports, visa, weather, …)
+│   ├── vault/                encrypted document vault
+│   ├── settings/             app + connections + traveler profile
+│   ├── about/data-sources/   bundled datasets + connections inventory
+│   ├── api/                  32 route handlers (all local)
+│   ├── loading.tsx           shared skeleton
+│   └── error.tsx             client error boundary
+├── components/               shell, ui/*, travel/world-map.tsx, tools/*, …
+├── lib/                      countries.ts, motion.ts, connections.ts, …
 ├── server/
-│   ├── db/                  → SQLite connection + migrations + repositories
-│   ├── services/            → Business logic (vault, trips, OPSEC)
-│   ├── crypto/              → Encryption, key derivation, EXIF stripping
-│   └── api-clients/         → External API client wrappers
-├── data/                    → Local data directory (gitignored)
-│   ├── greyline.db          → SQLite database
-│   └── vault/               → Encrypted files
-├── scripts/                 → Setup and data build scripts
-├── docker-compose.yml
-├── Dockerfile
-└── package.json
+│   ├── db/                   index + migrations + repositories
+│   ├── services/             api-gateway, vault, exif
+│   ├── crypto/               encryption, key-derivation
+│   └── api-clients/          per-source wrappers (open-meteo, nominatim, …)
+├── scripts/                  migrate, seed, build-country-data, build-data
+├── public/geo/               countries-110m.geojson (Natural Earth, 248 KB)
+├── data/                     local SQLite + vault (gitignored)
+└── e2e/                      Playwright specs
 ```
 
 ---
 
-## Security Model
+## All commands
 
-- **Vault encryption**: AES-256-GCM with random 12-byte IV per file. Auth tags prevent tampering. Keys derived from passphrase via Argon2id (64 MB memory, 3 iterations).
-- **No recovery**: If you lose your vault passphrase, the encrypted files are unrecoverable. This is intentional.
-- **Local only**: The dev server binds to `127.0.0.1`. Docker exposes `127.0.0.1:5173`. Nothing is accessible from other machines on your network.
-- **No telemetry**: Zero analytics, crash reporting, or usage tracking. The app makes no outbound connections unless you explicitly enable an API.
-- **Header stripping**: When APIs are enabled, the gateway removes identifying headers before forwarding requests.
-- **Data destruction**: `pnpm clean` removes the database and all WAL files. `rm -rf data/` removes everything including encrypted vault files.
+| Command | What it does |
+|---|---|
+| `pnpm setup` | Install + migrate + seed (first-time) |
+| `pnpm dev` | Next dev server on :3000 |
+| `pnpm build` | Production build |
+| `pnpm start` | Run the production build |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm lint` | ESLint |
+| `pnpm migrate` | Apply DB migrations |
+| `pnpm seed` | Seed default settings + toggles |
+| `pnpm build:countries` | Bundle the 250 country profiles |
+| `pnpm build:data` | Build the dataset index for `/about/data-sources` |
+| `pnpm e2e` | Build + Playwright e2e |
+| `pnpm e2e:headed` | Playwright headed (debug) |
+
+---
+
+## Security model
+
+- **Vault** — AES-256-GCM per file, random 12-byte IV, auth tag. Key = Argon2id(passphrase, salt, 64 MiB / 3 iters). No recovery — the passphrase is never stored.
+- **No telemetry** — zero analytics, crash reporting, or usage tracking. No outbound call leaves the machine unless you toggle a connection on.
+- **Proxy** — every external request strips `User-Agent` and `Referer`, respects the master offline switch, and is cached.
+- **Localhost only** — Next dev binds to localhost; Docker exposes `127.0.0.1:5173` on the host. Nothing is reachable from other machines on the network.
+- **Data destruction** — `rm -rf data/` removes the DB, WAL files, and the encrypted vault. There is no copy elsewhere.
 
 ---
 
 ## License
 
-[AGPL-3.0](LICENSE) — Free and open source. If you modify and distribute Greyline, your modifications must also be open source.
+[AGPL-3.0](LICENSE). If you fork and distribute, your modifications stay open — no closed, hosted, telemetry-laden Greyline can be made from this code.
