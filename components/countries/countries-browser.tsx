@@ -22,7 +22,7 @@ const ADVISORY_TONE: Record<number, { dot: string; text: string; ring: string; c
   1: { dot: "bg-success",       text: "text-success",      ring: "ring-success/30",       chipBg: "bg-success/10",     chipText: "text-success",     tip: "Normal precautions" },
   2: { dot: "bg-warning",       text: "text-warning",      ring: "ring-warning/30",       chipBg: "bg-warning/10",     chipText: "text-warning",     tip: "Increased caution" },
   3: { dot: "bg-accent-text",   text: "text-accent-text",  ring: "ring-accent-text/30",   chipBg: "bg-accent-text/10", chipText: "text-accent-text", tip: "Reconsider travel" },
-  4: { dot: "bg-destructive",   text: "text-destructive",  ring: "ring-destructive/40",   chipBg: "bg-destructive/10", chipText: "text-destructive", tip: "Do not travel" },
+  4: { dot: "bg-destructive",   text: "text-destructive",  ring: "ring-destructive/40",   chipBg: "bg-red-800",        chipText: "text-white",       tip: "Do not travel" },
 };
 
 export function CountriesBrowser({

@@ -7,11 +7,16 @@ import { cn } from "@/lib/utils";
 function Progress({
   className,
   value,
+  "aria-label": ariaLabel,
   ...props
 }: React.ComponentProps<typeof ProgressPrimitive.Root>) {
+  // axe `aria-progressbar-name` rule needs SOME accessible name. Default to a
+  // value-derived label so callers don't have to label every progress bar.
+  const label = ariaLabel ?? (value != null ? `Progress: ${value}%` : "Progress");
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
+      aria-label={label}
       className={cn(
         "bg-secondary relative h-2 w-full overflow-hidden rounded-full",
         className

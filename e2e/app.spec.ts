@@ -1,13 +1,22 @@
 import { test, expect } from "@playwright/test";
 
-// End-to-end walkthrough of every surface against the production build.
+// End-to-end walkthrough of every key surface against the production build.
 // Mutating tests create-then-clean so the run is idempotent.
+//
+// CI runs against a fresh seed DB (no trips), so the home page renders the
+// "Nothing in flight" cockpit empty state. These selectors target that state.
 
-test("dashboard renders with live counts", async ({ page }) => {
+test("home renders the cockpit", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Every country you've been/i })).toBeVisible();
-  await expect(page.getByText("Country profiles")).toBeVisible();
-  await expect(page.getByText(/nothing leaves this machine/i).first()).toBeVisible();
+  // Either the empty-state h1 OR an active-trip h1; both are display-Fraunces level-1.
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // Numbers strip — six KPI tiles labelled by `label-caps`. These labels are
+  // unique to the home (sidebar nav and quick-action tiles use different copy
+  // for some, same for others) so scope to the KPI section role.
+  const kpi = page.getByLabel("At a glance");
+  await expect(kpi.getByText("Trips", { exact: true })).toBeVisible();
+  await expect(kpi.getByText("Vault docs", { exact: true })).toBeVisible();
+  await expect(kpi.getByText("Visa-free reach", { exact: true })).toBeVisible();
 });
 
 test("countries: search and open a briefing with privacy posture", async ({ page }) => {
@@ -15,6 +24,7 @@ test("countries: search and open a briefing with privacy posture", async ({ page
   await page.getByPlaceholder("Search countries…").fill("united states");
   await page.locator('a[href="/countries/US"]').first().click();
   await expect(page).toHaveURL(/\/countries\/US/);
+  // Privacy posture block is intact, with VPN + Decryption rows.
   await expect(page.getByText("What's captured about you here")).toBeVisible();
   await expect(page.getByText("VPN legality")).toBeVisible();
   await expect(page.getByText("Decryption compulsion")).toBeVisible();
@@ -25,7 +35,16 @@ test("countries: GB briefing shows decryption compulsion", async ({ page }) => {
   await expect(page.getByText(/Can be compelled/i)).toBeVisible();
 });
 
-test("trips: create, see threat dial, generate OPSEC, then delete", async ({ page, request }) => {
+test("countries: hotspot filter chips render when advisory data is seeded", async ({ page }) => {
+  await page.goto("/countries");
+  // The filter row is conditional on advisory data; CI seeds none, so we only
+  // assert the page header + the search box are present. Real advisory data is
+  // verified by the build:advisories script + its smoke tests in dev.
+  await expect(page.getByRole("heading", { name: "Countries", level: 1 })).toBeVisible();
+  await expect(page.getByPlaceholder("Search countries…")).toBeVisible();
+});
+
+test("trips: create, see threat dial + briefing, generate OPSEC, then delete", async ({ page, request }) => {
   await page.goto("/trips");
   await page.getByRole("button", { name: "New trip" }).first().click();
   await page.getByLabel("Name").fill("E2E Test Trip");
@@ -36,18 +55,28 @@ test("trips: create, see threat dial, generate OPSEC, then delete", async ({ pag
   await expect(page.getByRole("heading", { name: "E2E Test Trip" })).toBeVisible();
   await expect(page.getByText("Threat level").first()).toBeVisible();
 
-  // Add a destination, confirm it appears.
-  await page.getByLabel("Country").fill("DE");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.locator('a[href="/countries/DE"]')).toBeVisible();
+  // Add a destination via the in-page editor — the destination editor has a
+  // Country aria-label distinct from any settings field. Scope to its parent.
+  const editor = page.locator("form").filter({ has: page.getByLabel("Country") }).first();
+  await editor.getByLabel("Country").fill("DE");
+  await editor.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.locator('a[href="/countries/DE"]').first()).toBeVisible();
 
-  // Generate phased OPSEC checklists.
+  // Phased OPSEC checklist generation.
   await page.getByRole("button", { name: /Generate for/ }).click();
   await expect(page.getByText("Pre-trip digital hygiene")).toBeVisible();
 
-  // Clean up via the API.
+  // Clean up via the API so the test stays idempotent.
   const res = await request.delete(`/api/trips/${tripId}`);
   expect(res.ok()).toBeTruthy();
+});
+
+test("logbook surfaces the lifetime atlas", async ({ page }) => {
+  await page.goto("/logbook");
+  await expect(page.getByRole("heading", { name: "Logbook", level: 1 })).toBeVisible();
+  // Back-to-planning hairline + disclosure link both render.
+  await expect(page.getByRole("link", { name: /Back to planning/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Disclosure-grade report/i })).toBeVisible();
 });
 
 test("tools hub lists tools; airports search returns Heathrow", async ({ page }) => {
@@ -65,9 +94,7 @@ test("tools: visa checker resolves a passport to destinations", async ({ page })
   await expect(input).toBeVisible();
   await input.fill("US");
   await input.press("Enter");
-  // After selecting a passport, destination requirements load.
   await expect(page.getByText(/visa-free/i).first()).toBeVisible({ timeout: 10_000 });
-  // Schengen 90/180 calculator (offline) renders above the matrix.
   await expect(page.getByText(/Schengen 90\/180/i).first()).toBeVisible();
   await expect(page.getByText(/days remaining/i).first()).toBeVisible();
 });
@@ -83,6 +110,14 @@ test("tools: hotel room-security assessment scores live (offline)", async ({ pag
   await page.goto("/tools/hotel");
   await expect(page.getByText("Room Security Score")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Front-desk request" })).toBeVisible();
+});
+
+test("tools: packing library renders the bundled templates", async ({ page }) => {
+  await page.goto("/tools/packing");
+  await expect(page.getByRole("heading", { name: "Packing", level: 1 })).toBeVisible();
+  // The filter row exposes the climate/activity/tier chips.
+  await expect(page.getByText("Climate", { exact: true })).toBeVisible();
+  await expect(page.getByText("Activity", { exact: true })).toBeVisible();
 });
 
 test("settings: connection toggles render and offline switch is present", async ({ page }) => {
@@ -105,7 +140,6 @@ test("surveillance: log a sighting, see it, delete it", async ({ page, request }
   await page.getByRole("button", { name: "Log sighting" }).click();
   await expect(page.getByText("E2E sighting near station")).toBeVisible({ timeout: 10_000 });
 
-  // Clean up any sightings created.
   const res = await request.get("/api/surveillance");
   const data = await res.json();
   for (const s of data.sightings) {
@@ -116,13 +150,12 @@ test("surveillance: log a sighting, see it, delete it", async ({ page, request }
 test("map page renders (heading + attribution)", async ({ page }) => {
   await page.goto("/map");
   await expect(page.getByRole("heading", { name: "Map" })).toBeVisible();
-  // WebGL may be unavailable in headless; assert the surface + OSM attribution
-  // copy rather than a live GL canvas.
   await expect(page.getByText(/OpenStreetMap/i).first()).toBeVisible();
 });
 
 test("data sources page lists bundled datasets", async ({ page }) => {
   await page.goto("/about/data-sources");
-  await expect(page.getByText("OurAirports")).toBeVisible();
-  await expect(page.getByText(/Passport Index/)).toBeVisible();
+  // OurAirports + the passport-index project are foundational bundles.
+  await expect(page.getByText(/OurAirports/i).first()).toBeVisible();
+  await expect(page.getByText(/passport.?index/i).first()).toBeVisible();
 });

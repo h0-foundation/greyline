@@ -144,7 +144,7 @@ export function SurveillanceLog({
           >
             <span className="font-mono text-xs font-semibold text-accent-text">{t.k}</span>
             <span className="text-xs font-medium text-foreground">{t.label}</span>
-            <span className="text-xs text-faint">{t.hint}</span>
+            <span className="text-xs text-muted-foreground">{t.hint}</span>
           </div>
         ))}
       </div>

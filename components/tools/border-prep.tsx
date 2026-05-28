@@ -324,7 +324,7 @@ export function BorderPrep({ coverage }: { coverage: CoverageItem[] }) {
             href="https://www.eff.org/wp/digital-privacy-us-border-2017"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent-text hover:underline"
+            className="text-accent-text underline underline-offset-2"
           >
             Digital Privacy at the U.S. Border
           </a>{" "}

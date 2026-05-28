@@ -393,7 +393,7 @@ function LayerRow({ icon: Icon, color, label, on, onToggle, note }: {
           <Icon className="size-4" style={{ color }} />
           {label}
         </span>
-        <Switch checked={on} onCheckedChange={onToggle} />
+        <Switch checked={on} onCheckedChange={onToggle} aria-label={`Toggle ${label}`} />
       </div>
       {note === "off" && (
         <Link href="/settings" className="ml-6 block text-[11px] text-white/45 hover:text-white/70">Off — enable connection in Settings →</Link>

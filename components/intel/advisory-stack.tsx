@@ -62,7 +62,7 @@ export function AdvisoryStack({ advisories }: { advisories: AdvisoryRow[] }) {
                     {a.summary}
                   </p>
                 )}
-                <p className="mt-2 font-mono text-[11px] text-faint">
+                <p className="mt-2 font-mono text-[11px] text-muted-foreground">
                   Updated {relativeUpdated(a.updated)}
                 </p>
               </div>

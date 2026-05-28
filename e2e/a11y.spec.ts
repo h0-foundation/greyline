@@ -15,6 +15,7 @@ import AxeBuilder from "@axe-core/playwright";
 const ROUTES: ReadonlyArray<readonly [string, string]> = [
   ["/", "home"],
   ["/trips", "trips"],
+  ["/logbook", "logbook"],
   ["/countries", "countries"],
   ["/countries/AD", "country-AD"],
   ["/map", "map"],
@@ -23,7 +24,7 @@ const ROUTES: ReadonlyArray<readonly [string, string]> = [
   ["/tools/airports", "tools-airports"],
   ["/tools/currency", "tools-currency"],
   ["/tools/weather", "tools-weather"],
-  ["/tools/advisories", "tools-advisories"],
+  // /tools/advisories has been folded into /countries (advisory filter).
   ["/tools/visa", "tools-visa"],
   ["/tools/exif", "tools-exif"],
   ["/tools/packing", "tools-packing"],

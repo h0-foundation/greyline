@@ -116,7 +116,7 @@ function statusBadgeClass(status: BrokerStatus): string {
     case "confirmed":
       return "border-transparent bg-accent-subtle text-spark";
     case "reappeared":
-      return "border-transparent bg-destructive/15 text-destructive";
+      return "border-transparent bg-red-800 text-white";
     case "not_started":
       return "text-faint";
     default:
@@ -636,10 +636,10 @@ function AuditCadence() {
   let stateClass = "border-transparent bg-accent-subtle text-spark";
   if (status.overdue) {
     stateLabel = "Overdue";
-    stateClass = "border-transparent bg-destructive/15 text-destructive";
+    stateClass = "border-transparent bg-red-800 text-white";
   } else if (status.due) {
     stateLabel = "Due";
-    stateClass = "border-transparent bg-destructive/10 text-destructive";
+    stateClass = "border-transparent bg-red-700 text-white";
   }
 
   return (
