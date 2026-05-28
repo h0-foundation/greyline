@@ -311,6 +311,31 @@
   .surface-interactive:hover { transform: none; }
 }
 
+/* Redaction system — locked vault titles render as a dossier black bar;
+   unlock sweeps the bar left and exposes the title. Diegetic UI tied to the
+   niche. Honors prefers-reduced-motion via the global block below. */
+.redacted {
+  position: relative;
+  isolation: isolate;
+}
+.redacted::after {
+  content: "";
+  position: absolute;
+  inset: -1px -3px;
+  z-index: 1;
+  border-radius: 2px;
+  background: linear-gradient(180deg, hsl(140 16% 4%), hsl(140 18% 2%));
+  transition: clip-path var(--duration-slow) var(--ease-out-quint);
+  clip-path: inset(0 0 0 0);
+  pointer-events: none;
+}
+.dark .redacted::after {
+  background: linear-gradient(180deg, hsl(140 22% 1%), hsl(140 26% 0%));
+}
+.redacted[data-revealed="true"]::after {
+  clip-path: inset(0 100% 0 0);
+}
+
 /* Mono ALL-CAPS micro-label — the "technical overlay" / dossier voice */
 .label-caps {
   font-family: var(--font-mono);
