@@ -1,4 +1,4 @@
-import { getDb } from '../index.js';
+import { getDb } from '../index';
 import { v4 as uuid } from 'uuid';
 
 export function getAllVaultDocs() {

@@ -8,6 +8,17 @@ node_modules
 /.svelte-kit
 /build
 
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -37,3 +48,6 @@ vite.config.ts.timestamp-*
 !data/bundles/countries/.gitkeep
 !data/bundles/cultural/.gitkeep
 !data/bundles/currency/.gitkeep
+
+# local audit artifacts (throwaway)
+.audit/

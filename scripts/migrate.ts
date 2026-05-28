@@ -1,4 +1,4 @@
-import { getDb, closeDb } from '../server/db/index.js';
+import { getDb, closeDb } from '../server/db/index';
 
 console.log('Running migrations...');
 const db = getDb();

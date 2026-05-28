@@ -1,4 +1,4 @@
-import { proxyFetch } from '../services/api-gateway.js';
+import { proxyFetch } from '../services/api-gateway';
 
 interface NominatimResult {
   place_id: number;

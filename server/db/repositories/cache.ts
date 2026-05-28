@@ -1,4 +1,4 @@
-import { getDb } from '../index.js';
+import { getDb } from '../index';
 
 export function getCached(cacheKey: string) {
   return getDb().prepare(

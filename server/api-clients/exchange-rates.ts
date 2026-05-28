@@ -1,4 +1,4 @@
-import { proxyFetch } from '../services/api-gateway.js';
+import { proxyFetch } from '../services/api-gateway';
 
 export async function getExchangeRates(
   base: string = 'USD'

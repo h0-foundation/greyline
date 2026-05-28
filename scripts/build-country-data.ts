@@ -1,4 +1,4 @@
-import { getDb, closeDb } from '../server/db/index.js';
+import { getDb, closeDb } from '../server/db/index';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { resolve } from 'path';
 

@@ -1,0 +1,326 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* next-themes toggles a `dark` class on <html>. */
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Greyline design system — "calm · trustworthy · privacy".
+  Slate-blue accent (institutional, quiet) over cool, low-chroma neutrals.
+  Token names follow shadcn/ui so vendored primitives are drop-in:
+  `--primary` is the brand/action color; `--accent` is a muted hover surface.
+  Elevation in dark mode comes from lightness, not shadows.
+*/
+:root {
+  --radius: 0.625rem; /* 10px base; sm/md/lg/xl derived in @theme */
+
+  /* OAK ON STONE — warm-NEUTRAL stone surfaces (low chroma, never green-cast)
+     with deep oak green as the accent + a gold spark. Light theme. */
+  --background: oklch(0.986 0.004 85);
+  --foreground: oklch(0.245 0.008 80);
+  --card: oklch(0.998 0.003 85);
+  --card-foreground: oklch(0.245 0.008 80);
+  --popover: oklch(0.998 0.003 85);
+  --popover-foreground: oklch(0.245 0.008 80);
+
+  /* Brand / accent — deep oak green (used sparingly: CTAs, active, links) */
+  --primary: oklch(0.455 0.095 146);
+  --primary-foreground: oklch(0.985 0.010 130);
+
+  /* Muted / secondary surfaces + secondary text — neutral */
+  --secondary: oklch(0.955 0.005 85);
+  --secondary-foreground: oklch(0.330 0.010 80);
+  --muted: oklch(0.958 0.005 85);
+  --muted-foreground: oklch(0.510 0.010 82);
+
+  /* shadcn `accent` = subtle hover surface — neutral, NOT green */
+  --accent: oklch(0.950 0.006 85);
+  --accent-foreground: oklch(0.330 0.012 80);
+
+  /* Tertiary / caption text */
+  --faint: oklch(0.600 0.010 82);
+
+  /* Accent-colored text/icons (links, active glyphs) — oak green */
+  --accent-text: oklch(0.450 0.095 146);
+  --accent-subtle: oklch(0.948 0.032 142);
+  --accent-subtle-foreground: oklch(0.400 0.090 146);
+
+  /* Spark — warm gold, the rare punctuation */
+  --spark: oklch(0.740 0.140 75);
+  --spark-foreground: oklch(0.270 0.060 65);
+
+  /* Semantics — danger warm crimson, distinct from the green accent */
+  --destructive: oklch(0.555 0.205 25);
+  --destructive-foreground: oklch(0.985 0.008 80);
+  --success: oklch(0.560 0.120 150);
+  --success-foreground: oklch(0.985 0.008 80);
+  --warning: oklch(0.730 0.150 75);
+  --warning-foreground: oklch(0.270 0.060 65);
+  --info: oklch(0.560 0.110 230);
+  --info-foreground: oklch(0.985 0.008 80);
+
+  /* Lines + focus */
+  --border: oklch(0.908 0.005 85);
+  --input: oklch(0.908 0.005 85);
+  --ring: oklch(0.455 0.095 146);
+
+  /* Sidebar — neutral surface, green accent */
+  --sidebar: oklch(0.966 0.005 85);
+  --sidebar-foreground: oklch(0.330 0.010 80);
+  --sidebar-primary: oklch(0.455 0.095 146);
+  --sidebar-primary-foreground: oklch(0.985 0.010 130);
+  --sidebar-accent: oklch(0.945 0.006 85);
+  --sidebar-accent-foreground: oklch(0.320 0.012 80);
+  --sidebar-border: oklch(0.905 0.005 85);
+  --sidebar-ring: oklch(0.455 0.095 146);
+
+  /* Categorical chart palette — oak / teal / gold / coral / indigo */
+  --chart-1: oklch(0.455 0.095 146);
+  --chart-2: oklch(0.620 0.110 200);
+  --chart-3: oklch(0.730 0.140 75);
+  --chart-4: oklch(0.580 0.160 35);
+  --chart-5: oklch(0.500 0.120 280);
+
+  /* Soft, diffuse elevation (light mode only) — neutral */
+  --shadow-color: 80 8% 24%;
+  --gl-shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
+  --gl-shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 1px 3px hsl(var(--shadow-color) / 0.05);
+  --gl-shadow-md: 0 4px 6px hsl(var(--shadow-color) / 0.05), 0 2px 4px hsl(var(--shadow-color) / 0.05);
+  --gl-shadow-lg: 0 10px 24px hsl(var(--shadow-color) / 0.07), 0 4px 8px hsl(var(--shadow-color) / 0.05);
+  --gl-shadow-xl: 0 24px 48px hsl(var(--shadow-color) / 0.10), 0 8px 16px hsl(var(--shadow-color) / 0.06);
+}
+
+.dark {
+  /* OAK ON STONE dark (designed primary) — warm-NEUTRAL charcoal surfaces
+     (low chroma, not green-cast), oak green as the accent, gold spark. */
+  --background: oklch(0.182 0.004 85);
+  --foreground: oklch(0.945 0.006 85);
+  --card: oklch(0.216 0.005 85);
+  --card-foreground: oklch(0.945 0.006 85);
+  --popover: oklch(0.210 0.005 85);
+  --popover-foreground: oklch(0.945 0.006 85);
+
+  --primary: oklch(0.700 0.130 146);
+  --primary-foreground: oklch(0.165 0.012 130);
+
+  --secondary: oklch(0.285 0.006 85);
+  --secondary-foreground: oklch(0.920 0.008 85);
+  --muted: oklch(0.270 0.006 85);
+  --muted-foreground: oklch(0.700 0.012 85);
+
+  --accent: oklch(0.300 0.007 85);
+  --accent-foreground: oklch(0.900 0.010 85);
+
+  --faint: oklch(0.625 0.011 85);
+
+  --accent-text: oklch(0.760 0.130 146);
+  --accent-subtle: oklch(0.310 0.045 146);
+  --accent-subtle-foreground: oklch(0.870 0.080 146);
+
+  --spark: oklch(0.800 0.130 76);
+  --spark-foreground: oklch(0.200 0.040 65);
+
+  --destructive: oklch(0.640 0.190 25);
+  --destructive-foreground: oklch(0.160 0.012 85);
+  --success: oklch(0.720 0.130 150);
+  --success-foreground: oklch(0.165 0.012 130);
+  --warning: oklch(0.800 0.130 76);
+  --warning-foreground: oklch(0.200 0.040 65);
+  --info: oklch(0.700 0.110 230);
+  --info-foreground: oklch(0.165 0.012 85);
+
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.700 0.130 146);
+
+  --sidebar: oklch(0.202 0.005 85);
+  --sidebar-foreground: oklch(0.880 0.008 85);
+  --sidebar-primary: oklch(0.700 0.130 146);
+  --sidebar-primary-foreground: oklch(0.165 0.012 130);
+  --sidebar-accent: oklch(0.292 0.007 85);
+  --sidebar-accent-foreground: oklch(0.920 0.008 85);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.700 0.130 146);
+
+  --chart-1: oklch(0.700 0.130 146);
+  --chart-2: oklch(0.720 0.110 200);
+  --chart-3: oklch(0.800 0.130 76);
+  --chart-4: oklch(0.680 0.170 35);
+  --chart-5: oklch(0.620 0.120 285);
+
+  /* Layered dark elevation: warm-green-black ambient + key shadow + a faint
+     top inner highlight to fake a light source. Depth reads "oak", not "void". */
+  --shadow-cast: 140 18% 2%;
+  --gl-shadow-xs: 0 1px 2px hsl(var(--shadow-cast) / 0.40), inset 0 1px 0 hsl(0 0% 100% / 0.025);
+  --gl-shadow-sm: 0 1px 2px hsl(var(--shadow-cast) / 0.40), 0 2px 4px hsl(var(--shadow-cast) / 0.30), inset 0 1px 0 hsl(0 0% 100% / 0.03);
+  --gl-shadow-md: 0 2px 4px hsl(var(--shadow-cast) / 0.40), 0 8px 16px hsl(var(--shadow-cast) / 0.34), inset 0 1px 0 hsl(0 0% 100% / 0.04);
+  --gl-shadow-lg: 0 4px 8px hsl(var(--shadow-cast) / 0.40), 0 16px 32px hsl(var(--shadow-cast) / 0.40), inset 0 1px 0 hsl(0 0% 100% / 0.05);
+  --gl-shadow-xl: 0 8px 16px hsl(var(--shadow-cast) / 0.44), 0 32px 64px hsl(var(--shadow-cast) / 0.48), inset 0 1px 0 hsl(0 0% 100% / 0.06);
+}
+
+@theme inline {
+  /* Radii */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 14px);
+
+  /* Color tokens → Tailwind utilities */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-faint: var(--faint);
+  --color-accent-text: var(--accent-text);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-subtle-foreground: var(--accent-subtle-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-spark: var(--spark);
+  --color-spark-foreground: var(--spark-foreground);
+
+  /* Type families — Geist (display) · Inter (UI) · Geist Mono (data) */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-geist), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Easing tokens → `ease-*` utilities */
+  --ease-out-quint: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-soft: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-quick: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Motion durations (Kowalski: ease-out default, exit faster than enter) */
+  --duration-snap: 150ms;
+  --duration-default: 240ms;
+  --duration-enter: 280ms;
+  --duration-exit: 180ms;
+  --duration-slow: 420ms;
+
+  /* Diffuse shadows → `shadow-*` utilities (override defaults) */
+  --shadow-xs: var(--gl-shadow-xs);
+  --shadow-sm: var(--gl-shadow-sm);
+  --shadow-md: var(--gl-shadow-md);
+  --shadow-lg: var(--gl-shadow-lg);
+  --shadow-xl: var(--gl-shadow-xl);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+  /* Tabular figures for data/scores */
+  .tabular-nums,
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Display sans (Geist): tight tracking for confident, clean headlines */
+  .font-display {
+    letter-spacing: -0.022em;
+  }
+  /* Visible keyboard focus everywhere (WCAG 2.4.13): a real 2px outline that
+     survives Windows High Contrast, not just a box-shadow. Components may still
+     layer their own ring; this is the floor. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  @media (forced-colors: active) {
+    :focus-visible { outline-color: Highlight; }
+  }
+}
+
+/* Tabular figures on any metric so digits never jitter as values change. */
+.data { font-variant-numeric: tabular-nums; }
+
+/* Elevation utilities — formalize the "this sits above that" decision.
+   `surface-interactive` lifts on hover; honors reduced-motion. */
+.surface-raised { box-shadow: var(--shadow-md); }
+.surface-interactive {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration-default) var(--ease-out-quint),
+              transform var(--duration-default) var(--ease-out-quint),
+              border-color var(--duration-default) var(--ease-out-quint);
+}
+.surface-interactive:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) {
+  .surface-interactive:hover { transform: none; }
+}
+
+/* Mono ALL-CAPS micro-label — the "technical overlay" / dossier voice */
+.label-caps {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  color: var(--faint);
+}
+
+/* Subtle film grain over the whole app — kills flat "void" feel (3–5%) */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dark .grain { opacity: 0.035; }
+/* App content sits above the grain layer */
+body > :not(.grain) { position: relative; z-index: 1; }
+
+/* Honor the OS reduced-motion setting for CSS-driven animation.
+   Motion components additionally guard via useReducedMotion(). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

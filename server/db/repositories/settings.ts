@@ -1,4 +1,4 @@
-import { getDb } from '../index.js';
+import { getDb } from '../index';
 
 export function getSetting(key: string): string | null {
   const db = getDb();

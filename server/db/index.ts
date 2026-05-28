@@ -2,7 +2,11 @@ import Database from 'better-sqlite3';
 import { readFileSync, readdirSync, existsSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
 
-const DATA_DIR = resolve('data');
+// Allow an explicit data dir (e.g. a stable location for the standalone build)
+// so dev, `next start`, and the packaged server all share one database.
+const DATA_DIR = process.env.GREYLINE_DATA_DIR
+  ? resolve(process.env.GREYLINE_DATA_DIR)
+  : resolve('data');
 const DB_PATH = join(DATA_DIR, 'greyline.db');
 const MIGRATIONS_DIR = resolve('server/db/migrations');
 

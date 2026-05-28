@@ -1,4 +1,4 @@
-import { getDb } from '../db/index.js';
+import { getDb } from '../db/index';
 import { ofetch } from 'ofetch';
 
 interface ProxyOptions {
@@ -50,12 +50,12 @@ export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ 
     return { data: JSON.parse(cached.data), cached: true };
   }
 
-  // Fetch with stripped headers
+  // Identify the app (required by OSM Nominatim/Overpass usage policy; an empty
+  // UA gets a 403). It names the software, never the user — privacy intact.
   const data = await ofetch<T>(url, {
     params,
     headers: {
-      'User-Agent': '',
-      'Referer': '',
+      'User-Agent': 'Greyline/0.1 (privacy-first local travel app; self-hosted)',
       'Accept': 'application/json'
     },
     timeout: 10000
