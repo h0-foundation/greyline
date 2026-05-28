@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Editorial prose styling for long-form content (country briefings, notes). */
+@plugin "@tailwindcss/typography";
+
 /* next-themes toggles a `dark` class on <html>. */
 @custom-variant dark (&:is(.dark *));
 
@@ -212,9 +215,13 @@
   --color-spark: var(--spark);
   --color-spark-foreground: var(--spark-foreground);
 
-  /* Type families — Geist (display) · Inter (UI) · Geist Mono (data) */
+  /* Type families — Inter (UI) · Fraunces (editorial display) · Geist (UI display) · Geist Mono (data).
+     `.font-display` is now the editorial serif voice (Fraunces) — used for content
+     headlines (page titles, country/trip names, hero text). Use `.font-sans` for
+     UI text. Reserve `.font-mono`/`.label-caps` for data + technical micro-labels. */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-geist), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-display: var(--font-fraunces), var(--font-geist), ui-serif, Georgia, serif;
+  --font-display-sans: var(--font-geist), var(--font-inter), ui-sans-serif, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   /* Easing tokens → `ease-*` utilities */
@@ -255,9 +262,25 @@
   .font-mono {
     font-variant-numeric: tabular-nums;
   }
-  /* Display sans (Geist): tight tracking for confident, clean headlines */
+  /* Editorial display (Fraunces): light optical tracking + slightly tighter line-height
+     for headlines. Fraunces handles tighter tracking better than a typical serif. */
   .font-display {
-    letter-spacing: -0.022em;
+    letter-spacing: -0.015em;
+    line-height: 1.05;
+    font-feature-settings: "ss01", "ss02";
+  }
+  /* Drop cap — for editorial first-paragraph emphasis on country briefings,
+     trip detail descriptions. Optional via `.has-dropcap > p:first-child` or `.dropcap` class. */
+  .dropcap::first-letter {
+    font-family: var(--font-display);
+    font-weight: 600;
+    float: left;
+    font-size: 4.5rem;
+    line-height: 0.85;
+    margin: 0.15rem 0.6rem 0 0;
+    color: var(--accent-text);
+    /* dropped-letter optical alignment */
+    padding-top: 0.1rem;
   }
   /* Visible keyboard focus everywhere (WCAG 2.4.13): a real 2px outline that
      survives Windows High Contrast, not just a box-shadow. Components may still
@@ -311,6 +334,16 @@
 .dark .grain { opacity: 0.035; }
 /* App content sits above the grain layer */
 body > :not(.grain) { position: relative; z-index: 1; }
+
+/* View Transitions API — gentle cross-fade tuned to the motion token system.
+   The browser's default cross-fade fires; we just align timing to the system. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 240ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
 
 /* Honor the OS reduced-motion setting for CSS-driven animation.
    Motion components additionally guard via useReducedMotion(). */
