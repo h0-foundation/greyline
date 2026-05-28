@@ -20,14 +20,17 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function VaultClient({ initialized, initialDocs }: { initialized: boolean; initialDocs: VaultDoc[] }) {
+export function VaultClient({
+  initialized,
+  initialDocs,
+}: {
+  initialized: boolean;
+  initialDocs: VaultDoc[];
+}) {
   const router = useRouter();
   const [passphrase, setPassphrase] = useState<string | null>(null); // in-memory only
   const [docs, setDocs] = useState(initialDocs);
-
-  if (!passphrase) {
-    return <UnlockCard initialized={initialized} onUnlock={setPassphrase} />;
-  }
+  const unlocked = passphrase !== null;
 
   async function refresh() {
     const res = await fetch("/api/vault");
@@ -36,20 +39,28 @@ export function VaultClient({ initialized, initialDocs }: { initialized: boolean
   }
 
   async function openDoc(doc: VaultDoc) {
+    if (!unlocked) return;
     const res = await fetch(`/api/vault/${doc.id}`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ passphrase }),
     });
-    if (!res.ok) { alert("Could not decrypt — wrong passphrase?"); return; }
+    if (!res.ok) {
+      alert("Could not decrypt — wrong passphrase?");
+      return;
+    }
     const { data, mimeType, filename } = await res.json();
     const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
     const url = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
     const a = document.createElement("a");
-    a.href = url; a.download = filename; a.click();
+    a.href = url;
+    a.download = filename;
+    a.click();
     URL.revokeObjectURL(url);
   }
 
   async function removeDoc(id: string) {
+    if (!unlocked) return;
     await fetch(`/api/vault/${id}`, { method: "DELETE" });
     await refresh();
     router.refresh();
@@ -57,20 +68,59 @@ export function VaultClient({ initialized, initialDocs }: { initialized: boolean
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between rounded-xl border border-success/30 bg-success/5 px-4 py-2.5">
-        <span className="flex items-center gap-2 text-sm text-success">
-          <LockOpen className="size-4" /> Vault unlocked
-        </span>
-        <Button variant="ghost" size="sm" onClick={() => setPassphrase(null)}>
-          <Lock className="size-4" /> Lock
-        </Button>
+      {/* Status banner — adapts to lock state */}
+      <div
+        className={`flex items-center justify-between rounded-xl border px-4 py-2.5 transition-colors duration-[var(--duration-default)] ${
+          unlocked ? "border-success/30 bg-success/5" : "border-border bg-card"
+        }`}
+      >
+        {unlocked ? (
+          <>
+            <span className="flex items-center gap-2 text-sm text-success">
+              <LockOpen className="size-4" /> Vault unlocked
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => setPassphrase(null)}>
+              <Lock className="size-4" /> Lock
+            </Button>
+          </>
+        ) : (
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Lock className="size-4 text-faint" />
+            Vault locked
+            {docs.length > 0 && (
+              <span className="font-mono text-xs text-faint">
+                · {docs.length} document{docs.length === 1 ? "" : "s"} on disk
+              </span>
+            )}
+          </span>
+        )}
       </div>
 
-      <UploadForm passphrase={passphrase} onUploaded={async () => { await refresh(); router.refresh(); }} />
+      {/* Unlock form — when locked */}
+      {!unlocked && <UnlockCard initialized={initialized} onUnlock={setPassphrase} />}
 
-      {docs.length === 0 ? (
-        <EmptyState icon={FileText} title="No documents yet" description="Upload a passport scan, visa, or insurance doc — it's encrypted with AES-256-GCM before it touches disk." />
-      ) : (
+      {/* Upload form — when unlocked */}
+      {unlocked && (
+        <UploadForm
+          passphrase={passphrase as string}
+          onUploaded={async () => {
+            await refresh();
+            router.refresh();
+          }}
+        />
+      )}
+
+      {/* Doc list — visible whenever there ARE docs. Titles render as redaction
+          black bars when locked; on unlock the bars sweep left and the names
+          appear. This is the vault's signature moment. */}
+      {docs.length === 0 && unlocked && (
+        <EmptyState
+          icon={FileText}
+          title="No documents yet"
+          description="Upload a passport scan, visa, or insurance doc — it's encrypted with AES-256-GCM before it touches disk."
+        />
+      )}
+      {docs.length > 0 && (
         <ul className="divide-y divide-border rounded-xl border border-border bg-card">
           {docs.map((d) => (
             <li key={d.id} className="flex items-center justify-between gap-3 p-4">
@@ -78,19 +128,42 @@ export function VaultClient({ initialized, initialDocs }: { initialized: boolean
                 <FileText className="size-4 shrink-0 text-faint" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-foreground">{d.name}</span>
-                    <Badge variant="secondary" className="capitalize">{d.category}</Badge>
+                    <span
+                      className="redacted inline-block min-w-[8ch] max-w-[40ch] truncate text-sm font-medium text-foreground"
+                      data-revealed={unlocked ? "true" : "false"}
+                      aria-label={unlocked ? undefined : "Locked document"}
+                    >
+                      {d.name}
+                    </span>
+                    <Badge variant="secondary" className="capitalize">
+                      {d.category}
+                    </Badge>
                   </div>
-                  <p className="font-mono text-xs text-faint">{formatSize(d.file_size)} · {d.created_at?.slice(0, 10)}</p>
+                  <p className="font-mono text-xs text-faint">
+                    {formatSize(d.file_size)} · {d.created_at?.slice(0, 10)}
+                  </p>
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                <Button variant="ghost" size="sm" onClick={() => openDoc(d)} aria-label="Decrypt and download">
-                  <Download className="size-4" />
-                </Button>
-                <button onClick={() => removeDoc(d.id)} aria-label="Delete" className="p-2 text-faint transition-colors hover:text-destructive">
-                  <Trash2 className="size-4" />
-                </button>
+                {unlocked && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openDoc(d)}
+                      aria-label="Decrypt and download"
+                    >
+                      <Download className="size-4" />
+                    </Button>
+                    <button
+                      onClick={() => removeDoc(d.id)}
+                      aria-label="Delete"
+                      className="p-2 text-faint transition-colors hover:text-destructive"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </li>
           ))}
@@ -100,7 +173,13 @@ export function VaultClient({ initialized, initialDocs }: { initialized: boolean
   );
 }
 
-function UnlockCard({ initialized, onUnlock }: { initialized: boolean; onUnlock: (p: string) => void }) {
+function UnlockCard({
+  initialized,
+  onUnlock,
+}: {
+  initialized: boolean;
+  onUnlock: (p: string) => void;
+}) {
   const [value, setValue] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -109,11 +188,18 @@ function UnlockCard({ initialized, onUnlock }: { initialized: boolean; onUnlock:
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (value.length < 8) { setError("Passphrase must be at least 8 characters."); return; }
-    if (!initialized && value !== confirm) { setError("Passphrases don't match."); return; }
+    if (value.length < 8) {
+      setError("Passphrase must be at least 8 characters.");
+      return;
+    }
+    if (!initialized && value !== confirm) {
+      setError("Passphrases don't match.");
+      return;
+    }
     setBusy(true);
     const res = await fetch("/api/vault/unlock", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ passphrase: value }),
     });
     setBusy(false);
@@ -130,7 +216,7 @@ function UnlockCard({ initialized, onUnlock }: { initialized: boolean; onUnlock:
         <h2 className="mt-4 font-display text-lg font-semibold text-foreground">
           {initialized ? "Unlock your vault" : "Create your vault"}
         </h2>
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground text-pretty">
+        <p className="mt-1 max-w-sm text-pretty text-sm text-muted-foreground">
           {initialized
             ? "Enter your passphrase. It derives the encryption key (Argon2id) and is never stored."
             : "Choose a strong passphrase. It encrypts everything and can't be recovered if lost — there's no backdoor and no cloud."}
@@ -139,16 +225,32 @@ function UnlockCard({ initialized, onUnlock }: { initialized: boolean; onUnlock:
       <form onSubmit={submit} className="mt-5 space-y-3">
         <div className="space-y-2">
           <Label htmlFor="vault-pass">Passphrase</Label>
-          <Input id="vault-pass" type="password" value={value} onChange={(e) => setValue(e.target.value)} autoFocus autoComplete="off" />
+          <Input
+            id="vault-pass"
+            type="password"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            autoFocus
+            autoComplete="off"
+          />
         </div>
         {!initialized && (
           <div className="space-y-2">
             <Label htmlFor="vault-confirm">Confirm passphrase</Label>
-            <Input id="vault-confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="off" />
+            <Input
+              id="vault-confirm"
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="off"
+            />
           </div>
         )}
         {error && (
-          <p className="flex items-center gap-1.5 text-sm text-destructive"><AlertCircle className="size-4" />{error}</p>
+          <p className="flex items-center gap-1.5 text-sm text-destructive">
+            <AlertCircle className="size-4" />
+            {error}
+          </p>
         )}
         <Button type="submit" className="w-full" disabled={busy}>
           {busy ? "Working…" : initialized ? "Unlock" : "Create vault"}
@@ -158,7 +260,13 @@ function UnlockCard({ initialized, onUnlock }: { initialized: boolean; onUnlock:
   );
 }
 
-function UploadForm({ passphrase, onUploaded }: { passphrase: string; onUploaded: () => void }) {
+function UploadForm({
+  passphrase,
+  onUploaded,
+}: {
+  passphrase: string;
+  onUploaded: () => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("other");
@@ -168,7 +276,8 @@ function UploadForm({ passphrase, onUploaded }: { passphrase: string; onUploaded
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!file) return;
-    setBusy(true); setError("");
+    setBusy(true);
+    setError("");
     const fd = new FormData();
     fd.set("file", file);
     fd.set("passphrase", passphrase);
@@ -176,8 +285,12 @@ function UploadForm({ passphrase, onUploaded }: { passphrase: string; onUploaded
     fd.set("category", category);
     const res = await fetch("/api/vault", { method: "POST", body: fd });
     setBusy(false);
-    if (res.ok) { setFile(null); setName(""); setCategory("other"); onUploaded(); }
-    else setError((await res.json()).error || "Upload failed.");
+    if (res.ok) {
+      setFile(null);
+      setName("");
+      setCategory("other");
+      onUploaded();
+    } else setError((await res.json()).error || "Upload failed.");
   }
 
   return (
@@ -185,23 +298,48 @@ function UploadForm({ passphrase, onUploaded }: { passphrase: string; onUploaded
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="vault-file">File</Label>
-          <Input id="vault-file" type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-56" />
+          <Input
+            id="vault-file"
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="w-56"
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="vault-name">Name</Label>
-          <Input id="vault-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="optional" className="w-40" />
+          <Input
+            id="vault-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="optional"
+            className="w-40"
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="vault-cat">Category</Label>
-          <select id="vault-cat" value={category} onChange={(e) => setCategory(e.target.value)} className="h-9 rounded-md border border-input bg-transparent px-3 text-sm capitalize">
-            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          <select
+            id="vault-cat"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm capitalize"
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
         </div>
         <Button type="submit" disabled={busy || !file}>
           <Upload className="size-4" /> {busy ? "Encrypting…" : "Add"}
         </Button>
       </div>
-      {error && <p className="mt-2 flex items-center gap-1.5 text-sm text-destructive"><AlertCircle className="size-4" />{error}</p>}
+      {error && (
+        <p className="mt-2 flex items-center gap-1.5 text-sm text-destructive">
+          <AlertCircle className="size-4" />
+          {error}
+        </p>
+      )}
     </form>
   );
 }
