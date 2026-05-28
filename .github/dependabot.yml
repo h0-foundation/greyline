@@ -1,0 +1,36 @@
+version: 2
+updates:
+  # npm (lockfile + manifest)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      next-and-react:
+        patterns:
+          - next
+          - next-themes
+          - react
+          - react-dom
+          - eslint-config-next
+      radix:
+        patterns:
+          - "@radix-ui/*"
+      tailwind:
+        patterns:
+          - tailwindcss
+          - "@tailwindcss/*"
+          - tw-animate-css
+      types:
+        patterns:
+          - "@types/*"
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3

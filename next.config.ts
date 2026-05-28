@@ -1,5 +1,53 @@
 import type { NextConfig } from "next";
 
+// Defense-in-depth even though the app is local-only. CSP allows what MapLibre
+// (WebGL + wasm + blob workers) and Tailwind 4 (inline style attrs) actually
+// need; everything else is locked down.
+const securityHeaders = [
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  {
+    key: "Permissions-Policy",
+    value: [
+      "camera=()",
+      "microphone=()",
+      "geolocation=()",
+      "payment=()",
+      "usb=()",
+      "bluetooth=()",
+      "serial=()",
+      "browsing-topics=()",
+      "interest-cohort=()",
+    ].join(", "),
+  },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      // 'wasm-unsafe-eval' is required by MapLibre's WebGL/WASM path.
+      "script-src 'self' 'wasm-unsafe-eval'",
+      // protomaps/MapLibre workers come from blob:.
+      "worker-src 'self' blob:",
+      // Tailwind v4 and shadcn primitives use inline styles.
+      "style-src 'self' 'unsafe-inline'",
+      // The grain SVG and the PNG-export pipeline use data:/blob: image URLs.
+      "img-src 'self' data: blob:",
+      "font-src 'self'",
+      // Every external call is proxied through /api/* — same-origin only.
+      "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "upgrade-insecure-requests",
+    ].join("; "),
+  },
+];
+
 const nextConfig: NextConfig = {
   // Pin the project root (a stray lockfile in the parent dir otherwise misleads Next).
   turbopack: { root: import.meta.dirname },
@@ -14,6 +62,16 @@ const nextConfig: NextConfig = {
       "./server/db/migrations/**/*",
       "./node_modules/better-sqlite3/**/*",
     ],
+  },
+  // Apply the security headers to every route. Next merges these with the
+  // route-handler-set headers; route-level Content-Type wins per HTTP semantics.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+    ];
   },
 };
 
