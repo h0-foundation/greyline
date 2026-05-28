@@ -44,7 +44,7 @@ Open **http://localhost:3000**. That's it.
 
 **Prefer a production build?** `pnpm build && pnpm start` — same port, faster, no hot reload.
 
-**Prefer Docker?** `docker compose up -d` — exposes the app at **http://localhost:5173** (per `docker-compose.yml`). Your `data/` is volume-mounted, so it survives container restarts.
+**Prefer Docker?** `docker compose up -d` — exposes the app at **http://localhost:3000** (loopback-only). Your `data/` is volume-mounted, so it survives container restarts.
 
 ---
 
@@ -206,7 +206,7 @@ greyline/
 - **Vault** — AES-256-GCM per file, random 12-byte IV, auth tag. Key = Argon2id(passphrase, salt, 64 MiB / 3 iters). No recovery — the passphrase is never stored.
 - **No telemetry** — zero analytics, crash reporting, or usage tracking. No outbound call leaves the machine unless you toggle a connection on.
 - **Proxy** — every external request strips `User-Agent` and `Referer`, respects the master offline switch, and is cached.
-- **Localhost only** — Next dev binds to localhost; Docker exposes `127.0.0.1:5173` on the host. Nothing is reachable from other machines on the network.
+- **Localhost only** — Next dev binds to localhost; Docker exposes `127.0.0.1:3000` on the host. Nothing is reachable from other machines on the network.
 - **Data destruction** — `rm -rf data/` removes the DB, WAL files, and the encrypted vault. There is no copy elsewhere.
 
 ---
