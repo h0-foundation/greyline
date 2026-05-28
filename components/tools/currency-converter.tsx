@@ -427,7 +427,7 @@ function DisabledNotice() {
           </p>
           <p className="max-w-prose text-sm text-muted-foreground">
             Enable it in{" "}
-            <Link href="/settings" className="text-accent-text underline-offset-4 hover:underline">
+            <Link href="/settings" className="text-accent-text underline underline-offset-4">
               Settings
             </Link>{" "}
             to convert with live rates. Everything else still works offline.
