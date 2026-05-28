@@ -1,0 +1,77 @@
+Greyline
+Copyright (c) 2025 — present h0-foundation contributors
+
+This product is licensed under the GNU Affero General Public License
+version 3.0 (AGPL-3.0). See LICENSE for the full text.
+
+This product bundles material from upstream projects whose licenses require
+attribution. Their notices follow.
+
+────────────────────────────────────────────────────────────────────────────
+REST Countries  —  Mozilla Public License 2.0
+  Path in repo : data/bundles/countries/rest-countries.json (built by
+                 `pnpm build:countries`)
+  Upstream     : https://gitlab.com/restcountries/restcountries
+  License      : https://www.mozilla.org/en-US/MPL/2.0/
+  Notice       : This block constitutes the notice required by MPL-2.0 §3.3.
+
+────────────────────────────────────────────────────────────────────────────
+Natural Earth  —  public domain
+  Path in repo : public/geo/countries-110m.geojson (110m admin-0 countries)
+  Upstream     : https://www.naturalearthdata.com/
+  Notes        : Public-domain dataset. Attribution appreciated but not
+                 required by the license.
+
+────────────────────────────────────────────────────────────────────────────
+OurAirports  —  public domain (CC0)
+  Path in repo : data/bundles/airports/* (~85,000 airport records)
+  Upstream     : https://ourairports.com/data/
+
+────────────────────────────────────────────────────────────────────────────
+MapLibre GL JS  —  BSD-3-Clause
+  Use          : Offline scratch-map rendering (no tile server).
+  Upstream     : https://maplibre.org/
+
+────────────────────────────────────────────────────────────────────────────
+Lucide Icons  —  ISC
+  Upstream     : https://lucide.dev/
+
+────────────────────────────────────────────────────────────────────────────
+Radix UI Primitives  —  MIT
+  Upstream     : https://www.radix-ui.com/
+
+────────────────────────────────────────────────────────────────────────────
+shadcn/ui (vendored components under components/ui/)  —  MIT
+  Upstream     : https://ui.shadcn.com/
+
+────────────────────────────────────────────────────────────────────────────
+Tailwind CSS  —  MIT
+  Upstream     : https://tailwindcss.com/
+
+────────────────────────────────────────────────────────────────────────────
+Next.js  —  MIT
+  Upstream     : https://nextjs.org/
+
+────────────────────────────────────────────────────────────────────────────
+motion (formerly framer-motion)  —  MIT
+  Upstream     : https://motion.dev/
+
+────────────────────────────────────────────────────────────────────────────
+Fraunces  —  SIL Open Font License 1.1
+  Path in repo : app/fonts/fraunces.woff2
+  Upstream     : https://github.com/undercase/Fraunces
+
+────────────────────────────────────────────────────────────────────────────
+Inter  —  SIL Open Font License 1.1
+  Path in repo : app/fonts/inter.woff2
+  Upstream     : https://github.com/rsms/inter
+
+────────────────────────────────────────────────────────────────────────────
+Geist & Geist Mono  —  SIL Open Font License 1.1
+  Path in repo : app/fonts/geist.woff2, app/fonts/geistmono.woff2
+  Upstream     : https://vercel.com/font
+
+────────────────────────────────────────────────────────────────────────────
+
+For the full transitive npm dependency license list, see
+THIRD_PARTY_LICENSES.md (regenerate with `pnpm licenses list --prod`).
