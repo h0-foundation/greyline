@@ -22,13 +22,23 @@ import {
 } from "$server/db/repositories/knowledge";
 import { getCountryIntel, getCountryPractical } from "$server/db/repositories/intel";
 import { getAirportsByCountry } from "$server/db/repositories/airports";
+import {
+  getAdvisoriesByCountry,
+  getCountryIndices,
+  getFactbookByCountry,
+  decodeFactbook,
+} from "$server/db/repositories/dossier";
 import { PrivacyPosture } from "@/components/intel/privacy-posture";
+import { AdvisoryStack } from "@/components/intel/advisory-stack";
+import { IndicesGrid } from "@/components/intel/indices-grid";
+import { FactbookPanel } from "@/components/intel/factbook-panel";
 import {
   toBriefing,
   buildNeighborIndex,
   formatPopulation,
   formatArea,
 } from "@/lib/countries";
+import { BookOpen, Gauge } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +89,10 @@ export default async function CountryBriefingPage({
   const intel = getCountryIntel(profile.country_code);
   const practical = getCountryPractical(profile.country_code);
   const airports = getAirportsByCountry(profile.country_code, 8);
+  const advisories = getAdvisoriesByCountry(profile.country_code);
+  const indices = getCountryIndices(profile.country_code);
+  const factbookRow = getFactbookByCountry(profile.country_code);
+  const factbook = factbookRow ? decodeFactbook(factbookRow.data) : null;
   const emergency: Record<string, string> = (() => {
     try { return practical ? JSON.parse(practical.emergency_numbers) : {}; } catch { return {}; }
   })();
@@ -136,6 +150,17 @@ export default async function CountryBriefingPage({
           {c.population ? <> · pop. <span className="text-foreground">{formatPopulation(c.population)}</span></> : null}
         </p>
       </header>
+
+      {/* Travel advisories — multi-source, surfaced first because it's the
+          single highest-stakes signal on the page. */}
+      <Section title="Travel advisories" icon={Siren} className="!p-5">
+        <AdvisoryStack advisories={advisories} />
+      </Section>
+
+      {/* Comparable indices — corruption, press freedom, passport reach. */}
+      <Section title="Indices" icon={Gauge} className="!p-5">
+        <IndicesGrid indices={indices} />
+      </Section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Section title="At a glance" icon={MapPin}>
@@ -262,6 +287,12 @@ export default async function CountryBriefingPage({
       </div>
 
       <PrivacyPosture data={intel} />
+
+      {/* CIA World Factbook highlights — accordion of Government, Economy,
+          People, Comms, Transport, Military. */}
+      <Section title="World Factbook" icon={BookOpen} className="!p-5">
+        <FactbookPanel fb={factbook} />
+      </Section>
     </div>
   );
 }

@@ -15,7 +15,7 @@ const GROUPS: Group[] = [
       { href: "/tools/airports", label: "Airports", description: "Search 85k airports; codes, runways, nearest alternatives.", icon: PlaneTakeoff, offline: true },
       { href: "/tools/currency", label: "Currency", description: "Convert with live rates (cached). Connection optional.", icon: Banknote },
       { href: "/tools/weather", label: "Weather", description: "Forecast for any coordinates. Connection optional.", icon: CloudSun },
-      { href: "/tools/advisories", label: "Advisories", description: "Government travel advisory levels.", icon: AlertTriangle },
+      { href: "/countries?advisory=2", label: "Travel advisories", description: "Multi-government advisories (US State, UK FCDO) — folded into Countries.", icon: AlertTriangle },
     ],
   },
   {
