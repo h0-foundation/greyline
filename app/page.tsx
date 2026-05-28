@@ -342,13 +342,14 @@ export default function Home() {
               </div>
             )}
 
-            {/* Atlas roll-up tile */}
+            {/* Atlas roll-up tile — points to the logbook now that history
+                lives there, separate from the trip planner. */}
             <Link
-              href="/trips"
+              href="/logbook"
               className="surface-interactive group block rounded-xl border border-border bg-card p-5 hover:border-primary/30"
             >
               <span className="label-caps text-faint inline-flex items-center gap-1.5">
-                <Sparkles className="size-3" /> Atlas
+                <Sparkles className="size-3" /> Logbook
               </span>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <SmallStat value={travel.countries} label="countries" />
@@ -357,7 +358,7 @@ export default function Home() {
                 <SmallStat value={travel.continents} label="continents" />
               </div>
               <p className="mt-4 inline-flex items-center gap-1 text-sm text-accent-text">
-                Open atlas <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                Open logbook <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
               </p>
             </Link>
           </aside>

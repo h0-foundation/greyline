@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Compass,
+  BookText,
   Globe,
   Map,
   Wrench,
@@ -30,7 +31,13 @@ export const primaryNav: NavItem[] = [
     label: "Trips",
     href: "/trips",
     icon: Compass,
-    description: "Plan, operate, and wrap your trips",
+    description: "Plan and operate active trips",
+  },
+  {
+    label: "Logbook",
+    href: "/logbook",
+    icon: BookText,
+    description: "Your lifetime atlas and wrapped trips",
   },
   {
     label: "Countries",
