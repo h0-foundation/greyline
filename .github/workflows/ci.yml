@@ -79,6 +79,20 @@ jobs:
       - name: Migrate + seed local SQLite
         run: pnpm migrate && pnpm seed
 
+      # The e2e suite asserts against bundled data (REST Countries, OurAirports,
+      # passport-index, and the trip-data templates). Build these against the
+      # public sources before tests. The dossier + advisories scripts hit
+      # external APIs and are intentionally skipped — features depending on
+      # them gracefully no-op when their tables are empty.
+      - name: Bundle countries (REST Countries)
+        run: pnpm build:countries
+
+      - name: Bundle airports + visa matrix (OurAirports + passport-index)
+        run: pnpm build:data
+
+      - name: Bundle trip-data templates (packing / airlines / opsec / docs)
+        run: pnpm build:trip-data
+
       - name: Run Playwright
         run: pnpm exec playwright test
 
