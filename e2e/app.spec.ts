@@ -159,3 +159,23 @@ test("data sources page lists bundled datasets", async ({ page }) => {
   await expect(page.getByText(/OurAirports/i).first()).toBeVisible();
   await expect(page.getByText(/passport.?index/i).first()).toBeVisible();
 });
+
+test("security: destination update ignores injected column keys (SQLi regression)", async ({ request }) => {
+  // Regression for the column-name SQL injection in updateDestination: the
+  // repository now allowlists columns, so a malicious key in the PATCH body is
+  // ignored while a legitimate field still applies — and nothing is corrupted.
+  const t = await request.post("/api/trips", { data: { name: "SQLi Probe Trip" } });
+  const trip = (await t.json()).trip;
+  const d = await request.post(`/api/trips/${trip.id}/destinations`, { data: { country_code: "FR", city: "Before" } });
+  const dest = (await d.json()).destination;
+
+  const res = await request.patch(`/api/destinations/${dest.id}`, {
+    data: { city: "After", "notes = notes, sort_order = (SELECT 1) --": "pwned" },
+  });
+  expect(res.ok()).toBeTruthy();
+  const updated = (await res.json()).destination;
+  expect(updated.city).toBe("After"); // legit field applied
+  expect(updated.notes).not.toBe("pwned"); // injected key ignored, no corruption
+
+  await request.delete(`/api/trips/${trip.id}`);
+});
