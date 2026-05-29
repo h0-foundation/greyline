@@ -8,11 +8,26 @@ const BUNDLE_DIR = resolve('data/bundles/countries');
 const FIELDS_1 = 'name,cca2,cca3,capital,region,subregion,population,area,latlng,flag';
 const FIELDS_2 = 'cca2,landlocked,borders,languages,currencies,demonyms,car,idd,timezones,unMember';
 
-async function fetchFields(fields: string): Promise<any[]> {
+// REST Countries intermittently 500s; a single failure was reddening the whole
+// e2e pipeline (the bundle step runs before tests). Retry with backoff.
+async function fetchFields(fields: string, attempts = 4): Promise<any[]> {
 	const url = `https://restcountries.com/v3.1/all?fields=${fields}`;
-	const res = await fetch(url);
-	if (!res.ok) throw new Error(`Failed to fetch (${fields}): ${res.status}`);
-	return res.json();
+	let lastErr: unknown;
+	for (let i = 0; i < attempts; i++) {
+		try {
+			const res = await fetch(url);
+			if (!res.ok) throw new Error(`Failed to fetch (${fields}): ${res.status}`);
+			return await res.json();
+		} catch (err) {
+			lastErr = err;
+			if (i < attempts - 1) {
+				const backoffMs = 1000 * 2 ** i; // 1s, 2s, 4s
+				console.warn(`  fetch failed (${String(err)}); retry ${i + 1}/${attempts - 1} in ${backoffMs}ms`);
+				await new Promise((r) => setTimeout(r, backoffMs));
+			}
+		}
+	}
+	throw new Error(`Failed to fetch (${fields}) after ${attempts} attempts: ${String(lastErr)}`);
 }
 
 async function main() {
