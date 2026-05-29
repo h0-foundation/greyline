@@ -6,7 +6,7 @@
 # ────────────────────────────────────────────────────────────────────────
 # 1) deps — production node_modules layer (cached on lockfile)
 # ────────────────────────────────────────────────────────────────────────
-FROM node:20-slim AS deps
+FROM node:26-slim AS deps
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
@@ -15,7 +15,7 @@ RUN pnpm install --frozen-lockfile
 # ────────────────────────────────────────────────────────────────────────
 # 2) builder — compile the Next.js standalone bundle (+ native add-ons)
 # ────────────────────────────────────────────────────────────────────────
-FROM node:20-slim AS builder
+FROM node:26-slim AS builder
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -26,7 +26,7 @@ RUN pnpm build
 # ────────────────────────────────────────────────────────────────────────
 # 3) runner — minimal production image, non-root user
 # ────────────────────────────────────────────────────────────────────────
-FROM node:20-slim AS runner
+FROM node:26-slim AS runner
 
 ENV NODE_ENV=production \
     PORT=3000 \
