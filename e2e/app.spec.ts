@@ -35,6 +35,15 @@ test("countries: GB briefing shows decryption compulsion", async ({ page }) => {
   await expect(page.getByText(/Can be compelled/i)).toBeVisible();
 });
 
+test("countries: briefing shows the Greyline Risk Score (open methodology)", async ({ page }) => {
+  await page.goto("/countries/US");
+  // The section always renders; the card shows either a /100 score with the
+  // open-methodology note, or an honest "unavailable" state when no dossier
+  // indices are bundled (CI does not run build:dossier).
+  await expect(page.getByRole("heading", { name: "Greyline Risk Score" })).toBeVisible();
+  await expect(page.getByText(/open methodology|Risk score unavailable/i).first()).toBeVisible();
+});
+
 test("countries: hotspot filter chips render when advisory data is seeded", async ({ page }) => {
   await page.goto("/countries");
   // The filter row is conditional on advisory data; CI seeds none, so we only
@@ -158,4 +167,40 @@ test("data sources page lists bundled datasets", async ({ page }) => {
   // OurAirports + the passport-index project are foundational bundles.
   await expect(page.getByText(/OurAirports/i).first()).toBeVisible();
   await expect(page.getByText(/passport.?index/i).first()).toBeVisible();
+});
+
+test("tools: chronolocation lab computes sun position (offline) and reverses", async ({ page }) => {
+  await page.goto("/tools");
+  await expect(page.getByText("Verify & investigate")).toBeVisible();
+  await page.getByRole("link", { name: /Chronolocation lab/i }).click();
+  await expect(page).toHaveURL(/\/tools\/chrono/);
+  await expect(page.getByRole("heading", { name: "Chronolocation lab", level: 1 })).toBeVisible();
+
+  // Forward mode: load the worked example and confirm a sun position is computed.
+  await page.getByRole("button", { name: "Load example" }).click();
+  await expect(page.getByText("Sun altitude")).toBeVisible();
+  await expect(page.getByRole("img", { name: /Sun and shadow compass/i })).toBeVisible();
+
+  // Reverse mode: shadow → time-of-day. Inputs persist (lat/lng/date from the
+  // example: Lisbon, 3 Dec — winter, so the sun peaks ~29°). A ratio of 3
+  // implies an ~18° sun, reachable twice that day, so UTC crossings appear.
+  await page.getByRole("button", { name: /Time from a shadow/i }).click();
+  await page.getByLabel("Shadow ratio").fill("3");
+  await expect(page.getByText(/altitude/i).first()).toBeVisible();
+  await expect(page.getByText(/UTC/).first()).toBeVisible();
+});
+
+test("navigation: sidebar is grouped and the command palette jumps to any tool", async ({ page }) => {
+  await page.goto("/");
+  // Sidebar is chunked into goal-based groups (NN/G: a few meaningful sections).
+  await expect(page.getByText("Plan & brief")).toBeVisible();
+  await expect(page.getByText("Record", { exact: true })).toBeVisible();
+
+  // Cmd+K / Ctrl+K opens the palette; it indexes every page, action, and tool.
+  await page.keyboard.press("ControlOrMeta+k");
+  const input = page.getByPlaceholder("Search pages, tools, actions…");
+  await expect(input).toBeVisible();
+  await input.fill("chronolocation");
+  await page.getByText("Chronolocation lab").click();
+  await expect(page).toHaveURL(/\/tools\/chrono/);
 });

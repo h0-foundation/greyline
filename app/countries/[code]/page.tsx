@@ -32,13 +32,15 @@ import { PrivacyPosture } from "@/components/intel/privacy-posture";
 import { AdvisoryStack } from "@/components/intel/advisory-stack";
 import { IndicesGrid } from "@/components/intel/indices-grid";
 import { FactbookPanel } from "@/components/intel/factbook-panel";
+import { RiskScoreCard } from "@/components/intel/risk-score";
+import { computeRiskScore } from "@/lib/risk-score";
 import {
   toBriefing,
   buildNeighborIndex,
   formatPopulation,
   formatArea,
 } from "@/lib/countries";
-import { BookOpen, Gauge } from "lucide-react";
+import { BookOpen, Gauge, ShieldAlert } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -93,6 +95,8 @@ export default async function CountryBriefingPage({
   const indices = getCountryIndices(profile.country_code);
   const factbookRow = getFactbookByCountry(profile.country_code);
   const factbook = factbookRow ? decodeFactbook(factbookRow.data) : null;
+  const peakAdvisory = advisories.length ? Math.max(...advisories.map((a) => a.level)) : null;
+  const risk = computeRiskScore(indices, peakAdvisory);
   const emergency: Record<string, string> = (() => {
     try { return practical ? JSON.parse(practical.emergency_numbers) : {}; } catch { return {}; }
   })();
@@ -151,8 +155,13 @@ export default async function CountryBriefingPage({
         </p>
       </header>
 
-      {/* Travel advisories — multi-source, surfaced first because it's the
-          single highest-stakes signal on the page. */}
+      {/* Greyline Risk Score — the headline composite, surfaced first. Open
+          methodology: every input + weight is shown in its breakdown. */}
+      <Section title="Greyline Risk Score" icon={ShieldAlert} className="!p-5">
+        <RiskScoreCard score={risk} />
+      </Section>
+
+      {/* Travel advisories — multi-source; one of the inputs to the score above. */}
       <Section title="Travel advisories" icon={Siren} className="!p-5">
         <AdvisoryStack advisories={advisories} />
       </Section>
