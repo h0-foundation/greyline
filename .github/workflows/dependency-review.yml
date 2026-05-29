@@ -30,5 +30,8 @@ jobs:
           fail-on-severity: high
           # Compatible with our AGPL-3.0 license. Block dependencies under
           # licenses that GPL is known to conflict with at distribution time.
-          deny-licenses: "AGPL-1.0, GPL-2.0, LGPL-2.0, EUPL-1.0, EUPL-1.1, EUPL-1.2, SSPL-1.0, Commons-Clause, BUSL-1.1"
+          # NOTE: every entry must be a valid SPDX identifier — "Commons-Clause"
+          # is a license rider, not an SPDX id, and made the action hard-error
+          # ("Invalid license(s) in deny-licenses"), so it is intentionally omitted.
+          deny-licenses: "AGPL-1.0, GPL-2.0, LGPL-2.0, EUPL-1.0, EUPL-1.1, EUPL-1.2, SSPL-1.0, BUSL-1.1"
           comment-summary-in-pr: on-failure
