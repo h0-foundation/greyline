@@ -53,13 +53,20 @@ export function upsertCountryProfile(countryCode: string, data: Record<string, s
   const existing = getCountryProfile(countryCode);
 
   if (existing) {
-    const fields = Object.entries(data)
-      .filter(([, v]) => v !== undefined)
-      .map(([k]) => `${k} = ?`);
+    // Allowlist columns — keys are interpolated into SQL, so they must come from
+    // this constant, never from raw input keys (defense-in-depth vs. SQL injection).
+    const COLUMNS = [
+      "rest_countries", "cia_factbook", "cultural", "advisory", "financial", "comms", "photography",
+    ] as const;
+    const fields: string[] = [];
+    const values: (string | null)[] = [];
+    for (const col of COLUMNS) {
+      if (data[col] !== undefined) {
+        fields.push(`${col} = ?`);
+        values.push(data[col]);
+      }
+    }
     fields.push("updated_at = datetime('now')");
-    const values = Object.entries(data)
-      .filter(([, v]) => v !== undefined)
-      .map(([, v]) => v);
     values.push(countryCode);
     db.prepare(`UPDATE country_profiles SET ${fields.join(', ')} WHERE country_code = ?`).run(...values);
   } else {

@@ -1,5 +1,5 @@
 import argon2 from 'argon2';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes } from 'crypto';
 
 const SALT_LENGTH = 32;
 
@@ -15,8 +15,4 @@ export async function deriveKey(passphrase: string, salt?: Buffer): Promise<{ ke
     hashLength: 32
   });
   return { key: hash, salt: useSalt };
-}
-
-export function hashPassphrase(passphrase: string): string {
-  return createHash('sha256').update(passphrase).digest('hex').slice(0, 16);
 }

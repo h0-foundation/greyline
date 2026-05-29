@@ -181,9 +181,8 @@ test("tools: chronolocation lab computes sun position (offline) and reverses", a
   await expect(page.getByText("Sun altitude")).toBeVisible();
   await expect(page.getByRole("img", { name: /Sun and shadow compass/i })).toBeVisible();
 
-  // Reverse mode: shadow → time-of-day. Inputs persist (lat/lng/date from the
-  // example: Lisbon, 3 Dec — winter, so the sun peaks ~29°). A ratio of 3
-  // implies an ~18° sun, reachable twice that day, so UTC crossings appear.
+  // Reverse mode: shadow → time-of-day. A ratio of 3 implies an ~18° sun,
+  // reachable twice that winter day in Lisbon, so UTC crossings appear.
   await page.getByRole("button", { name: /Time from a shadow/i }).click();
   await page.getByLabel("Shadow ratio").fill("3");
   await expect(page.getByText(/altitude/i).first()).toBeVisible();
@@ -203,4 +202,24 @@ test("navigation: sidebar is grouped and the command palette jumps to any tool",
   await input.fill("chronolocation");
   await page.getByText("Chronolocation lab").click();
   await expect(page).toHaveURL(/\/tools\/chrono/);
+});
+
+test("security: destination update ignores injected column keys (SQLi regression)", async ({ request }) => {
+  // Regression for the column-name SQL injection in updateDestination: the
+  // repository now allowlists columns, so a malicious key in the PATCH body is
+  // ignored while a legitimate field still applies — and nothing is corrupted.
+  const t = await request.post("/api/trips", { data: { name: "SQLi Probe Trip" } });
+  const trip = (await t.json()).trip;
+  const d = await request.post(`/api/trips/${trip.id}/destinations`, { data: { country_code: "FR", city: "Before" } });
+  const dest = (await d.json()).destination;
+
+  const res = await request.patch(`/api/destinations/${dest.id}`, {
+    data: { city: "After", "notes = notes, sort_order = (SELECT 1) --": "pwned" },
+  });
+  expect(res.ok()).toBeTruthy();
+  const updated = (await res.json()).destination;
+  expect(updated.city).toBe("After"); // legit field applied
+  expect(updated.notes).not.toBe("pwned"); // injected key ignored, no corruption
+
+  await request.delete(`/api/trips/${trip.id}`);
 });
