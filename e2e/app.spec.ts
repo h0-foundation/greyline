@@ -223,3 +223,23 @@ test("security: destination update ignores injected column keys (SQLi regression
 
   await request.delete(`/api/trips/${trip.id}`);
 });
+
+test("surveillance: TEDD analysis flags a recurring party across distance", async ({ page, request }) => {
+  // Two sightings of the same person ~390 km apart -> a real TEDD signal
+  // (Pattern or stronger), unlike the old string-only repeat counter.
+  const a = await request.post("/api/surveillance", { data: { person_desc: "TEDD probe grey jacket", lat: 48.85, lng: 2.35, threat_level: "low" } });
+  const b = await request.post("/api/surveillance", { data: { person_desc: "TEDD probe grey jacket", lat: 45.76, lng: 4.83, threat_level: "low" } });
+  expect(a.ok()).toBeTruthy();
+  expect(b.ok()).toBeTruthy();
+
+  await page.goto("/surveillance");
+  await expect(page.getByText("TEDD pattern analysis")).toBeVisible();
+  await expect(page.getByText(/TEDD probe grey jacket/i).first()).toBeVisible();
+  await expect(page.getByText(/Pattern|Probable surveillance/).first()).toBeVisible();
+
+  // Clean up both probe sightings via the API.
+  const data = await (await request.get("/api/surveillance")).json();
+  for (const s of data.sightings) {
+    if (s.person_desc?.includes("TEDD probe")) await request.delete(`/api/surveillance/${s.id}`);
+  }
+});

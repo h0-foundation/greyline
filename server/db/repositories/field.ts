@@ -39,19 +39,9 @@ export function deleteSighting(id: string): void {
   getDb().prepare('DELETE FROM counter_surveillance_log WHERE id = ?').run(id);
 }
 
-/** TEDD heuristic: flag person/vehicle descriptions that recur across sightings —
- *  the core counter-surveillance signal (same party over time/environments). */
-export function repeatMatches(): { key: string; count: number }[] {
-  const rows = getSightings();
-  const tally = new Map<string, number>();
-  for (const s of rows) {
-    for (const d of [s.person_desc, s.vehicle_desc]) {
-      const k = (d ?? '').trim().toLowerCase();
-      if (k.length >= 3) tally.set(k, (tally.get(k) ?? 0) + 1);
-    }
-  }
-  return [...tally.entries()].filter(([, n]) => n > 1).map(([key, count]) => ({ key, count }));
-}
+// TEDD recurrence analysis now lives in lib/tedd.ts (analyzeTEDD) — it scores
+// recurrences by time-spread + geographic distance, superseding the old
+// string-only repeatMatches() heuristic.
 
 // ── Rally points (emergency RV) ──
 export interface RallyPoint {

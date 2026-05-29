@@ -1,9 +1,11 @@
-import { getSightings, createSighting, repeatMatches } from "$server/db/repositories/field";
+import { getSightings, createSighting } from "$server/db/repositories/field";
+import { analyzeTEDD } from "@/lib/tedd";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return Response.json({ sightings: getSightings(), repeats: repeatMatches() });
+  const sightings = getSightings();
+  return Response.json({ sightings, signals: analyzeTEDD(sightings) });
 }
 
 export async function POST(req: Request) {
