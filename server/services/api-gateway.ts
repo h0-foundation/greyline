@@ -38,6 +38,16 @@ export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ 
 
   if (!isApiEnabled(apiId)) return null;
 
+  // use_tor honesty: anonymized (Tor SOCKS) routing is not yet wired. If a
+  // connector is flagged for Tor, FAIL CLOSED rather than send the request
+  // directly from the user's real IP — which would silently break the
+  // anonymization the flag implies. (Roadmap: wire a SOCKS dispatcher; see #42.)
+  const toggle = getApiToggle(apiId);
+  if (toggle?.use_tor) {
+    console.warn(`proxyFetch: "${apiId}" has use_tor set but Tor routing is not implemented — refusing a direct (de-anonymizing) request.`);
+    return null;
+  }
+
   const db = getDb();
   const cacheKey = `${apiId}:${url}:${JSON.stringify(params || {})}`;
 
@@ -58,7 +68,10 @@ export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ 
       'User-Agent': 'Greyline/0.1 (privacy-first local travel app; self-hosted)',
       'Accept': 'application/json'
     },
-    timeout: 10000
+    timeout: 10000,
+    // Don't follow cross-host 3xx redirects: a compromised/MITM'd upstream could
+    // redirect to an internal/link-local target (SSRF), undermining egress control.
+    redirect: 'error'
   });
 
   // Cache result

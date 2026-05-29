@@ -33,17 +33,29 @@ export function createTrip(input: CreateTripInput) {
   return getTripById(id);
 }
 
-export function updateTrip(id: string, input: UpdateTripInput) {
-  const db = getDb();
-  const fields: string[] = [];
-  const values: any[] = [];
+// Column allowlists — keys are interpolated into SQL, so they must come from
+// these constants, NEVER from caller-controlled object keys (SQL injection).
+const TRIP_COLUMNS = ["name", "status", "start_date", "end_date", "notes"] as const;
+const DESTINATION_COLUMNS = [
+  "country_code", "city", "lat", "lng", "arrival_date", "departure_date", "notes", "sort_order",
+] as const;
 
-  for (const [key, value] of Object.entries(input)) {
+function buildSet(columns: readonly string[], input: Record<string, unknown>) {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  for (const col of columns) {
+    const value = input[col];
     if (value !== undefined) {
-      fields.push(`${key} = ?`);
+      fields.push(`${col} = ?`);
       values.push(value);
     }
   }
+  return { fields, values };
+}
+
+export function updateTrip(id: string, input: UpdateTripInput) {
+  const db = getDb();
+  const { fields, values } = buildSet(TRIP_COLUMNS, input as Record<string, unknown>);
 
   if (fields.length === 0) return getTripById(id);
 
@@ -73,15 +85,7 @@ export function createDestination(tripId: string, input: { country_code?: string
 
 export function updateDestination(id: string, input: { country_code?: string; city?: string; lat?: number; lng?: number; arrival_date?: string; departure_date?: string; notes?: string; sort_order?: number }) {
   const db = getDb();
-  const fields: string[] = [];
-  const values: any[] = [];
-
-  for (const [key, value] of Object.entries(input)) {
-    if (value !== undefined) {
-      fields.push(`${key} = ?`);
-      values.push(value);
-    }
-  }
+  const { fields, values } = buildSet(DESTINATION_COLUMNS, input as Record<string, unknown>);
 
   if (fields.length === 0) return db.prepare('SELECT * FROM destinations WHERE id = ?').get(id);
 
