@@ -1,12 +1,13 @@
 import { PageHeader } from "@/components/page-header";
 import { SurveillanceLog } from "@/components/field/surveillance-log";
-import { getSightings, repeatMatches, getRallyPoints } from "$server/db/repositories/field";
+import { getSightings, getRallyPoints } from "$server/db/repositories/field";
+import { analyzeTEDD } from "@/lib/tedd";
 
 export const dynamic = "force-dynamic";
 
 export default function SurveillancePage() {
   const sightings = getSightings();
-  const repeats = repeatMatches();
+  const signals = analyzeTEDD(sightings);
   const rallyPoints = getRallyPoints();
 
   return (
@@ -17,7 +18,7 @@ export default function SurveillancePage() {
       />
       <SurveillanceLog
         sightings={sightings}
-        repeats={repeats}
+        signals={signals}
         rallyPoints={rallyPoints}
       />
     </div>

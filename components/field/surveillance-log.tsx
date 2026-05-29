@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { TONE_CLASS, type Tone } from "@/lib/intel";
+import { type TeddSignal, TEDD_BAND_LABEL } from "@/lib/tedd";
 
 type Sighting = {
   id: string;
@@ -28,8 +29,6 @@ type Sighting = {
   tags: string;
   linked_ids: string;
 };
-
-type Repeat = { key: string; count: number };
 
 type RallyPoint = {
   id: string;
@@ -81,11 +80,11 @@ function parseLatLng(v: string): number | null {
 
 export function SurveillanceLog({
   sightings: initialSightings,
-  repeats,
+  signals,
   rallyPoints: initialRally,
 }: {
   sightings: Sighting[];
-  repeats: Repeat[];
+  signals: TeddSignal[];
   rallyPoints: RallyPoint[];
 }) {
   const router = useRouter();
@@ -149,25 +148,42 @@ export function SurveillanceLog({
         ))}
       </div>
 
-      {/* Repeat-match alert */}
-      {repeats.length > 0 && (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 shadow-xs">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-destructive">
-                Recurring descriptions detected — the core counter-surveillance signal.
-              </p>
-              <ul className="space-y-1">
-                {repeats.map((r) => (
-                  <li key={r.key} className="text-sm text-foreground">
-                    <span className="font-medium text-warning">⚠ Seen {r.count} times:</span>{" "}
-                    <span className="font-mono text-foreground">&ldquo;{r.key}&rdquo;</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+      {/* TEDD pattern analysis — scores recurrences by time-spread + distance,
+          not just repeat count. The same party across different times AND places
+          is the real signal; a same-spot repeat is a coincidence. */}
+      {signals.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+          <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-faint">
+            <AlertTriangle className="size-3.5" /> TEDD pattern analysis
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {signals.map((sig) => {
+              const danger = sig.band === "probable-surveillance";
+              const toneCls = danger ? "text-destructive" : sig.band === "pattern" ? "text-warning" : "text-faint";
+              return (
+                <li
+                  key={`${sig.kind}:${sig.descriptor}`}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+                >
+                  <Badge
+                    variant={danger ? "destructive" : "outline"}
+                    className={cn("shrink-0", !danger && toneCls)}
+                  >
+                    {TEDD_BAND_LABEL[sig.band]}
+                  </Badge>
+                  <span className="font-mono text-foreground">&ldquo;{sig.descriptor}&rdquo;</span>
+                  <span className="text-faint">({sig.kind})</span>
+                  <span className="ml-auto font-mono text-xs tabular-nums text-faint">
+                    seen {sig.count}× · {sig.hasGeo ? `${sig.maxDistanceKm} km apart` : "no coords"} · {sig.timeSpreadHours}h span
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-3 text-xs text-faint">
+            Scored observationally from Time + Distance recurrence (TEDD). This flags repeated parties — it does
+            not infer intent.
+          </p>
         </div>
       )}
 
