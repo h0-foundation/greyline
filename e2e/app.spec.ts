@@ -35,6 +35,15 @@ test("countries: GB briefing shows decryption compulsion", async ({ page }) => {
   await expect(page.getByText(/Can be compelled/i)).toBeVisible();
 });
 
+test("countries: briefing shows the Greyline Risk Score (open methodology)", async ({ page }) => {
+  await page.goto("/countries/US");
+  // The section always renders; the card shows either a /100 score with the
+  // open-methodology note, or an honest "unavailable" state when no dossier
+  // indices are bundled (CI does not run build:dossier).
+  await expect(page.getByRole("heading", { name: "Greyline Risk Score" })).toBeVisible();
+  await expect(page.getByText(/open methodology|Risk score unavailable/i).first()).toBeVisible();
+});
+
 test("countries: hotspot filter chips render when advisory data is seeded", async ({ page }) => {
   await page.goto("/countries");
   // The filter row is conditional on advisory data; CI seeds none, so we only
