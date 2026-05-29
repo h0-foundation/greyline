@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ImageOff, Banknote, CloudSun, AlertTriangle, PlaneTakeoff, Stamp,
-  Hotel, Luggage, ShieldCheck, Eye, Plane, ArrowRight,
+  Hotel, Luggage, ShieldCheck, Eye, Plane, ArrowRight, Sun,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 
@@ -33,6 +33,12 @@ const GROUPS: Group[] = [
       { href: "/tools/hotel", label: "Hotel & room security", description: "Room selection, door/window checks, TSCM sweep.", icon: Hotel, offline: true },
       { href: "/tools/border", label: "Border crossing", description: "Pre-trip, at-border, and post-crossing checklist.", icon: ShieldCheck, offline: true },
       { href: "/tools/self-doxxing", label: "Self-doxxing audit", description: "Find what the open internet reveals about you.", icon: Eye, offline: true },
+    ],
+  },
+  {
+    title: "Verify & investigate",
+    tools: [
+      { href: "/tools/chrono", label: "Chronolocation lab", description: "Date and place a photo from its shadows — sun position + reverse time-of-day, all local.", icon: Sun, offline: true },
     ],
   },
 ];

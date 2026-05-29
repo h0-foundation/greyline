@@ -159,3 +159,24 @@ test("data sources page lists bundled datasets", async ({ page }) => {
   await expect(page.getByText(/OurAirports/i).first()).toBeVisible();
   await expect(page.getByText(/passport.?index/i).first()).toBeVisible();
 });
+
+test("tools: chronolocation lab computes sun position (offline) and reverses", async ({ page }) => {
+  await page.goto("/tools");
+  await expect(page.getByText("Verify & investigate")).toBeVisible();
+  await page.getByRole("link", { name: /Chronolocation lab/i }).click();
+  await expect(page).toHaveURL(/\/tools\/chrono/);
+  await expect(page.getByRole("heading", { name: "Chronolocation lab", level: 1 })).toBeVisible();
+
+  // Forward mode: load the worked example and confirm a sun position is computed.
+  await page.getByRole("button", { name: "Load example" }).click();
+  await expect(page.getByText("Sun altitude")).toBeVisible();
+  await expect(page.getByRole("img", { name: /Sun and shadow compass/i })).toBeVisible();
+
+  // Reverse mode: shadow → time-of-day. Inputs persist (lat/lng/date from the
+  // example: Lisbon, 3 Dec — winter, so the sun peaks ~29°). A ratio of 3
+  // implies an ~18° sun, reachable twice that day, so UTC crossings appear.
+  await page.getByRole("button", { name: /Time from a shadow/i }).click();
+  await page.getByLabel("Shadow ratio").fill("3");
+  await expect(page.getByText(/altitude/i).first()).toBeVisible();
+  await expect(page.getByText(/UTC/).first()).toBeVisible();
+});
