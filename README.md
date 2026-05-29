@@ -37,7 +37,7 @@ Greyline takes the opposite stance:
 - **Your whole travel life, in one private record.** Every trip you've taken, every country day-counted, every passport you've held — kept locally, exportable on demand, deletable at will.
 - **SF-86-grade rigor, civilian-useful.** The same disclosure logic the U.S. government uses for foreign-travel reporting (the 7-year rolling window, per-country day totals, residency, Schengen 90/180) — without ever calling it "SF-86." For most people it's just *"the record I'd want if I ever had to remember exactly where I was."*
 - **Decision tools, not engagement loops.** Multi-government advisories, packing recipes, document requirements, airline carry-on rules, layover risk, weather-as-go/no-go, currency, country dossiers — all computed locally from bundled data.
-- **A cockpit, not a feed.** The home page is designed against 47 sources of primary HCI research (`.research/`): a single "what needs my attention?" tile, temporal chunks (today / upcoming / recent), data-ink-ratio numbers strip, and a hero scratch-map showing every country you've been.
+- **A cockpit, not a feed.** The home page is designed against 47 sources of primary HCI research (consolidated, with the full cited research corpus, in [`research/`](research/)): a single "what needs my attention?" tile, temporal chunks (today / upcoming / recent), data-ink-ratio numbers strip, and a hero scratch-map showing every country you've been.
 
 Built for journalists, frequent travelers, security-minded professionals, dual citizens, NGO field staff, and anyone who would rather not feed their movement history to ad-tech. AGPL-3.0.
 
@@ -489,7 +489,7 @@ greyline/
 │   ├── vault/                        encrypted docs
 │   └── templates/                    packing.json, airlines.json,
 │                                      opsec.json, documents.json (tracked)
-├── .research/                        design rationale docs (47-source home study)
+├── research/                         cited research corpus (10 reports + 47-source home study)
 ├── public/geo/                       Natural Earth countries-110m.geojson
 ├── e2e/                              Playwright specs (incl. axe a11y sweep)
 ├── next.config.ts                    security headers + standalone output
