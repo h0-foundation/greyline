@@ -19,66 +19,52 @@ export type NavItem = {
   description: string;
 };
 
-/** Primary, lifecycle-shaped navigation. */
-export const primaryNav: NavItem[] = [
+export type NavGroup = {
+  /** Optional section heading; omit for the pinned top item(s). */
+  heading?: string;
+  items: NavItem[];
+};
+
+/* Goal-based grouping (NN/G: chunk many destinations into a few meaningful
+ * groups rather than a flat list). Home is pinned; the three groups map to the
+ * product's lifecycle and pillars — Plan & brief (travel-risk lead), Field
+ * (counter-surveillance + journalism tools), Record (lifetime log + vault). */
+export const navGroups: NavGroup[] = [
   {
-    label: "Home",
-    href: "/",
-    icon: LayoutDashboard,
-    description: "Active trip and at-a-glance",
+    items: [
+      { label: "Home", href: "/", icon: LayoutDashboard, description: "Cockpit — what needs your attention now" },
+    ],
   },
   {
-    label: "Trips",
-    href: "/trips",
-    icon: Compass,
-    description: "Plan and operate active trips",
+    heading: "Plan & brief",
+    items: [
+      { label: "Trips", href: "/trips", icon: Compass, description: "Plan and operate active trips" },
+      { label: "Countries", href: "/countries", icon: Globe, description: "Briefings and what's captured about you" },
+      { label: "Map", href: "/map", icon: Map, description: "Offline map and live overlays" },
+    ],
   },
   {
-    label: "Logbook",
-    href: "/logbook",
-    icon: BookText,
-    description: "Your lifetime atlas and wrapped trips",
+    heading: "Field",
+    items: [
+      { label: "Surveillance", href: "/surveillance", icon: Eye, description: "Counter-surveillance log and rally points" },
+      { label: "Tools", href: "/tools", icon: Wrench, description: "Privacy, field, and verification tools" },
+    ],
   },
   {
-    label: "Countries",
-    href: "/countries",
-    icon: Globe,
-    description: "Briefings and what's captured about you",
-  },
-  {
-    label: "Map",
-    href: "/map",
-    icon: Map,
-    description: "Offline map and overlays",
-  },
-  {
-    label: "Surveillance",
-    href: "/surveillance",
-    icon: Eye,
-    description: "Counter-surveillance log and rally points",
-  },
-  {
-    label: "Tools",
-    href: "/tools",
-    icon: Wrench,
-    description: "Privacy and field tools",
-  },
-  {
-    label: "Vault",
-    href: "/vault",
-    icon: Lock,
-    description: "Encrypted document vault",
+    heading: "Record",
+    items: [
+      { label: "Logbook", href: "/logbook", icon: BookText, description: "Your lifetime atlas and wrapped trips" },
+      { label: "Vault", href: "/vault", icon: Lock, description: "Encrypted document vault" },
+    ],
   },
 ];
 
+/** Flat primary list (derived) — for the command palette and any flat consumer. */
+export const primaryNav: NavItem[] = navGroups.flatMap((g) => g.items);
+
 /** Pinned to the bottom of the sidebar. */
 export const footerNav: NavItem[] = [
-  {
-    label: "Settings",
-    href: "/settings",
-    icon: Settings,
-    description: "Preferences, connections, and data",
-  },
+  { label: "Settings", href: "/settings", icon: Settings, description: "Preferences, connections, and data" },
 ];
 
 export const allNav: NavItem[] = [...primaryNav, ...footerNav];

@@ -1,56 +1,16 @@
 import Link from "next/link";
-import {
-  ImageOff, Banknote, CloudSun, AlertTriangle, PlaneTakeoff, Stamp,
-  Hotel, Luggage, ShieldCheck, Eye, Plane, ArrowRight, Sun,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-
-type Tool = { href: string; label: string; description: string; icon: React.ComponentType<{ className?: string }>; offline?: boolean };
-type Group = { title: string; tools: Tool[] };
-
-const GROUPS: Group[] = [
-  {
-    title: "On the ground",
-    tools: [
-      { href: "/tools/airports", label: "Airports", description: "Search 85k airports; codes, runways, nearest alternatives.", icon: PlaneTakeoff, offline: true },
-      { href: "/tools/currency", label: "Currency", description: "Convert with live rates (cached). Connection optional.", icon: Banknote },
-      { href: "/tools/weather", label: "Weather", description: "Forecast for any coordinates. Connection optional.", icon: CloudSun },
-      { href: "/countries?advisory=2", label: "Travel advisories", description: "Multi-government advisories (US State, UK FCDO) — folded into Countries.", icon: AlertTriangle },
-    ],
-  },
-  {
-    title: "Before you go",
-    tools: [
-      { href: "/tools/visa", label: "Visa checker", description: "Your passport → any destination, from the offline matrix.", icon: Stamp, offline: true },
-      { href: "/tools/exif", label: "EXIF stripper", description: "Remove GPS/device metadata from photos. Never leaves your machine.", icon: ImageOff, offline: true },
-      { href: "/tools/packing", label: "Packing", description: "Threat-aware packing checklist.", icon: Luggage, offline: true },
-      { href: "/tools/flying", label: "Data footprint of flying", description: "What API/PNR/biometric systems capture when you fly.", icon: Plane, offline: true },
-    ],
-  },
-  {
-    title: "Security",
-    tools: [
-      { href: "/tools/hotel", label: "Hotel & room security", description: "Room selection, door/window checks, TSCM sweep.", icon: Hotel, offline: true },
-      { href: "/tools/border", label: "Border crossing", description: "Pre-trip, at-border, and post-crossing checklist.", icon: ShieldCheck, offline: true },
-      { href: "/tools/self-doxxing", label: "Self-doxxing audit", description: "Find what the open internet reveals about you.", icon: Eye, offline: true },
-    ],
-  },
-  {
-    title: "Verify & investigate",
-    tools: [
-      { href: "/tools/chrono", label: "Chronolocation lab", description: "Date and place a photo from its shadows — sun position + reverse time-of-day, all local.", icon: Sun, offline: true },
-    ],
-  },
-];
+import { TOOL_GROUPS } from "@/lib/tools";
 
 export default function ToolsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
         title="Tools"
-        description="Field and privacy tools. Anything marked offline runs entirely on this machine; the rest use an optional connection you control in Settings."
+        description="Field, privacy, and verification tools. Anything marked offline runs entirely on this machine; the rest use an optional connection you control in Settings. Tip: press ⌘K to jump straight to any tool."
       />
-      {GROUPS.map((g) => (
+      {TOOL_GROUPS.map((g) => (
         <section key={g.title} className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-faint">{g.title}</h2>
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

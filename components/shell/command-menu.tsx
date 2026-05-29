@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Monitor, Moon, Sun } from "lucide-react";
+import {
+  Monitor, Moon, Sun, Plus, FileDown, Lock, Eye, Database, HardDriveDownload,
+} from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -12,6 +14,16 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { allNav } from "@/lib/nav";
+import { allTools } from "@/lib/tools";
+
+const ACTIONS = [
+  { label: "New trip", hint: "start planning", href: "/trips", icon: Plus },
+  { label: "Log a sighting", hint: "counter-surveillance", href: "/surveillance", icon: Eye },
+  { label: "Export disclosure report", hint: "7-year SF-86-style", href: "/disclosure", icon: FileDown },
+  { label: "Open the vault", hint: "encrypted documents", href: "/vault", icon: Lock },
+  { label: "Back up / export your data", hint: "local JSON", href: "/settings/data", icon: HardDriveDownload },
+  { label: "Data sources & licenses", hint: "what's bundled", href: "/about/data-sources", icon: Database },
+] as const;
 
 export function CommandMenu({
   open,
@@ -35,10 +47,10 @@ export function CommandMenu({
       title="Command menu"
       description="Search and jump to anywhere in Greyline"
     >
-      <CommandInput placeholder="Search or jump to…" />
+      <CommandInput placeholder="Search pages, tools, actions…" />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Navigate">
+        <CommandGroup heading="Go to">
           {allNav.map((item) => (
             <CommandItem
               key={item.href}
@@ -47,26 +59,29 @@ export function CommandMenu({
             >
               <item.icon />
               <span>{item.label}</span>
-              <span className="ml-2 truncate text-xs text-faint">
-                {item.description}
-              </span>
+              <span className="ml-2 truncate text-xs text-faint">{item.description}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+        <CommandGroup heading="Actions">
+          {ACTIONS.map((a) => (
+            <CommandItem key={a.label} value={`${a.label} ${a.hint}`} onSelect={() => run(() => router.push(a.href))}>
+              <a.icon />
+              <span>{a.label}</span>
+              <span className="ml-2 truncate text-xs text-faint">{a.hint}</span>
             </CommandItem>
           ))}
         </CommandGroup>
         <CommandGroup heading="Tools">
-          {[
-            ["Airports", "/tools/airports"],
-            ["Visa checker", "/tools/visa"],
-            ["EXIF stripper", "/tools/exif"],
-            ["Currency", "/tools/currency"],
-            ["Weather", "/tools/weather"],
-            ["Advisories", "/tools/advisories"],
-            ["Self-doxxing audit", "/tools/self-doxxing"],
-            ["Data sources", "/about/data-sources"],
-            ["Your data (backup)", "/settings/data"],
-          ].map(([label, href]) => (
-            <CommandItem key={href} value={label} onSelect={() => run(() => router.push(href))}>
-              <span>{label}</span>
+          {allTools.map((t) => (
+            <CommandItem
+              key={t.href}
+              value={`${t.label} ${t.description}`}
+              onSelect={() => run(() => router.push(t.href))}
+            >
+              <t.icon />
+              <span>{t.label}</span>
+              {t.offline && <span className="ml-2 text-xs text-faint">offline</span>}
             </CommandItem>
           ))}
         </CommandGroup>

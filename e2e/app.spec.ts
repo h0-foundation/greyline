@@ -180,3 +180,18 @@ test("tools: chronolocation lab computes sun position (offline) and reverses", a
   await expect(page.getByText(/altitude/i).first()).toBeVisible();
   await expect(page.getByText(/UTC/).first()).toBeVisible();
 });
+
+test("navigation: sidebar is grouped and the command palette jumps to any tool", async ({ page }) => {
+  await page.goto("/");
+  // Sidebar is chunked into goal-based groups (NN/G: a few meaningful sections).
+  await expect(page.getByText("Plan & brief")).toBeVisible();
+  await expect(page.getByText("Record", { exact: true })).toBeVisible();
+
+  // Cmd+K / Ctrl+K opens the palette; it indexes every page, action, and tool.
+  await page.keyboard.press("ControlOrMeta+k");
+  const input = page.getByPlaceholder("Search pages, tools, actions…");
+  await expect(input).toBeVisible();
+  await input.fill("chronolocation");
+  await page.getByText("Chronolocation lab").click();
+  await expect(page).toHaveURL(/\/tools\/chrono/);
+});

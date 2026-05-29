@@ -6,6 +6,7 @@ This directory is the consolidated, citation-backed research that grounds Greyli
 
 ## Product direction
 - [PRODUCT_THESIS_AND_ROADMAP.md](PRODUCT_THESIS_AND_ROADMAP.md) — the synthesis: thesis, positioning, prioritized feature roadmap, focus cuts. **Start here.**
+- [UX_IA_OVERHAUL.md](UX_IA_OVERHAUL.md) — the information-architecture/navigation blueprint (cited IA science + competitor teardowns) and migration plan: goal-grouped spine, Cmd+K palette, per-trip hub-and-spoke, modes/packs. Records what has shipped vs. what remains.
 
 ## Pillar research
 - [GRAY_MAN_TRADECRAFT.md](GRAY_MAN_TRADECRAFT.md) — evidence-graded rebuild of the old gray-man doc; leads with situational-awareness science (Endsley), debunks behavioral threat detection (GAO/Bond-DePaulo), modern digital-signature threats, legal/ethical guardrails.
