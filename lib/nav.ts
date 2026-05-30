@@ -7,6 +7,7 @@ import {
   Wrench,
   Lock,
   Eye,
+  FolderSearch,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -47,6 +48,7 @@ export const navGroups: NavGroup[] = [
     heading: "Field",
     items: [
       { label: "Surveillance", href: "/surveillance", icon: Eye, description: "Counter-surveillance log and rally points" },
+      { label: "Cases", href: "/cases", icon: FolderSearch, description: "Investigation case-files with chain-of-custody" },
       { label: "Tools", href: "/tools", icon: Wrench, description: "Privacy, field, and verification tools" },
     ],
   },

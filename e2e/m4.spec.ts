@@ -35,3 +35,36 @@ test("tools: image fingerprint hashes an uploaded image in-browser", async ({ pa
   // A 16-hex-char dHash appears once the image is processed.
   await expect(page.getByText(/^[0-9a-f]{16}$/).first()).toBeVisible({ timeout: 10_000 });
 });
+
+test("cases: case-file with SHA-256 evidence + append-only chain of custody", async ({ page, request }) => {
+  // Seed a case + one evidence item via the API (no external data → CI-safe).
+  const c = await request.post("/api/cases", { data: { title: "E2E Investigation", summary: "test case" } });
+  const caseId = (await c.json()).case.id;
+  await request.post(`/api/cases/${caseId}/items`, {
+    data: { kind: "observation", title: "First sighting", body: "Vehicle seen at the depot at 14:05." },
+  });
+
+  try {
+    // List page shows the case.
+    await page.goto("/cases");
+    await expect(page.getByRole("heading", { name: "Cases", level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: /E2E Investigation/i })).toBeVisible();
+
+    // Detail page: evidence body + chain-of-custody with both events + a hash.
+    await page.goto(`/cases/${caseId}`);
+    await expect(page.getByRole("heading", { name: "E2E Investigation", level: 1 })).toBeVisible();
+    await expect(page.getByText("Vehicle seen at the depot at 14:05.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Chain of custody" })).toBeVisible();
+    await expect(page.getByText("Case opened")).toBeVisible();
+    await expect(page.getByText("Evidence added")).toBeVisible();
+    // The intake SHA-256 anchor is shown (truncated, hex).
+    await expect(page.getByText(/^[0-9a-f]{24}…$/).first()).toBeVisible();
+
+    // Add another item through the UI and confirm it lands.
+    await page.getByLabel("Evidence content").fill("Second note added via UI.");
+    await page.getByRole("button", { name: /Add — hash & log/i }).click();
+    await expect(page.getByText("Second note added via UI.")).toBeVisible();
+  } finally {
+    await request.delete(`/api/cases/${caseId}`);
+  }
+});
