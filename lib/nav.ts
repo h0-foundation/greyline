@@ -8,6 +8,7 @@ import {
   Lock,
   Eye,
   FolderSearch,
+  Users,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -49,6 +50,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: "Surveillance", href: "/surveillance", icon: Eye, description: "Counter-surveillance log and rally points" },
       { label: "Cases", href: "/cases", icon: FolderSearch, description: "Investigation case-files with chain-of-custody" },
+      { label: "Roster", href: "/roster", icon: Users, description: "Team duty-of-care: travellers, check-ins, and SOS" },
       { label: "Tools", href: "/tools", icon: Wrench, description: "Privacy, field, and verification tools" },
     ],
   },

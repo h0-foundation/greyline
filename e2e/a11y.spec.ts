@@ -22,6 +22,7 @@ const ROUTES: ReadonlyArray<readonly [string, string]> = [
   ["/map", "map"],
   ["/surveillance", "surveillance"],
   ["/cases", "cases"],
+  ["/roster", "roster"],
   ["/tools", "tools"],
   ["/tools/airports", "tools-airports"],
   ["/tools/currency", "tools-currency"],
