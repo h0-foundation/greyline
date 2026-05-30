@@ -31,7 +31,8 @@ FROM node:26-slim AS runner
 ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXT_TELEMETRY_DISABLED=1 \
+    GREYLINE_DATA_DIR=/app/data
 
 WORKDIR /app
 
