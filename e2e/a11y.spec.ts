@@ -29,6 +29,7 @@ const ROUTES: ReadonlyArray<readonly [string, string]> = [
   // /tools/advisories has been folded into /countries (advisory filter).
   ["/tools/visa", "tools-visa"],
   ["/tools/exif", "tools-exif"],
+  ["/tools/metadata", "tools-metadata"],
   ["/tools/packing", "tools-packing"],
   ["/tools/flying", "tools-flying"],
   ["/tools/hotel", "tools-hotel"],
