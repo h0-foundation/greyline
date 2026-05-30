@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BookOpenText, Plane, ListChecks, FileBadge } from "lucide-react";
+import { ArrowLeft, BookOpenText, Plane, ListChecks, FileBadge, ClipboardCheck, Printer } from "lucide-react";
 import {
   getTripById,
   getDestinationsByTrip,
@@ -33,7 +33,10 @@ import { suggestThreatLevel, THREAT, type ThreatLevel } from "@/lib/intel";
 import { aggregateBriefing, type CountryProfileLite, type DestIntel, type DestPractical } from "@/lib/trip-briefing";
 import { detectLayovers, enrichLayover, routeExposureScore, type AirportLite } from "@/lib/itinerary";
 import { buildPackingList, buildDocChecklist, aggregateAirlineRules, inferClimateTags } from "@/lib/trip-kit";
+import { computeItineraryReadiness } from "@/lib/iso31030";
+import { epochDay, todayEpochDay } from "@/lib/visa";
 import { TripDetail } from "@/components/trip/trip-detail";
+import { ItineraryReadiness } from "@/components/trip/itinerary-readiness";
 import { TripBriefing } from "@/components/trip/trip-briefing";
 import { FlightsEditor, type FlightRuleSummary } from "@/components/trip/flights-editor";
 import { ItineraryPanel } from "@/components/trip/itinerary-panel";
@@ -264,6 +267,32 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   }
   const suggestedLevel = ORDER[worst];
 
+  // ── ISO 31030 itinerary readiness (pre-departure lifecycle) ─
+  const countDocs = docsGroups.reduce((n, g) => n + g.items.length, 0);
+  const countPacking = packingGroups.reduce((n, g) => n + g.items.length, 0);
+  let visaRequiredCountries = 0;
+  let severeAdvisoryCountries = 0;
+  let countriesWithEmergencyInfo = 0;
+  for (const iso of uniqIsos) {
+    const req = visaByIso.get(iso)?.requirement;
+    if (req === "visa_required" || req === "e_visa" || req === "eta") visaRequiredCountries++;
+    if ((peakByIso.get(iso)?.level ?? 0) >= 3) severeAdvisoryCountries++;
+    if (practicalByIso.get(iso)?.emergency_numbers) countriesWithEmergencyInfo++;
+  }
+  const readiness = computeItineraryReadiness({
+    today: todayEpochDay(),
+    startDay: trip.start_date ? epochDay(trip.start_date) : null,
+    endDay: trip.end_date ? epochDay(trip.end_date) : null,
+    destinationsWithCountry: destinations.filter((d) => d.country_code).length,
+    hasThreatModel: Boolean(threatModel),
+    documents: countDocs > 0 ? { total: countDocs, checked: storedDocs.filter((i) => i.checked).length } : null,
+    packing: countPacking > 0 ? { total: countPacking, checked: storedPacking.filter((i) => i.checked).length } : null,
+    visaRequiredCountries,
+    severeAdvisoryCountries,
+    countriesWithEmergencyInfo,
+    totalCountries: uniqIsos.size,
+  });
+
   return (
     <div className="space-y-6">
       <Link href="/trips" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-accent-text">
@@ -278,6 +307,25 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
         destIntel={destIntel}
         suggestedLevel={suggestedLevel}
       />
+
+      {/* ISO 31030 itinerary readiness — the pre-departure lifecycle meter,
+          computed from everything already on this trip. */}
+      <section className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-xs">
+        <div className="flex items-baseline gap-2">
+          <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
+            <ClipboardCheck className="size-4 text-faint" />
+            Itinerary readiness
+          </h2>
+          <span className="font-mono text-xs text-faint">ISO 31030-aligned lifecycle</span>
+          <Link
+            href={`/trips/${trip.id}/briefing/print`}
+            className="ml-auto inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-accent-text print:hidden"
+          >
+            <Printer className="size-4" /> Print briefing
+          </Link>
+        </div>
+        <ItineraryReadiness readiness={readiness} />
+      </section>
 
       {/* Flights + layover analysis — adding tickets lights up transit visa,
           tight-connection, and posture checks for every stop on the route. */}

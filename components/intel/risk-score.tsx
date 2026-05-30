@@ -1,5 +1,6 @@
 import { ShieldAlert } from "lucide-react";
 import type { RiskScore, RiskBand } from "@/lib/risk-score";
+import { ConfidenceChip, ProvenanceChip, coverageToConfidence } from "@/components/intel/provenance-chip";
 
 /* Renders the open-methodology Greyline Risk Score. Server component, no client
  * JS — the "how it's calculated" breakdown uses a native <details>. Risk is
@@ -38,6 +39,13 @@ export function RiskScoreCard({ score }: { score: RiskScore }) {
           <div className="mt-1.5 flex items-center gap-2">
             <ShieldAlert className={`size-4 ${tone.text}`} />
             <span className={`text-sm font-medium ${tone.text}`}>{score.band} risk</span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <ConfidenceChip
+              confidence={coverageToConfidence(score.coverage)}
+              detail={`${Math.round(score.coverage * 100)}% of inputs`}
+            />
+            <ProvenanceChip sources="GPI · FSI · CPI · RSF · advisories" asOf={null} nextAction="bundled at build" />
           </div>
         </div>
         <p className="ml-auto max-w-xs text-pretty text-xs text-faint">

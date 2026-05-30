@@ -360,6 +360,16 @@
 /* App content sits above the grain layer */
 body > :not(.grain) { position: relative; z-index: 1; }
 
+/* Print: drop the app chrome and texture so a briefing prints as a clean sheet.
+   The briefing page styles itself with explicit light colours, so we just clear
+   the dark canvas and the content padding here. */
+@media print {
+  .grain { display: none !important; }
+  body { background: #fff !important; }
+  main > div { max-width: none !important; padding: 0 !important; }
+  @page { margin: 14mm; }
+}
+
 /* View Transitions API — gentle cross-fade tuned to the motion token system.
    The browser's default cross-fade fires; we just align timing to the system. */
 @media (prefers-reduced-motion: no-preference) {
