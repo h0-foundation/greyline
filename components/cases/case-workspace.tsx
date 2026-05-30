@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Link2, Eye, Plus, Trash2, History, Hash, Lock, Unlock } from "lucide-react";
+import Link from "next/link";
+import { FileText, Link2, Eye, Plus, Trash2, History, Hash, Lock, Unlock, ScanText, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { extractEntities, groupEntities } from "@/lib/ner";
 
 // Local mirrors of the repo row shapes (kept here so this client component never
 // imports the SQLite-bound server module).
@@ -56,6 +58,12 @@ export function CaseWorkspace({
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Entity extraction across every evidence item's text — runs on-device.
+  const entityGroups = useMemo(
+    () => groupEntities(extractEntities(items.map((i) => `${i.title ?? ""}\n${i.body ?? ""}`).join("\n"))),
+    [items],
+  );
 
   async function refetch() {
     const res = await fetch(`/api/cases/${c.id}`);
@@ -206,6 +214,38 @@ export function CaseWorkspace({
                 );
               })}
             </ul>
+          )}
+
+          {entityGroups.length > 0 && (
+            <section className="rounded-xl border border-border bg-card p-4 shadow-xs">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="inline-flex items-center gap-2 font-display text-base font-semibold text-foreground">
+                  <ScanText className="size-4 text-faint" /> Entities
+                </h2>
+                <Link href="/tools/entities" className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline">
+                  Full extractor <ArrowRight className="size-3" />
+                </Link>
+              </div>
+              <p className="mt-1 text-xs text-faint">Extracted on-device from the evidence text above.</p>
+              <div className="mt-3 space-y-2.5">
+                {entityGroups.map((g) => (
+                  <div key={g.type}>
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-faint">{g.label}</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {g.items.map((e) => (
+                        <span
+                          key={`${e.type}:${e.value}`}
+                          className="rounded-md border border-border bg-background/50 px-2 py-0.5 font-mono text-xs text-foreground"
+                        >
+                          {e.value}
+                          {e.count > 1 && <span className="text-faint"> ×{e.count}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
         </div>
 
