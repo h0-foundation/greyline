@@ -153,7 +153,7 @@ export function timesAtAltitude(
   let prevDate: Date | null = null;
   for (let m = 0; m <= 1440; m++) {
     const d = new Date(base + m * 60_000);
-    const { altitude, azimuth } = sunPosition(d, lat, lng);
+    const { altitude } = sunPosition(d, lat, lng);
     if (prevAlt !== null && prevDate !== null) {
       const a = prevAlt - targetAlt;
       const b = altitude - targetAlt;

@@ -1,4 +1,3 @@
-import { v4 as uuid } from 'uuid';
 import { createChecklist, deleteChecklistsByDestination, getChecklistsByDestination } from '../db/repositories/checklist';
 import { getCountryProfile } from '../db/repositories/knowledge';
 

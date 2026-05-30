@@ -480,7 +480,15 @@ function disasterEl(d: Disaster) {
 function disasterPopup(d: Disaster): string {
   const p = d.properties;
   const TYPE: Record<string, string> = { EQ: "Earthquake", TC: "Tropical cyclone", FL: "Flood", VO: "Volcano", WF: "Wildfire", DR: "Drought" };
-  const desc = (p.htmldescription || "").replace(/<[^>]*>/g, "").trim().slice(0, 220);
+  // Strip tags to a stable fixpoint (a single pass is bypassable, e.g.
+  // "<scr<i>ipt>"); the result is also escapeHtml'd below for defence in depth.
+  let stripped = p.htmldescription || "";
+  let prevStripped: string;
+  do {
+    prevStripped = stripped;
+    stripped = stripped.replace(/<[^>]*>/g, "");
+  } while (stripped !== prevStripped);
+  const desc = stripped.trim().slice(0, 220);
   const link = p.url?.report;
   return `<div style="min-width:170px;max-width:240px;font-family:system-ui">
     <div style="font:600 13px system-ui;margin-bottom:3px">${escapeHtml(p.name || TYPE[p.eventtype] || "Event")}</div>

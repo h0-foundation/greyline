@@ -1,8 +1,9 @@
 import { getDb, closeDb } from '../server/db/index';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const BUNDLE_DIR = resolve('data/bundles/countries');
+const BUNDLE_FILE = resolve(BUNDLE_DIR, 'rest-countries.json');
 
 // REST Countries API limits to 10 fields per request, so we split into two calls
 const FIELDS_1 = 'name,cca2,cca3,capital,region,subregion,population,area,latlng,flag';
@@ -30,7 +31,7 @@ async function fetchFields(fields: string, attempts = 4): Promise<any[]> {
 	throw new Error(`Failed to fetch (${fields}) after ${attempts} attempts: ${String(lastErr)}`);
 }
 
-async function main() {
+async function fetchFresh(): Promise<any[]> {
 	console.log('Fetching REST Countries data (batch 1/2)...');
 	const batch1 = await fetchFields(FIELDS_1);
 	console.log(`Fetched ${batch1.length} countries (batch 1)`);
@@ -49,17 +50,47 @@ async function main() {
 			Object.assign(map.get(c.cca2), c);
 		}
 	}
+	return [...map.values()];
+}
 
-	const countries = [...map.values()];
-	console.log(`Merged ${countries.length} country profiles`);
+function loadBundle(): any[] {
+	if (!existsSync(BUNDLE_FILE)) return [];
+	try {
+		return JSON.parse(readFileSync(BUNDLE_FILE, 'utf8'));
+	} catch {
+		return [];
+	}
+}
 
-	if (!existsSync(BUNDLE_DIR)) {
-		mkdirSync(BUNDLE_DIR, { recursive: true });
+async function main() {
+	// Prefer fresh data, but fall back to the committed bundle so a REST
+	// Countries outage can't red the whole e2e pipeline (the bundle step runs
+	// before tests). The repo ships a checked-in rest-countries.json for exactly
+	// this — CI stays green offline / when the upstream API is down.
+	let countries: any[] = [];
+	let fromNetwork = false;
+	try {
+		countries = await fetchFresh();
+		fromNetwork = true;
+		console.log(`Merged ${countries.length} country profiles (live)`);
+	} catch (err) {
+		console.warn(`REST Countries unavailable (${String(err)}); falling back to the committed bundle.`);
+		countries = loadBundle();
+		if (countries.length === 0) {
+			throw new Error('REST Countries fetch failed and no committed rest-countries.json bundle is present to fall back to.');
+		}
+		console.log(`Loaded ${countries.length} country profiles from the committed bundle.`);
 	}
 
-	// Save full bundle
-	writeFileSync(resolve(BUNDLE_DIR, 'rest-countries.json'), JSON.stringify(countries, null, 2));
-	console.log('Saved rest-countries.json bundle');
+	// Only refresh the on-disk bundle when we actually fetched live data, so a
+	// fallback run never overwrites the committed bundle with itself.
+	if (fromNetwork) {
+		if (!existsSync(BUNDLE_DIR)) {
+			mkdirSync(BUNDLE_DIR, { recursive: true });
+		}
+		writeFileSync(BUNDLE_FILE, JSON.stringify(countries, null, 2));
+		console.log('Saved rest-countries.json bundle');
+	}
 
 	// Upsert into database
 	const db = getDb();

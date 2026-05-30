@@ -116,7 +116,7 @@ function commonNameToSlug(name: string): string {
 function normalizeFcdoLevel(alert?: string[] | null): { level: 1 | 2 | 3 | 4; label: string } {
   if (!alert || alert.length === 0) return { level: 1, label: "See FCDO advice" };
   const flat = alert.join(" ");
-  if (/avoid_all_travel_to_whole_country|avoid_all_travel$/.test(flat))
+  if (/avoid_all_travel(_to_whole_country)?$/.test(flat))
     return { level: 4, label: "Advise against all travel" };
   if (/avoid_all_but_essential_travel(_to_whole_country)?$/.test(flat) || /avoid_all_but_essential_travel$/.test(flat))
     return { level: 3, label: "Advise against all but essential travel" };
