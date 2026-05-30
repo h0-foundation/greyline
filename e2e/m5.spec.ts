@@ -37,3 +37,20 @@ test("tools: metadata stripper scans a PNG and removes the tEXt chunk in-browser
   await expect(page.getByText("tEXt").first()).toBeVisible();
   await expect(page.getByRole("link", { name: /Download photo-clean\.png/i }).first()).toBeVisible();
 });
+
+test("tools: line-of-sight exposure computes per-observer sight on-device", async ({ page }) => {
+  await page.goto("/tools/viewshed");
+  await expect(page.getByRole("heading", { name: "Line-of-sight exposure", level: 1 }).first()).toBeVisible();
+
+  // Your position.
+  await page.getByLabel("Latitude", { exact: true }).fill("52.5000");
+  await page.getByLabel("Longitude", { exact: true }).fill("13.4000");
+
+  // First observer: ~20 m away, in range → has line of sight.
+  await page.getByLabel("Lat", { exact: true }).first().fill("52.50018");
+  await page.getByLabel("Lon", { exact: true }).first().fill("13.40030");
+
+  // The exposure summary appears and reports a clear line of sight.
+  await expect(page.getByText(/can see you/i).first()).toBeVisible();
+  await expect(page.getByText("line of sight").first()).toBeVisible();
+});
