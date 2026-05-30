@@ -36,6 +36,23 @@ test("tools: image fingerprint hashes an uploaded image in-browser", async ({ pa
   await expect(page.getByText(/^[0-9a-f]{16}$/).first()).toBeVisible({ timeout: 10_000 });
 });
 
+test("tools: image sanitizer re-encodes an upload in-browser and offers a clean download", async ({ page }) => {
+  await page.goto("/tools/sanitize");
+  await expect(page.getByRole("heading", { name: "Sanitize & redact", level: 1 }).first()).toBeVisible();
+  await expect(page.getByText(/never uploaded/i).first()).toBeVisible();
+
+  // A tiny valid PNG; the canvas re-encode + toBlob run client-side in headless.
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  await page.getByLabel("Image to sanitize").setInputFiles({ name: "secret.png", mimeType: "image/png", buffer: png });
+
+  await page.getByRole("button", { name: "Sanitize", exact: true }).first().click();
+  // The sanitized copy is offered as a same-name "-sanitized" download.
+  await expect(page.getByRole("link", { name: /Download secret-sanitized\.png/i }).first()).toBeVisible({ timeout: 10_000 });
+});
+
 test("cases: case-file with SHA-256 evidence + append-only chain of custody", async ({ page, request }) => {
   // Seed a case + one evidence item via the API (no external data → CI-safe).
   const c = await request.post("/api/cases", { data: { title: "E2E Investigation", summary: "test case" } });

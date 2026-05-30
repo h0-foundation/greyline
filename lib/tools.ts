@@ -1,6 +1,6 @@
 import {
   ImageOff, Banknote, CloudSun, AlertTriangle, PlaneTakeoff, Stamp,
-  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, Route, Search, Siren, Fingerprint, type LucideIcon,
+  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, Route, Search, Siren, Fingerprint, Eraser, type LucideIcon,
 } from "lucide-react";
 
 /* Single source of truth for the tools catalog. Consumed by the /tools index
@@ -54,6 +54,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     tools: [
       { href: "/tools/verify", label: "Verify & protect sources", description: "SIFT + lateral reading, image/video verification, and source-protection playbooks.", icon: Search, offline: true },
       { href: "/tools/image-hash", label: "Image fingerprint", description: "Perceptual hash (aHash/dHash) to detect near-duplicate or recycled images. In-browser.", icon: Fingerprint, offline: true },
+      { href: "/tools/sanitize", label: "Sanitize & redact", description: "Re-encode an image to strip all metadata, and burn redactions into the pixels. In-browser; never uploaded.", icon: Eraser, offline: true },
       { href: "/tools/chrono", label: "Chronolocation lab", description: "Date and place a photo from its shadows — sun position + reverse time-of-day, all local.", icon: Sun, offline: true },
     ],
   },
