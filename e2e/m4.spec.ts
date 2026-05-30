@@ -90,6 +90,9 @@ test("cases: case-file with SHA-256 evidence + append-only chain of custody", as
     await page.getByLabel("Evidence content").fill("Second note added via UI.");
     await page.getByRole("button", { name: /Add — hash & log/i }).first().click();
     await expect(page.getByText("Second note added via UI.").first()).toBeVisible();
+
+    // The in-browser near-duplicate image check is available on the case.
+    await expect(page.getByRole("heading", { name: /Near-duplicate image check/i }).first()).toBeVisible();
   } finally {
     await request.delete(`/api/cases/${caseId}`);
   }
