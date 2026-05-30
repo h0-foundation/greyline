@@ -41,6 +41,7 @@ const ROUTES: ReadonlyArray<readonly [string, string]> = [
   ["/tools/image-hash", "tools-image-hash"],
   ["/tools/sanitize", "tools-sanitize"],
   ["/tools/entities", "tools-entities"],
+  ["/tools/geolocate", "tools-geolocate"],
   ["/tools/emergency?c=US", "tools-emergency"],
   ["/vault", "vault"],
   ["/settings", "settings"],
