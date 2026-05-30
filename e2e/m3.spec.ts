@@ -19,3 +19,16 @@ test("tools: threat-model wizard surfaces device-specific, tier-gated mitigation
   await page.getByRole("button", { name: "Extreme" }).click();
   await expect(page.getByText(/Faraday bag/i).first()).toBeVisible();
 });
+
+test("tools: bluetooth tracker defense — platform detection + sweep checklist", async ({ page }) => {
+  await page.goto("/tools/ble-tracker");
+  await expect(page.getByRole("heading", { name: "Bluetooth tracker defense", level: 1 })).toBeVisible();
+  // iOS detection is the default.
+  await expect(page.getByText(/Item Found Moving With You/i)).toBeVisible();
+  // Switch to Android → the AirGuard step appears (platform-specific).
+  await page.getByRole("button", { name: "Android" }).click();
+  await expect(page.getByText(/AirGuard/i).first()).toBeVisible();
+  // The physical-sweep checklist renders and an item toggles without error.
+  await expect(page.getByText("Physical sweep")).toBeVisible();
+  await page.getByRole("button", { name: /wheel wells/i }).click();
+});
