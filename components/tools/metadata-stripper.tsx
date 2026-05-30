@@ -98,7 +98,7 @@ export function MetadataStripper() {
         <p className="mt-1 text-xs text-muted-foreground">
           Runs entirely in your browser — nothing is uploaded. JPEG, PNG and WebP are cleaned
           <strong className="text-foreground"> losslessly</strong> (byte-level surgery, no recompression). For other formats,
-          use <a href="/tools/sanitize" className="text-accent-text hover:underline">Sanitize &amp; redact</a> (re-encodes).
+          use <a href="/tools/sanitize" className="text-accent-text underline underline-offset-2">Sanitize &amp; redact</a> (re-encodes).
         </p>
         <input
           id="meta-input"
@@ -122,7 +122,7 @@ export function MetadataStripper() {
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             This tool does byte-level surgery on JPEG/PNG/WebP only. To clean a {FORMAT_LABEL[result.format]} file, use{" "}
-            <a href="/tools/sanitize" className="text-accent-text hover:underline">Sanitize &amp; redact</a>, which re-encodes from
+            <a href="/tools/sanitize" className="text-accent-text underline underline-offset-2">Sanitize &amp; redact</a>, which re-encodes from
             pixels and drops all metadata (with some quality loss).
           </p>
         </div>
