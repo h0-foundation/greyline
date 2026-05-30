@@ -35,3 +35,29 @@ test("tools: emergency card shows an empty prompt with no country", async ({ pag
   await expect(page.getByRole("heading", { name: /Emergency card/i, level: 1 })).toBeVisible();
   await expect(page.getByText(/Choose a destination/i)).toBeVisible();
 });
+
+test("trip: ISO 31030 itinerary-readiness panel + briefing print page", async ({ page, request }) => {
+  // Seed a trip + destination via the API (no dossier data needed — readiness is
+  // computed from the itinerary/checklists, so this is green in CI).
+  const t = await request.post("/api/trips", { data: { name: "M2 Readiness Trip" } });
+  const trip = (await t.json()).trip;
+  await request.post(`/api/trips/${trip.id}/destinations`, { data: { country_code: "US", city: "Test City" } });
+
+  try {
+    await page.goto(`/trips/${trip.id}`);
+    await expect(page.getByRole("heading", { name: "Itinerary readiness" })).toBeVisible();
+    await expect(page.getByText("ISO 31030-aligned lifecycle")).toBeVisible();
+    await expect(page.getByText("Itinerary defined")).toBeVisible();
+    await expect(page.getByText("Before — plan & prepare")).toBeVisible();
+
+    // The printable briefing composes the readiness + per-destination risk rows.
+    await page.getByRole("link", { name: /Print briefing/i }).click();
+    await expect(page).toHaveURL(new RegExp(`/trips/${trip.id}/briefing/print`));
+    await expect(page.getByText("pre-trip risk briefing")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "M2 Readiness Trip" })).toBeVisible();
+    await expect(page.getByText(/Itinerary readiness \(ISO 31030\)/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Print \/ save as PDF/i })).toBeVisible();
+  } finally {
+    await request.delete(`/api/trips/${trip.id}`);
+  }
+});

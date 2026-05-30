@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <MotionConfig reducedMotion="user">
     <div className="flex min-h-svh">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex">
+      <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex print:!hidden">
         <div className="sticky top-0 h-svh w-full overflow-y-auto">
           <SidebarContent idPrefix="desktop" />
         </div>
