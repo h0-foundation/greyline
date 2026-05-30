@@ -39,6 +39,7 @@ const ROUTES: ReadonlyArray<readonly [string, string]> = [
   ["/tools/ble-tracker", "tools-ble-tracker"],
   ["/tools/route-planner", "tools-route-planner"],
   ["/tools/viewshed", "tools-viewshed"],
+  ["/tools/alerts", "tools-alerts"],
   ["/tools/verify", "tools-verify"],
   ["/tools/image-hash", "tools-image-hash"],
   ["/tools/sanitize", "tools-sanitize"],
