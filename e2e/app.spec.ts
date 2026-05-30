@@ -21,7 +21,9 @@ test("home renders the cockpit", async ({ page }) => {
 
 test("countries: search and open a briefing with privacy posture", async ({ page }) => {
   await page.goto("/countries");
-  await page.getByPlaceholder("Search countries…").fill("united states");
+  // View Transitions can briefly leave two snapshots of the search input in the
+  // DOM during nav; scope to the live one to avoid a strict-mode flake.
+  await page.getByPlaceholder("Search countries…").first().fill("united states");
   await page.locator('a[href="/countries/US"]').first().click();
   await expect(page).toHaveURL(/\/countries\/US/);
   // Privacy posture block is intact, with VPN + Decryption rows.
@@ -50,7 +52,7 @@ test("countries: hotspot filter chips render when advisory data is seeded", asyn
   // assert the page header + the search box are present. Real advisory data is
   // verified by the build:advisories script + its smoke tests in dev.
   await expect(page.getByRole("heading", { name: "Countries", level: 1 })).toBeVisible();
-  await expect(page.getByPlaceholder("Search countries…")).toBeVisible();
+  await expect(page.getByPlaceholder("Search countries…").first()).toBeVisible();
 });
 
 test("trips: create, see threat dial + briefing, generate OPSEC, then delete", async ({ page, request }) => {
