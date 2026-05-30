@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed-db.ts",
     "build:countries": "tsx scripts/build-country-data.ts",
@@ -69,7 +70,8 @@
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "tsx": "^4.7.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.0.0"
   },
   "license": "AGPL-3.0-only",
   "engines": {
