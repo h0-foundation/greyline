@@ -53,6 +53,14 @@ test("tools: image sanitizer re-encodes an upload in-browser and offers a clean 
   await expect(page.getByRole("link", { name: /Download secret-sanitized\.png/i }).first()).toBeVisible({ timeout: 10_000 });
 });
 
+test("tools: entity extractor pulls identifiers from pasted text on-device", async ({ page }) => {
+  await page.goto("/tools/entities");
+  await expect(page.getByRole("heading", { name: "Entity extractor", level: 1 }).first()).toBeVisible();
+  await page.getByLabel("Paste text to scan").fill("Email John Doe at john@acme.com or call +1 (415) 555-0132.");
+  await expect(page.getByText("john@acme.com").first()).toBeVisible();
+  await expect(page.getByText("John Doe").first()).toBeVisible();
+});
+
 test("cases: case-file with SHA-256 evidence + append-only chain of custody", async ({ page, request }) => {
   // Seed a case + one evidence item via the API (no external data → CI-safe).
   const c = await request.post("/api/cases", { data: { title: "E2E Investigation", summary: "test case" } });
