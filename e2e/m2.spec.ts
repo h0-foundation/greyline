@@ -45,18 +45,20 @@ test("trip: ISO 31030 itinerary-readiness panel + briefing print page", async ({
 
   try {
     await page.goto(`/trips/${trip.id}`);
-    await expect(page.getByRole("heading", { name: "Itinerary readiness" })).toBeVisible();
-    await expect(page.getByText("ISO 31030-aligned lifecycle")).toBeVisible();
-    await expect(page.getByText("Itinerary defined")).toBeVisible();
-    await expect(page.getByText("Before — plan & prepare")).toBeVisible();
+    // `.first()` throughout: PageTransition briefly double-renders content during
+    // a View Transition, which trips Playwright strict mode (see #55).
+    await expect(page.getByRole("heading", { name: "Itinerary readiness" }).first()).toBeVisible();
+    await expect(page.getByText("ISO 31030-aligned lifecycle").first()).toBeVisible();
+    await expect(page.getByText("Itinerary defined").first()).toBeVisible();
+    await expect(page.getByText("Before — plan & prepare").first()).toBeVisible();
 
     // The printable briefing composes the readiness + per-destination risk rows.
-    await page.getByRole("link", { name: /Print briefing/i }).click();
+    await page.getByRole("link", { name: /Print briefing/i }).first().click();
     await expect(page).toHaveURL(new RegExp(`/trips/${trip.id}/briefing/print`));
-    await expect(page.getByText("pre-trip risk briefing")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "M2 Readiness Trip" })).toBeVisible();
-    await expect(page.getByText(/Itinerary readiness \(ISO 31030\)/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: /Print \/ save as PDF/i })).toBeVisible();
+    await expect(page.getByText("pre-trip risk briefing").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "M2 Readiness Trip" }).first()).toBeVisible();
+    await expect(page.getByText(/Itinerary readiness \(ISO 31030\)/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Print \/ save as PDF/i }).first()).toBeVisible();
   } finally {
     await request.delete(`/api/trips/${trip.id}`);
   }
