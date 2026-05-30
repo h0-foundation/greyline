@@ -10,6 +10,8 @@ import {
   type DestinationRow,
   type TripRow,
 } from "@/lib/disclosure";
+import { computePatternOfLife } from "@/lib/pattern-of-life";
+import { PatternOfLifeCard } from "@/components/intel/pattern-of-life";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +49,7 @@ export default function DisclosurePage() {
   const countries = loadCountryMeta();
   const home = (getSetting("home_country") ?? "").replace(/"/g, "");
   const report = computeDisclosure(trips, destinations, countries, home || null);
+  const pol = computePatternOfLife(trips, destinations, countries);
 
   return (
     <div className="space-y-7">
@@ -85,6 +88,12 @@ export default function DisclosurePage() {
           </a>
         </div>
       </div>
+
+      {/* Pattern-of-life self-audit — how identifying your own record is. */}
+      <section className="space-y-3">
+        <h2 className="label-caps">What your record reveals</h2>
+        <PatternOfLifeCard pol={pol} />
+      </section>
 
       {/* In-window foreign travel */}
       <section className="space-y-3">

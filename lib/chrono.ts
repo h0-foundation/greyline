@@ -108,6 +108,7 @@ export const CARDINALS = [
 
 /** Nearest 16-point compass label for a bearing in degrees. */
 export function cardinal(bearing: number): string {
+  if (!Number.isFinite(bearing)) return "";
   return CARDINALS[Math.round(mod(bearing, 360) / 22.5) % 16];
 }
 
