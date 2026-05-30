@@ -54,3 +54,25 @@ test("tools: line-of-sight exposure computes per-observer sight on-device", asyn
   await expect(page.getByText(/can see you/i).first()).toBeVisible();
   await expect(page.getByText("line of sight").first()).toBeVisible();
 });
+
+test("tools: hazard alerts rationalize a pasted feed offline (EEMUA-191)", async ({ page }) => {
+  await page.goto("/tools/alerts");
+  await expect(page.getByRole("heading", { name: "Hazard alerts", level: 1 }).first()).toBeVisible();
+
+  // Open the offline paste panel and rationalize a 2-event USGS feed: one strong
+  // quake, one weak — the strong one should rank Critical/High and surface first.
+  await page.getByText("Rationalize a pasted feed (offline)").click();
+  const feed = JSON.stringify({
+    usgs: {
+      features: [
+        { id: "big", properties: { mag: 7.1, place: "Near coast", time: 1000 }, geometry: { coordinates: [120, -15, 10] } },
+        { id: "small", properties: { mag: 3.2, place: "Inland", time: 2000 }, geometry: { coordinates: [10, 50, 5] } },
+      ],
+    },
+  });
+  await page.getByPlaceholder(/usgs/i).fill(feed);
+  await page.getByRole("button", { name: "Rationalize", exact: true }).click();
+
+  await expect(page.getByText(/prioritised alert/i).first()).toBeVisible();
+  await expect(page.getByText("Near coast").first()).toBeVisible();
+});
