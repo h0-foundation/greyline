@@ -34,6 +34,7 @@ import { IndicesGrid } from "@/components/intel/indices-grid";
 import { FactbookPanel } from "@/components/intel/factbook-panel";
 import { RiskScoreCard } from "@/components/intel/risk-score";
 import { computeRiskScore } from "@/lib/risk-score";
+import { RoadSafetyCard } from "@/components/intel/road-safety";
 import {
   toBriefing,
   buildNeighborIndex,
@@ -169,6 +170,12 @@ export default async function CountryBriefingPage({
       {/* Comparable indices — corruption, press freedom, passport reach. */}
       <Section title="Indices" icon={Gauge} className="!p-5">
         <IndicesGrid indices={indices} />
+      </Section>
+
+      {/* Road safety — the leading cause of injury death for travellers, which
+          advisories and indices systematically under-weight (CDC Yellow Book). */}
+      <Section title="Road safety" icon={Car} className="!p-5">
+        <RoadSafetyCard code={profile.country_code} drivingSide={c.drivingSide} />
       </Section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
