@@ -243,3 +243,11 @@ test("surveillance: TEDD analysis flags a recurring party across distance", asyn
     if (s.person_desc?.includes("TEDD probe")) await request.delete(`/api/surveillance/${s.id}`);
   }
 });
+
+test("disclosure: pattern-of-life self-audit section renders", async ({ page }) => {
+  await page.goto("/disclosure");
+  // The self-audit section always renders; with no trips (CI fresh DB) it shows
+  // the empty-state prompt, otherwise the distinct place-time points figure.
+  await expect(page.getByText("What your record reveals")).toBeVisible();
+  await expect(page.getByText(/distinct place-time points|Log destinations/i).first()).toBeVisible();
+});
