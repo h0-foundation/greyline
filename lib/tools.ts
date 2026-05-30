@@ -1,6 +1,6 @@
 import {
   ImageOff, Banknote, CloudSun, AlertTriangle, PlaneTakeoff, Stamp,
-  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, Route, type LucideIcon,
+  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, Route, Search, type LucideIcon,
 } from "lucide-react";
 
 /* Single source of truth for the tools catalog. Consumed by the /tools index
@@ -51,6 +51,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     title: "Verify & investigate",
     tools: [
+      { href: "/tools/verify", label: "Verify & protect sources", description: "SIFT + lateral reading, image/video verification, and source-protection playbooks.", icon: Search, offline: true },
       { href: "/tools/chrono", label: "Chronolocation lab", description: "Date and place a photo from its shadows — sun position + reverse time-of-day, all local.", icon: Sun, offline: true },
     ],
   },
