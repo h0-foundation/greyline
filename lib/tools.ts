@@ -1,6 +1,6 @@
 import {
   ImageOff, Banknote, CloudSun, AlertTriangle, PlaneTakeoff, Stamp,
-  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, Route, Search, Siren, Fingerprint, Eraser, ScanText, MapPinned, type LucideIcon,
+  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, Route, Search, Siren, Fingerprint, Eraser, ScanText, MapPinned, FileScan, type LucideIcon,
 } from "lucide-react";
 
 /* Single source of truth for the tools catalog. Consumed by the /tools index
@@ -33,7 +33,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     title: "Before you go",
     tools: [
       { href: "/tools/visa", label: "Visa checker", description: "Your passport → any destination, from the offline matrix.", icon: Stamp, offline: true },
-      { href: "/tools/exif", label: "EXIF stripper", description: "Remove GPS/device metadata from photos. Never leaves your machine.", icon: ImageOff, offline: true },
+      { href: "/tools/metadata", label: "Metadata stripper", description: "Scan & losslessly strip EXIF/GPS/XMP/IPTC from JPEG, PNG & WebP — see exactly what's removed. On-device.", icon: FileScan, offline: true },
       { href: "/tools/packing", label: "Packing", description: "Threat-aware packing checklist.", icon: Luggage, offline: true },
       { href: "/tools/flying", label: "Data footprint of flying", description: "What API/PNR/biometric systems capture when you fly.", icon: Plane, offline: true },
     ],
