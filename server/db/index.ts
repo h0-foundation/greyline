@@ -1,12 +1,21 @@
 import Database from 'better-sqlite3';
 import { readFileSync, readdirSync, existsSync, mkdirSync } from 'fs';
+import { homedir } from 'os';
 import { join, resolve } from 'path';
 
-// Allow an explicit data dir (e.g. a stable location for the standalone build)
-// so dev, `next start`, and the packaged server all share one database.
+// Where the SQLite DB lives. The default is an app-data dir OUTSIDE the project
+// tree — deliberately. `next dev` (Turbopack) watches the whole repo root, and
+// SQLite in WAL mode rewrites its -wal/-shm sidecars on every read; with the DB
+// inside the tree that churn drove an endless recompile loop that spawned
+// unbounded workers and OOM-crashed the machine. Keeping the DB out of the
+// watched root removes the loop (and generated user data doesn't belong in the
+// source tree anyway).
+//
+// GREYLINE_DATA_DIR overrides it: the Docker image pins it to the /app/data
+// volume. CI/e2e inherit this same default so seeding and the test server agree.
 const DATA_DIR = process.env.GREYLINE_DATA_DIR
   ? resolve(process.env.GREYLINE_DATA_DIR)
-  : resolve('data');
+  : join(process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share'), 'greyline');
 const DB_PATH = join(DATA_DIR, 'greyline.db');
 const MIGRATIONS_DIR = resolve('server/db/migrations');
 

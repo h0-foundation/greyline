@@ -1,5 +1,4 @@
 import { defineConfig, devices } from "@playwright/test";
-import { resolve } from "path";
 
 const PORT = 3100;
 
@@ -28,9 +27,10 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
+    // No GREYLINE_DATA_DIR pin: inherit the app's default data dir (outside the
+    // repo tree) so `pnpm seed`/`pnpm migrate` and this test server agree.
     env: {
       PORT: String(PORT),
-      GREYLINE_DATA_DIR: resolve("data"),
     },
   },
 });
