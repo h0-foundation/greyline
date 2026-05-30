@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { extractEntities, groupEntities } from "@/lib/ner";
+import { CaseImageDedup } from "@/components/cases/case-image-dedup";
 
 // Local mirrors of the repo row shapes (kept here so this client component never
 // imports the SQLite-bound server module).
@@ -247,6 +248,8 @@ export function CaseWorkspace({
               </div>
             </section>
           )}
+
+          <CaseImageDedup />
         </div>
 
         {/* Chain of custody */}
