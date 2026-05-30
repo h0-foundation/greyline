@@ -1,6 +1,6 @@
 import {
   ImageOff, Banknote, CloudSun, AlertTriangle, PlaneTakeoff, Stamp,
-  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, type LucideIcon,
+  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, Route, type LucideIcon,
 } from "lucide-react";
 
 /* Single source of truth for the tools catalog. Consumed by the /tools index
@@ -42,6 +42,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     tools: [
       { href: "/tools/threat-model", label: "Threat-model wizard", description: "Device + risk-level signature plan: IMSI catchers, Wi-Fi/BLE, ALPR, trackers, FRT — with sources.", icon: ShieldAlert, offline: true },
       { href: "/tools/ble-tracker", label: "Bluetooth tracker defense", description: "Find an unwanted AirTag/Tile/SmartTag — per-phone detection, physical sweep, safety-first.", icon: Radar, offline: true },
+      { href: "/tools/route-planner", label: "Route planner (SDR / egress)", description: "Draw surveillance-detection, extraction & variation routes; on-device length + deviation.", icon: Route, offline: true },
       { href: "/tools/hotel", label: "Hotel & room security", description: "Room selection, door/window checks, TSCM sweep.", icon: Hotel, offline: true },
       { href: "/tools/border", label: "Border crossing", description: "Pre-trip, at-border, and post-crossing checklist.", icon: ShieldCheck, offline: true },
       { href: "/tools/self-doxxing", label: "Self-doxxing audit", description: "Find what the open internet reveals about you.", icon: Eye, offline: true },
