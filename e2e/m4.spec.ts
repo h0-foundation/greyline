@@ -93,6 +93,12 @@ test("cases: case-file with SHA-256 evidence + append-only chain of custody", as
 
     // The in-browser near-duplicate image check is available on the case.
     await expect(page.getByRole("heading", { name: /Near-duplicate image check/i }).first()).toBeVisible();
+
+    // Investigation tools are cross-linked from inside the case, and the case
+    // can be exported (provenance travels with the hand-off).
+    await expect(page.getByRole("link", { name: /Verify \(SIFT\)/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Geolocate/i }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Export/i }).first()).toBeVisible();
   } finally {
     await request.delete(`/api/cases/${caseId}`);
   }

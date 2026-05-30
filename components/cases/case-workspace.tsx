@@ -3,12 +3,23 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FileText, Link2, Eye, Plus, Trash2, History, Hash, Lock, Unlock, ScanText, ArrowRight } from "lucide-react";
+import { FileText, Link2, Eye, Plus, Trash2, History, Hash, Lock, Unlock, ScanText, ArrowRight, Download, Search, MapPinned, Eraser, Fingerprint, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { extractEntities, groupEntities } from "@/lib/ner";
 import { CaseImageDedup } from "@/components/cases/case-image-dedup";
+
+// On-device tools an investigator pivots to from inside a case. Kept in sync
+// with lib/tools.ts (Verify & investigate group) by intent, not import, so this
+// can stay a plain client component.
+const INVESTIGATE_LINKS = [
+  { href: "/tools/verify", label: "Verify (SIFT)", icon: Search },
+  { href: "/tools/geolocate", label: "Geolocate", icon: MapPinned },
+  { href: "/tools/sanitize", label: "Sanitize & redact", icon: Eraser },
+  { href: "/tools/image-hash", label: "Image fingerprint", icon: Fingerprint },
+  { href: "/tools/chrono", label: "Chronolocation", icon: Sun },
+] as const;
 
 // Local mirrors of the repo row shapes (kept here so this client component never
 // imports the SQLite-bound server module).
@@ -121,6 +132,28 @@ export function CaseWorkspace({
     router.push("/cases");
   }
 
+  // Export the whole case — metadata, evidence (with its intake SHA-256), and the
+  // append-only chain of custody — as a single self-contained JSON file, so the
+  // case (and its provenance) can be archived or handed off. Pure client-side;
+  // nothing is uploaded.
+  function exportCase() {
+    const payload = {
+      exported_at: new Date().toISOString(),
+      tool: "Greyline case-file export v1",
+      case: c,
+      items,
+      chain_of_custody: events,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safe = c.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "case";
+    a.href = url;
+    a.download = `${safe}-case.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -135,11 +168,27 @@ export function CaseWorkspace({
             {c.status === "open" ? <Lock className="size-4" /> : <Unlock className="size-4" />}
             {c.status === "open" ? "Close case" : "Reopen"}
           </Button>
+          <Button variant="ghost" size="sm" onClick={exportCase}>
+            <Download className="size-4" /> Export
+          </Button>
           <Button variant="ghost" size="sm" onClick={del} className="text-destructive hover:text-destructive">
             <Trash2 className="size-4" /> Delete
           </Button>
         </div>
       </div>
+
+      {/* On-device investigation tools — pivot points from inside the case. */}
+      <nav aria-label="Investigation tools" className="flex flex-wrap gap-2">
+        {INVESTIGATE_LINKS.map((t) => (
+          <Link
+            key={t.href}
+            href={t.href}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-accent/40 hover:text-accent-text"
+          >
+            <t.icon className="size-3.5" /> {t.label}
+          </Link>
+        ))}
+      </nav>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Evidence */}
@@ -257,7 +306,10 @@ export function CaseWorkspace({
           <h2 className="inline-flex items-center gap-2 font-display text-base font-semibold text-foreground">
             <History className="size-4 text-faint" /> Chain of custody
           </h2>
-          <p className="mt-1 text-xs text-faint">Append-only — entries are never edited or reordered.</p>
+          <p className="mt-1 text-xs text-faint">
+            Append-only — entries are never edited or reordered. <span className="text-muted-foreground">Export</span> writes the
+            full log + evidence hashes to a JSON file for hand-off.
+          </p>
           <ol className="mt-3 space-y-3 border-l border-border pl-4">
             {events.map((ev) => (
               <li key={ev.id} className="relative">
