@@ -1,10 +1,15 @@
 # Greyline
 
-**Your private lifetime travel log — kept, mapped, and explained on your own machine. Nothing leaves it.**
+**An offline intelligence workbench for people whose movements are sensitive — duty of care without surveillance. Everything runs on your machine; nothing leaves it.**
 
-Greyline is a local-only, offline-first travel intelligence app. It holds every trip you've taken in a single SQLite file, auto-generates the briefing for every trip you're planning (advisories, packing list, documents needed, airline rules, layover risk), and renders a dark editorial cockpit at `/` answering one question: *what needs my attention right now?*
+Greyline is a local-only, offline-first **travel-risk + OSINT workbench**. It leads with travel-risk management — an open, auditable country **Risk Score**, **road-safety-first** briefings, multi-government advisories, and visa/document engines — and layers two differentiating packs on the same private architecture:
 
-No accounts. No cloud. No telemetry. One folder of files on your computer, and one app you control.
+- **Counter-surveillance** — a TEDD surveillance-detection scorer, pattern-of-life self-audit, device **threat-model wizard**, **Bluetooth-tracker defense**, an **SDR/egress route planner**, and a **CCTV/ALPR coverage-cone** map.
+- **Investigative journalism / OSINT** — **chronolocation** from shadows, **perceptual image-hash** near-duplicate detection, and **SIFT verification + source-protection** playbooks.
+
+It also keeps your **lifetime travel record** (SF-86-grade, civilian-useful) and renders a dark editorial cockpit answering: *what needs my attention right now?*
+
+No accounts. No cloud. No telemetry. One folder of files on your computer, and one app you control. Built for journalists, NGO field staff, lawyers, activists, dual citizens, and security-conscious travelers. The cloud travel-risk incumbents sell the two things Greyline structurally *won't* — a 24/7 SOC and live GPS tracking — which are exactly the surveillance-heavy, subpoena-able parts. Everything else is computable offline from open data.
 
 ---
 
@@ -147,7 +152,7 @@ The app has **14 user-facing routes** plus **32 local API handlers**. Every rout
 
 | Route | What it does |
 |---|---|
-| `/tools` | Workflow-grouped index of the 10 individual tools below. |
+| `/tools` | Workflow-grouped index of the 17 individual tools below. |
 
 ---
 
@@ -167,6 +172,15 @@ All tools are server-rendered + run computation locally. Anything that needs a l
 | **Data footprint of flying** | `/tools/flying` | What API/PNR/EU EES/ETIAS/US biometric/transit systems capture when you fly. Reference + per-route exposure. | Offline |
 | **EXIF stripper** | `/tools/exif` | Drag-and-drop GPS / device-fingerprint / timestamp removal. Browser-only — no upload. | Offline (client-only) |
 | **Self-doxxing audit** | `/tools/self-doxxing` | Generates copy-ready OSINT queries (name / email / phone / username / reverse-image) + broker opt-out tracker. Doesn't search anything — shows you what to check in private. | Offline |
+| **Threat-model wizard** | `/tools/threat-model` | Device OS + risk tier → prioritized, evidence-cited signature-reduction plan (IMSI/2G, Wi-Fi/BLE fingerprinting, ALPR, BLE trackers, face recognition, Faraday). | Offline |
+| **Bluetooth tracker defense** | `/tools/ble-tracker` | Find an unwanted AirTag / Tile / SmartTag — per-platform detection, interactive physical-sweep checklist, safety-first guidance (DULT / CDC NISVS). | Offline |
+| **Route planner (SDR / egress)** | `/tools/route-planner` | Draw surveillance-detection, extraction & variation routes; on-device length + deviation-ratio scoring; routes persist locally. | Offline |
+| **Verify & protect sources** | `/tools/verify` | SIFT + lateral-reading checklist, image/video verification steps, and source-protection playbooks (SecureDrop/GlobaLeaks, border-device prep). | Offline |
+| **Image fingerprint** | `/tools/image-hash` | Perceptual hash (aHash + dHash) to detect near-duplicate / recycled images; compare two images for a Hamming-distance verdict. In-browser; images never leave the machine. | Offline (client-only) |
+| **Chronolocation lab** | `/tools/chrono` | Date and place a daytime photo from its shadows — sun azimuth/altitude + reverse time-of-day (Bellingcat method, NOAA/Meeus solar math). | Offline |
+| **Emergency card** | `/tools/emergency` | Per-country emergency numbers + first-actions + a printable panic card, from bundled data. | Offline |
+
+> The country dossier (`/countries/[code]`) also surfaces the open-methodology **Greyline Risk Score** and a **road-safety** panel (road crashes are the leading cause of traveller injury death — CDC Yellow Book). `/disclosure` adds a **pattern-of-life self-audit** (de Montjoye unicity). `/surveillance` runs the **TEDD** scorer. `/map` draws **CCTV/ALPR coverage cones**.
 
 ---
 

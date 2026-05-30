@@ -20,7 +20,6 @@ import {
   Compass, Lock, Wrench, BookText, AlertTriangle, Eye, WifiOff, Plug, Calendar,
 } from "lucide-react";
 import { CountUp } from "@/components/count-up";
-import { Badge } from "@/components/ui/badge";
 import { getCountryListRows } from "$server/db/repositories/knowledge";
 import {
   getAllTrips, getDestinationsByTrip,

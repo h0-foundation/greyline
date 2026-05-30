@@ -159,7 +159,7 @@ function leaf(o: unknown, ...path: string[]): string | null {
   }
   if (!cur) return null;
   if (typeof cur === "string") return cur;
-  if (typeof cur === "object" && cur !== null && "text" in cur && typeof (cur as { text?: unknown }).text === "string") {
+  if (typeof cur === "object" && "text" in cur && typeof (cur as { text?: unknown }).text === "string") {
     return (cur as { text: string }).text;
   }
   return null;

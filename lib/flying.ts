@@ -98,7 +98,7 @@ export type BuildTrailInput = {
 
 /** Build an ordered timeline of who collects your data at each stage. */
 export function buildTrail(input: BuildTrailInput): TrailStage[] {
-  const { originIso2, destIso2, layovers, intelByIso } = input;
+  const { destIso2, layovers, intelByIso } = input;
   const stages: TrailStage[] = [];
 
   // Jurisdictions that receive booking/APIS data: destination + each transit.
