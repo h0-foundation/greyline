@@ -7,6 +7,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { cameraCones, cameraCounts, classifyCamera, type CameraKind } from "@/lib/camera-coverage";
 
 export type MapMarker = { id: string; type: "destination" | "rally" | "sighting"; lat: number; lng: number; label: string };
 type Marker = MapMarker;
@@ -63,6 +64,18 @@ function dot(color: string, size = 12) {
   return el;
 }
 
+// ALPR plate-readers are a crimson SQUARE; ordinary CCTV an amber dot. The
+// shape difference is the colour-blind-safe redundant cue (it survives
+// grayscale), per research/UX_INTELLIGENCE_DASHBOARDS.md.
+function cameraEl(kind: CameraKind) {
+  if (kind === "alpr") {
+    const el = document.createElement("div");
+    el.style.cssText = "width:11px;height:11px;background:#e06a5a;box-shadow:0 0 0 1.5px rgba(0,0,0,0.5),0 0 6px #e06a5a88;cursor:pointer";
+    return el;
+  }
+  return dot("#e0b24a", 10);
+}
+
 export function MapView({ markers }: { markers: Marker[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -78,6 +91,13 @@ export function MapView({ markers }: { markers: Marker[] }) {
   const [radar, setRadar] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState(false);
+  const [cameraStats, setCameraStats] = useState<{ total: number; alpr: number } | null>(null);
+
+  function clearCones() {
+    const src = mapRef.current?.getSource("camera-cones") as maplibregl.GeoJSONSource | undefined;
+    src?.setData({ type: "FeatureCollection", features: [] });
+    setCameraStats(null);
+  }
 
   function toggleSatellite(on: boolean) {
     setSatellite(on);
@@ -140,6 +160,12 @@ export function MapView({ markers }: { markers: Marker[] }) {
       map.addLayer({ id: "radar", type: "raster", source: "radar", paint: { "raster-opacity": 0.6 }, layout: { visibility: "none" } });
       map.addSource("trails", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({ id: "trails", type: "line", source: "trails", paint: { "line-color": "#7fb2ff", "line-width": 1.5, "line-opacity": 0.45 } });
+      // Camera field-of-view coverage cones (drawn from camera:direction). ALPR
+      // plate-readers are tinted distinctly from CCTV — the marker shape carries
+      // the same distinction so it survives colour-blindness / grayscale.
+      map.addSource("camera-cones", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({ id: "camera-cones-fill", type: "fill", source: "camera-cones", paint: { "fill-color": ["match", ["get", "kind"], "alpr", "#e06a5a", "#e0b24a"], "fill-opacity": 0.14 } });
+      map.addLayer({ id: "camera-cones-line", type: "line", source: "camera-cones", paint: { "line-color": ["match", ["get", "kind"], "alpr", "#e06a5a", "#e0b24a"], "line-width": 1, "line-opacity": 0.5 } });
       setReady(true);
     });
 
@@ -203,6 +229,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
     } else {
       layerMarkers.current[key].forEach((m) => m.remove());
       layerMarkers.current[key] = [];
+      if (key === "cameras") clearCones();
     }
     setNotes((n) => ({ ...n, [key]: "" }));
   }
@@ -301,6 +328,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
     if (map.getZoom() < 8) {
       layerMarkers.current.cameras.forEach((m) => m.remove());
       layerMarkers.current.cameras = [];
+      clearCones();
       setNotes((n) => ({ ...n, cameras: "zoom" }));
       return;
     }
@@ -311,14 +339,20 @@ export function MapView({ markers }: { markers: Marker[] }) {
     const { cameras } = (await res.json()) as { cameras: Camera[] };
     layerMarkers.current.cameras?.forEach((m) => m.remove());
     layerMarkers.current.cameras = [];
-    for (const cam of (cameras ?? []).slice(0, 400)) {
-      if (cam.lat == null || cam.lon == null) continue;
-      const mk = new maplibregl.Marker({ element: dot("#e0b24a", 10) })
+    const shown = (cameras ?? []).filter((c) => c.lat != null && c.lon != null).slice(0, 400);
+    for (const cam of shown) {
+      const kind = classifyCamera((cam.tags ?? {}) as Record<string, string>);
+      const mk = new maplibregl.Marker({ element: cameraEl(kind) })
         .setLngLat([cam.lon, cam.lat])
-        .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(cameraPopup(cam)))
+        .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(cameraPopup(cam, kind)))
         .addTo(map);
       layerMarkers.current.cameras.push(mk);
     }
+    // Coverage cones for any camera with a known direction (dome → full circle).
+    const cones = mapRef.current?.getSource("camera-cones") as maplibregl.GeoJSONSource | undefined;
+    cones?.setData(cameraCones(shown));
+    const counts = cameraCounts(shown);
+    setCameraStats({ total: counts.total, alpr: counts.alpr });
   }
 
   // refetch viewport-bound layers on pan/zoom
@@ -374,7 +408,14 @@ export function MapView({ markers }: { markers: Marker[] }) {
         <LayerRow icon={Plane} color="#7fb2ff" label="Live aircraft" on={layers.aircraft} onToggle={(v) => setLayer("aircraft", v)} note={notes.aircraft} />
         <LayerRow icon={Activity} color="#e06a5a" label="Earthquakes" on={layers.quakes} onToggle={(v) => setLayer("quakes", v)} note={notes.quakes} />
         <LayerRow icon={TriangleAlert} color="#e0992a" label="Disasters (GDACS)" on={layers.disasters} onToggle={(v) => setLayer("disasters", v)} note={notes.disasters} />
-        <LayerRow icon={Cctv} color="#e0b24a" label="Cameras (nearby)" on={layers.cameras} onToggle={(v) => setLayer("cameras", v)} note={notes.cameras} />
+        <LayerRow icon={Cctv} color="#e0b24a" label="Cameras & ALPR" on={layers.cameras} onToggle={(v) => setLayer("cameras", v)} note={notes.cameras} />
+        {layers.cameras && cameraStats && cameraStats.total > 0 && (
+          <div className="ml-6 mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-white/55">
+            <span className="flex items-center gap-1"><span className="inline-block size-2 rounded-full" style={{ background: "#e0b24a" }} />{cameraStats.total - cameraStats.alpr} CCTV</span>
+            <span className="flex items-center gap-1"><span className="inline-block size-2" style={{ background: "#e06a5a" }} />{cameraStats.alpr} ALPR</span>
+            <span className="text-white/40">cones = field of view</span>
+          </div>
+        )}
         <Button size="sm" variant={placing ? "default" : "outline"} className="mt-3 w-full" onClick={() => setPlacing((p) => !p)}>
           {placing ? <><X className="size-4" /> Cancel</> : <><Plus className="size-4" /> Add a point</>}
         </Button>
@@ -448,20 +489,24 @@ function disasterPopup(d: Disaster): string {
     ${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener" style="display:block;margin-top:5px;font-size:11px;color:#2a6">GDACS report →</a>` : ""}
   </div>`;
 }
-function cameraPopup(cam: Camera): string {
+function cameraPopup(cam: Camera, kind: CameraKind): string {
   const tags = (cam.tags ?? {}) as Record<string, string>;
   const label = (k: string) => tags[k];
-  const kind = label("surveillance:type") || label("camera:type") || "Camera";
+  const heading =
+    kind === "alpr"
+      ? "🚗 ALPR plate-reader"
+      : `📹 ${escapeHtml(label("surveillance:type") || label("camera:type") || "Camera")} surveillance`;
   const rows: [string, string | undefined][] = [
     ["Type", label("camera:type")],
     ["Mount", label("camera:mount")],
     ["Zone", label("surveillance:zone") || label("surveillance")],
     ["Direction", label("camera:direction") || label("direction")],
     ["Operator", label("operator")],
-    ["Coverage", label("camera:type") === "dome" ? "360° (dome)" : undefined],
+    ["Coverage", kind === "dome" ? "360° (dome)" : undefined],
   ].filter((r) => r[1]) as [string, string][];
   return `<div style="min-width:160px;font-family:system-ui">
-    <div style="font:600 13px system-ui;text-transform:capitalize;margin-bottom:4px">📹 ${escapeHtml(kind)} surveillance</div>
+    <div style="font:600 13px system-ui;text-transform:capitalize;margin-bottom:4px">${heading}</div>
+    ${kind === "alpr" ? '<div style="font-size:11px;color:#b04030;margin-bottom:4px">Reads & logs your licence plate, time, and location.</div>' : ""}
     ${rows.length ? rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#888"><span>${k}</span><span style="color:#222;text-transform:capitalize">${escapeHtml(v ?? "")}</span></div>`).join("") : '<div style="font-size:11px;color:#888">No further details tagged in OpenStreetMap.</div>'}
     <div style="margin-top:5px;font-size:10px;color:#aaa">© OpenStreetMap</div>
   </div>`;
