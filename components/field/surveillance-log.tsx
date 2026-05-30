@@ -99,37 +99,51 @@ export function SurveillanceLog({
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
   const [savingSighting, setSavingSighting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function logSighting(e: React.FormEvent) {
     e.preventDefault();
     if (!description.trim() && !personDesc.trim() && !vehicleDesc.trim()) return;
     setSavingSighting(true);
-    const res = await fetch("/api/surveillance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        description: description.trim() || null,
-        person_desc: personDesc.trim() || null,
-        vehicle_desc: vehicleDesc.trim() || null,
-        threat_level: threatLevel,
-        lat: parseLatLng(lat),
-        lng: parseLatLng(lng),
-      }),
-    });
-    setSavingSighting(false);
-    if (res.ok) {
+    setError(null);
+    try {
+      const res = await fetch("/api/surveillance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: description.trim() || null,
+          person_desc: personDesc.trim() || null,
+          vehicle_desc: vehicleDesc.trim() || null,
+          threat_level: threatLevel,
+          lat: parseLatLng(lat),
+          lng: parseLatLng(lng),
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { ok: boolean; sighting: Sighting };
       if (data.ok) setSightings((p) => [data.sighting, ...p]);
       setDescription(""); setPersonDesc(""); setVehicleDesc("");
       setThreatLevel("low"); setLat(""); setLng("");
       router.refresh();
+    } catch {
+      setError("Couldn't save the sighting — the local server may be unreachable. Try again.");
+    } finally {
+      // Always re-enable the button, even on network failure (offline-first).
+      setSavingSighting(false);
     }
   }
 
   async function deleteSighting(id: string) {
-    setSightings((p) => p.filter((s) => s.id !== id));
-    await fetch(`/api/surveillance/${id}`, { method: "DELETE" });
-    router.refresh();
+    const prev = sightings;
+    setSightings((p) => p.filter((s) => s.id !== id)); // optimistic
+    try {
+      const res = await fetch(`/api/surveillance/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      router.refresh();
+    } catch {
+      setSightings(prev); // rollback so the UI matches the DB
+      setError("Couldn't delete the sighting.");
+    }
   }
 
   return (
@@ -262,6 +276,9 @@ export function SurveillanceLog({
             <Button type="submit" disabled={savingSighting} className="w-full">
               <Plus className="size-4" /> Log sighting
             </Button>
+            {error && (
+              <p role="alert" className="text-sm text-destructive">{error}</p>
+            )}
           </form>
         </section>
 
@@ -298,9 +315,16 @@ export function SurveillanceLog({
                     type="button"
                     aria-label="Remove rally point"
                     onClick={async () => {
-                      setRallyPoints((prev) => prev.filter((x) => x.id !== rp.id));
-                      await fetch(`/api/rally/${rp.id}`, { method: "DELETE" });
-                      router.refresh();
+                      const prev = rallyPoints;
+                      setRallyPoints((p) => p.filter((x) => x.id !== rp.id)); // optimistic
+                      try {
+                        const res = await fetch(`/api/rally/${rp.id}`, { method: "DELETE" });
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        router.refresh();
+                      } catch {
+                        setRallyPoints(prev); // rollback
+                        setError("Couldn't remove the rally point.");
+                      }
                     }}
                     className="shrink-0 text-faint transition-colors hover:text-destructive"
                   >
@@ -387,6 +411,7 @@ function RallyForm({ onAdded }: { onAdded: (p: RallyPoint) => void }) {
   const [lng, setLng] = useState("");
   const [instructions, setInstructions] = useState("");
   const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -394,22 +419,27 @@ function RallyForm({ onAdded }: { onAdded: (p: RallyPoint) => void }) {
     const lngN = Number(lng);
     if (!name.trim() || !Number.isFinite(latN) || !Number.isFinite(lngN) || lat.trim() === "" || lng.trim() === "") return;
     setSaving(true);
-    const res = await fetch("/api/rally", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: name.trim(),
-        lat: latN,
-        lng: lngN,
-        instructions: instructions.trim() || undefined,
-      }),
-    });
-    setSaving(false);
-    if (res.ok) {
+    setErr(null);
+    try {
+      const res = await fetch("/api/rally", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          lat: latN,
+          lng: lngN,
+          instructions: instructions.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { ok: boolean; point: RallyPoint };
       if (data.ok) onAdded(data.point);
       setName(""); setLat(""); setLng(""); setInstructions("");
       router.refresh();
+    } catch {
+      setErr("Couldn't add the rally point — the local server may be unreachable.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -453,6 +483,7 @@ function RallyForm({ onAdded }: { onAdded: (p: RallyPoint) => void }) {
       >
         <Plus className="size-4" /> Add rally point
       </Button>
+      {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
     </form>
   );
 }

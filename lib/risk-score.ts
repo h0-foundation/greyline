@@ -12,7 +12,9 @@
 
 import type { CountryIndices } from "@/server/db/repositories/dossier";
 
-const clamp = (n: number, lo = 0, hi = 100) => Math.min(hi, Math.max(lo, n));
+// Coerce non-finite (NaN/±Infinity) to lo so a bad index value can't propagate
+// into the composite and falsely read as max-risk ("Extreme").
+const clamp = (n: number, lo = 0, hi = 100) => (Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : lo);
 const round = (n: number) => Math.round(n);
 
 export type RiskBand = "Low" | "Moderate" | "Elevated" | "High" | "Extreme";
