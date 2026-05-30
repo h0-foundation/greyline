@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { resolve, join } from 'path';
 import { encrypt, decrypt } from '../crypto/encryption';
-import { deriveKey } from '../crypto/key-derivation';
+import { deriveKey, KDF_VERSIONS } from '../crypto/key-derivation';
 import { createVaultDoc, getVaultDocById, deleteVaultDoc, getAllVaultDocs } from '../db/repositories/vault';
 
 const VAULT_DIR = resolve('data/vault');
@@ -10,6 +10,23 @@ const VERIFY_PLAINTEXT = 'GREYLINE_VAULT_OK';
 
 function ensureVaultDir() {
   if (!existsSync(VAULT_DIR)) mkdirSync(VAULT_DIR, { recursive: true });
+}
+
+// Decrypt a stored blob, trying each known KDF version newest-first. AES-256-GCM
+// is authenticated, so a wrong-version key throws on the auth tag rather than
+// returning garbage — which lets vaults written under older Argon2id params keep
+// opening after the default params are strengthened. Throws if none succeed.
+async function deriveAndDecrypt(passphrase: string, salt: Buffer, encryptedData: Buffer): Promise<Buffer> {
+  let lastErr: unknown;
+  for (const version of KDF_VERSIONS) {
+    try {
+      const { key } = await deriveKey(passphrase, salt, version);
+      return decrypt(encryptedData, key);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr ?? new Error('vault decrypt failed');
 }
 
 export function isVaultInitialized(): boolean {
@@ -29,8 +46,7 @@ export async function verifyPassphrase(passphrase: string): Promise<boolean> {
     const stored = readFileSync(VERIFY_FILE);
     const salt = stored.subarray(0, 32);
     const encryptedData = stored.subarray(32);
-    const { key } = await deriveKey(passphrase, salt);
-    const decrypted = decrypt(encryptedData, key);
+    const decrypted = await deriveAndDecrypt(passphrase, salt, encryptedData);
     return decrypted.toString() === VERIFY_PLAINTEXT;
   } catch {
     return false;
@@ -75,8 +91,7 @@ export async function decryptAndRetrieve(docId: string, passphrase: string): Pro
   const salt = stored.subarray(0, 32);
   const encryptedData = stored.subarray(32);
 
-  const { key } = await deriveKey(passphrase, salt);
-  const decrypted = decrypt(encryptedData, key);
+  const decrypted = await deriveAndDecrypt(passphrase, salt, encryptedData);
 
   return { buffer: decrypted, doc };
 }

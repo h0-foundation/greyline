@@ -49,3 +49,18 @@ extendable by mutual agreement.
 Researchers acting in good faith and in line with this policy will not be
 pursued via legal action. We welcome responsible disclosure and credit
 researchers in the release notes where requested.
+
+## Cryptography notes
+
+The vault encrypts each document with **AES-256-GCM** under a key derived from
+your passphrase with **Argon2id**. The current parameters are 128 MiB memory,
+4 iterations, parallelism 2 (`server/crypto/key-derivation.ts`). Because the key
+is derived with `raw: true`, the parameters are a compatibility contract: they
+are **versioned**, and a stored blob is opened by trying each known version
+newest-first, so strengthening the defaults never locks you out of existing
+documents. Vault-unlock attempts are rate-limited as defence-in-depth against a
+local process brute-forcing the passphrase.
+
+**Use a strong passphrase.** The KDF makes guessing expensive, but it cannot
+rescue a weak passphrase — prefer a long passphrase (a 5+ word passphrase or
+20+ mixed characters). There is no recovery: lose the passphrase, lose the data.
