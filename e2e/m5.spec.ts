@@ -133,3 +133,31 @@ test("maps: register a regional street pack, serve it with range, then unregiste
     rmSync(dest, { force: true });
   }
 });
+
+test("maps: draw and save an offline route on /map (nothing leaves the device)", async ({ page, request }) => {
+  await page.goto("/map");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 15_000 });
+  const before = ((await (await request.get("/api/routes")).json()).routes ?? []).length;
+
+  await page.getByRole("button", { name: "Draw route" }).click();
+  await expect(page.getByText(/Click the map to drop waypoints/i)).toBeVisible();
+
+  // Drop two waypoints on the canvas; the planner is great-circle, on-device.
+  const canvas = page.locator(".maplibregl-canvas");
+  await canvas.click({ position: { x: 200, y: 220 } });
+  await canvas.click({ position: { x: 360, y: 320 } });
+
+  const save = page.getByRole("button", { name: "Save route" });
+  await expect(save).toBeEnabled();
+  await save.click();
+
+  // Route persisted locally via /api/routes — count grew by one.
+  await expect(async () => {
+    const routes = (await (await request.get("/api/routes")).json()).routes ?? [];
+    expect(routes.length).toBe(before + 1);
+  }).toPass({ timeout: 10_000 });
+
+  // Clean up the route we just created (list is newest-first).
+  const routes = (await (await request.get("/api/routes")).json()).routes ?? [];
+  if (routes[0]) await request.delete(`/api/routes/${routes[0].id}`);
+});
