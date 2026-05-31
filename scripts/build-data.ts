@@ -44,6 +44,25 @@ function parseCsv(text: string): string[][] {
   return rows;
 }
 
+/** Streaming RFC-4180 scan that hands each completed record to onRow. Unlike
+ *  parseCsv (which materialises every row), this keeps memory bounded for the
+ *  huge UCDP dump — we only retain projected aggregates + a capped event list. */
+function scanCsv(text: string, onRow: (fields: string[]) => void) {
+  let row: string[] = [], field = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else q = false; }
+      else field += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); onRow(row); row = []; field = ""; }
+    else if (c === "\r") { /* skip */ }
+    else field += c;
+  }
+  if (field.length || row.length) { row.push(field); onRow(row); }
+}
+
 async function fetchTextRetry(url: string, attempts = 4): Promise<string> {
   let last: unknown;
   for (let i = 0; i < attempts; i++) {
@@ -237,6 +256,159 @@ async function importGeoNamesCities(db: ReturnType<typeof getDb>) {
   recordSource(db, { id: "geonames-cities", name: "GeoNames cities (5000+)", license: "CC BY 4.0", url: GEONAMES_URL, category: "gazetteer", rowCount: n });
 }
 
+// ---- OFAC sanctions (US Treasury, public domain) — offline name screening ----
+const OFAC_SDN_URL = "https://www.treasury.gov/ofac/downloads/sdn.csv";
+const OFAC_SDN_ALT_URL = "https://www.treasury.gov/ofac/downloads/alt.csv";
+const OFAC_CONS_URL = "https://www.treasury.gov/ofac/downloads/consolidated/cons_prim.csv";
+
+/** OFAC CSVs have no header and use "-0-" for empty fields. */
+function ofacClean(s: string | undefined): string | null {
+  const t = (s ?? "").trim();
+  return t === "" || t === "-0-" ? null : t;
+}
+
+async function importOfac(db: ReturnType<typeof getDb>) {
+  console.log("Resolving OFAC sanctions lists…");
+  const insertEntry = db.prepare(
+    `INSERT INTO sanctions_entries (list, ent_num, name, sdn_type, program, remarks) VALUES (?,?,?,?,?,?)
+     ON CONFLICT(list, ent_num) DO UPDATE SET name=excluded.name, sdn_type=excluded.sdn_type, program=excluded.program, remarks=excluded.remarks`,
+  );
+  const insertName = db.prepare(`INSERT INTO sanctions_names (list, ent_num, name, is_primary) VALUES (?,?,?,?)`);
+  db.exec("DELETE FROM sanctions_entries; DELETE FROM sanctions_names;");
+
+  let entries = 0, names = 0;
+  // Primary lists: SDN.csv + cons_prim.csv share the 12-column SDN layout
+  // (ent_num, name, type, program, title, callSign, … , remarks[11]).
+  const loadPrimary = (csv: string, list: string) => {
+    const rows = parseCsv(csv);
+    const run = db.transaction((data: string[][]) => {
+      for (const r of data) {
+        const ent = parseInt(r[0], 10);
+        const name = ofacClean(r[1]);
+        if (!Number.isFinite(ent) || !name) continue;
+        insertEntry.run(list, ent, name, ofacClean(r[2]), ofacClean(r[3]), ofacClean(r[11]));
+        insertName.run(list, ent, name, 1);
+        entries++; names++;
+      }
+    });
+    run(rows);
+  };
+  loadPrimary(await cachedFetch(OFAC_SDN_URL, "ofac-sdn.csv"), "SDN");
+  loadPrimary(await cachedFetch(OFAC_CONS_URL, "ofac-cons.csv"), "Consolidated");
+
+  // Aliases (alt.csv: ent_num, alt_num, alt_type, alt_name[3], remarks) — SDN.
+  const alt = parseCsv(await cachedFetch(OFAC_SDN_ALT_URL, "ofac-sdn-alt.csv"));
+  const runAlt = db.transaction((data: string[][]) => {
+    for (const r of data) {
+      const ent = parseInt(r[0], 10);
+      const altName = ofacClean(r[3]);
+      if (!Number.isFinite(ent) || !altName) continue;
+      insertName.run("SDN", ent, altName, 0);
+      names++;
+    }
+  });
+  runAlt(alt);
+  console.log(`  sanctions: ${entries} entries, ${names} searchable names`);
+  recordSource(db, { id: "ofac", name: "OFAC sanctions (SDN + Consolidated)", license: "Public Domain (US Gov)", url: OFAC_SDN_URL, category: "sanctions", rowCount: entries });
+}
+
+// ---- UCDP armed-conflict (Uppsala GED, CC-BY) — derived compact bundle ----
+const UCDP_GED_URL = "https://ucdp.uu.se/downloads/ged/ged251-csv.zip";
+
+interface UcdpEvent { lat: number; lng: number; y: number; d: number; tov: number; c: string; cc: number; n: string; ds: string; }
+interface UcdpCountryYear { country: string; year: number; deaths: number; events: number; }
+
+/** Download the 350MB GED, reduce to (a) the deadliest recent georeferenced
+ *  events and (b) per-country-year fatality totals. Maintainer-only; bounded by
+ *  the streaming scanner but a large heap helps (NODE_OPTIONS=--max-old-space-size). */
+function deriveUcdp(csv: string): { events: UcdpEvent[]; countryYear: UcdpCountryYear[] } {
+  const idx: Record<string, number> = {};
+  let haveHeader = false;
+  const cy = new Map<string, { deaths: number; events: number }>();
+  const all: UcdpEvent[] = [];
+  let maxYear = 0;
+  scanCsv(csv, (r) => {
+    if (!haveHeader) { r.forEach((h, i) => (idx[h] = i)); haveHeader = true; return; }
+    const year = parseInt(r[idx.year], 10);
+    const country = r[idx.country] || "";
+    if (!Number.isFinite(year) || !country) return;
+    if (year > maxYear) maxYear = year;
+    const k = `${country}|${year}`;
+    const e = cy.get(k) ?? { deaths: 0, events: 0 };
+    e.deaths += parseInt(r[idx.best], 10) || 0;
+    e.events += 1;
+    cy.set(k, e);
+    const lat = parseFloat(r[idx.latitude]);
+    const lng = parseFloat(r[idx.longitude]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      all.push({
+        lat: +lat.toFixed(4), lng: +lng.toFixed(4), y: year,
+        d: parseInt(r[idx.best], 10) || 0, tov: parseInt(r[idx.type_of_violence], 10) || 0,
+        c: country, cc: parseInt(r[idx.country_id], 10) || 0,
+        n: (r[idx.conflict_name] || "").slice(0, 80), ds: (r[idx.date_start] || "").slice(0, 10),
+      });
+    }
+  });
+  // Map layer: deadliest events from the last 3 covered years, capped.
+  const events = all
+    .filter((e) => e.y >= maxYear - 2)
+    .sort((a, b) => b.d - a.d)
+    .slice(0, 15000);
+  const countryYear = [...cy.entries()]
+    .map(([k, v]) => { const [country, year] = k.split("|"); return { country, year: +year, deaths: v.deaths, events: v.events }; })
+    .sort((a, b) => (a.country < b.country ? -1 : a.country > b.country ? 1 : a.year - b.year));
+  return { events, countryYear };
+}
+
+async function resolveUcdp(): Promise<{ events: UcdpEvent[]; countryYear: UcdpCountryYear[] }> {
+  const evSnap = resolve(BUNDLE_DIR, "ucdp-events.json.gz");
+  const cySnap = resolve(BUNDLE_DIR, "ucdp-country-year.json.gz");
+  const readJson = <T>(p: string): T => JSON.parse(gunzipSync(readFileSync(p)).toString("utf-8")) as T;
+  const haveSnaps = existsSync(evSnap) && existsSync(cySnap);
+  if (process.env.CI && haveSnaps) {
+    console.log("  CI: using committed UCDP bundle (no network)");
+    return { events: readJson(evSnap), countryYear: readJson(cySnap) };
+  }
+  try {
+    const res = await fetch(UCDP_GED_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const zipPath = resolve(tmpdir(), `greyline-ged-${Date.now()}.zip`);
+    writeFileSync(zipPath, Buffer.from(await res.arrayBuffer()));
+    // The GED zip holds one big CSV; -p streams it to stdout (256MB buffer).
+    const csv = execFileSync("unzip", ["-p", zipPath], { maxBuffer: 512 * 1024 * 1024 }).toString("utf-8");
+    const derived = deriveUcdp(csv);
+    if (!existsSync(BUNDLE_DIR)) mkdirSync(BUNDLE_DIR, { recursive: true });
+    writeFileSync(evSnap, gzipSync(Buffer.from(JSON.stringify(derived.events))));
+    writeFileSync(cySnap, gzipSync(Buffer.from(JSON.stringify(derived.countryYear))));
+    return derived;
+  } catch (err) {
+    if (haveSnaps) {
+      console.warn(`  UCDP derive failed (${String(err)}); using committed bundle`);
+      return { events: readJson(evSnap), countryYear: readJson(cySnap) };
+    }
+    throw err;
+  }
+}
+
+async function importUcdp(db: ReturnType<typeof getDb>) {
+  console.log("Resolving UCDP armed-conflict events…");
+  const { events, countryYear } = await resolveUcdp();
+  const insEvent = db.prepare(
+    `INSERT INTO ucdp_events (lat, lng, year, deaths, type_of_violence, country, country_id, conflict_name, date_start)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+  );
+  const insCy = db.prepare(`INSERT INTO ucdp_country_year (country, year, deaths, events) VALUES (?,?,?,?)
+     ON CONFLICT(country, year) DO UPDATE SET deaths=excluded.deaths, events=excluded.events`);
+  db.exec("DELETE FROM ucdp_events; DELETE FROM ucdp_country_year;");
+  const run = db.transaction(() => {
+    for (const e of events) insEvent.run(e.lat, e.lng, e.y, e.d, e.tov, e.c, e.cc, e.n, e.ds);
+    for (const r of countryYear) insCy.run(r.country, r.year, r.deaths, r.events);
+  });
+  run();
+  console.log(`  ucdp: ${events.length} events, ${countryYear.length} country-year rows`);
+  recordSource(db, { id: "ucdp-ged", name: "UCDP Georeferenced Event Dataset", license: "CC BY 4.0", url: UCDP_GED_URL, category: "conflict", rowCount: events.length });
+}
+
 /** Load curated, hand-authored JSON (no download) into a table. */
 function importCuratedJson(
   db: ReturnType<typeof getDb>,
@@ -290,6 +462,8 @@ async function main() {
   writeFileSync(resolve(BUNDLE_DIR, "airports-count.json"), JSON.stringify({ total: airportRows.length }));
   await importVisas(db);
   await importGeoNamesCities(db);
+  await importOfac(db);
+  await importUcdp(db);
   importIntel(db);
   importPractical(db);
   closeDb();
