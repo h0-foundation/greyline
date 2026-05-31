@@ -1,0 +1,10 @@
+name: "Greyline CodeQL config"
+
+# Scope SAST to the deployed application surface (app/, server/, lib/,
+# components/). Build & seed scripts (scripts/**) and Playwright e2e tests
+# (e2e/**) are maintainer-run tooling on trusted, local inputs — not part of the
+# shipped attack surface — so they're excluded from scanning. Application code is
+# still fully analysed with security-extended + security-and-quality.
+paths-ignore:
+  - "scripts/**"
+  - "e2e/**"

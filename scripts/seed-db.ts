@@ -1,6 +1,8 @@
 import { getDb, closeDb } from '../server/db/index';
+import { upsertBundle } from '../server/db/repositories/bundles';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
+import { createHash } from 'crypto';
 
 const BUNDLE_DIR = resolve('data/bundles/countries');
 
@@ -52,6 +54,23 @@ const profiles = db.prepare('SELECT COUNT(*) as count FROM country_profiles').ge
 	count: number;
 };
 console.log(`Country profiles in database: ${profiles.count}`);
+
+// Register the committed offline world basemap so /api/bundles and the map
+// report it. Graceful no-op if it hasn't been built yet (pnpm build:tiles).
+// Read once (no check-then-use race): a missing file just means "not built yet".
+let worldBuf: Buffer | null = null;
+try {
+	worldBuf = readFileSync(resolve('public/geo/world.pmtiles'));
+} catch {
+	worldBuf = null;
+}
+if (worldBuf) {
+	const checksum = createHash('sha256').update(worldBuf).digest('hex');
+	upsertBundle({ id: 'map-world', type: 'map', region: 'world', path: 'public/geo/world.pmtiles', size: worldBuf.length, checksum });
+	console.log(`Offline world basemap registered (${(worldBuf.length / 1024 / 1024).toFixed(2)} MB)`);
+} else {
+	console.log('No world basemap found. Run: pnpm run build:tiles');
+}
 
 closeDb();
 console.log('Database seeded successfully.');
