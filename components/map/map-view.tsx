@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize, Route as RouteIcon, Swords } from "lucide-react";
+import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize, Route as RouteIcon, Swords, Wind } from "lucide-react";
 import { PMTiles } from "pmtiles";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,17 @@ type Quake = { properties: { mag: number; place: string; url: string; tsunami: n
 type Camera = { lat: number; lon: number } & Record<string, unknown>;
 type Disaster = { geometry: { coordinates: [number, number] }; properties: { eventtype: string; name: string; htmldescription: string; alertlevel?: string; url?: { report?: string } } };
 type ConflictEvent = { lat: number; lng: number; year: number; deaths: number; type_of_violence: number; country: string | null; conflict_name: string | null; date_start: string | null };
+type EmscQuake = { geometry: { coordinates: [number, number, number] }; properties: { mag: number; magtype?: string; flynn_region?: string; time?: string } };
+type NwsAlert = { geometry: unknown; properties: { event: string; severity: string; headline?: string; areaDesc?: string; expires?: string } };
+
+// NWS alert severity → CVD-safe fill (paired with the severity word in the popup).
+const NWS_SEVERITY_COLOR: Record<string, string> = { Extreme: "#c0392b", Severe: "#e06a5a", Moderate: "#e0992a", Minor: "#e0b24a", Unknown: "#9aa39c" };
+
+// Marker-based live layers and their backing connector ids.
+type MarkerLayer = "cameras" | "aircraft" | "quakes" | "disasters" | "emsc";
+const MARKER_LAYER_API: Record<MarkerLayer, string> = {
+  cameras: "overpass", aircraft: "adsb", quakes: "usgs", disasters: "gdacs", emsc: "emsc",
+};
 
 const DISASTER_GLYPH: Record<string, string> = { EQ: "⊙", TC: "🌀", FL: "🌊", VO: "🌋", WF: "🔥", DR: "☀" };
 const ALERT_COLOR: Record<string, string> = { Red: "#e06a5a", Orange: "#e0992a", Green: "#74b277" };
@@ -74,7 +85,7 @@ function cameraEl(kind: CameraKind) {
 export function MapView({ markers }: { markers: Marker[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const layerMarkers = useRef<Record<string, maplibregl.Marker[]>>({ base: [], cameras: [], quakes: [], disasters: [], custom: [] });
+  const layerMarkers = useRef<Record<string, maplibregl.Marker[]>>({ base: [], cameras: [], quakes: [], disasters: [], emsc: [], custom: [] });
   const planes = useRef<Map<string, { tlng: number; tlat: number; lng: number; lat: number; marker: maplibregl.Marker; el: HTMLDivElement }>>(new Map());
   const trails = useRef<Map<string, [number, number][]>>(new Map());
   const rafRef = useRef<number>(0);
@@ -89,7 +100,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
   const conflictLoaded = useRef(false);
 
   const [ready, setReady] = useState(false);
-  const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false, conflict: false });
+  const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false, conflict: false, emsc: false, nws: false });
   const [satellite, setSatellite] = useState(false);
   const [radar, setRadar] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -318,6 +329,24 @@ export function MapView({ markers }: { markers: Marker[] }) {
       });
       map.on("mouseenter", "conflict-pts", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "conflict-pts", () => { map.getCanvas().style.cursor = ""; });
+      // US NWS weather alerts (live, connector-gated) as severity-tinted zones.
+      // Polygons, so a native fill+line layer; loaded on toggle.
+      map.addSource("nws", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "nws-fill", type: "fill", source: "nws", layout: { visibility: "none" },
+        paint: { "fill-color": ["match", ["get", "severity"], "Extreme", "#c0392b", "Severe", "#e06a5a", "Moderate", "#e0992a", "Minor", "#e0b24a", "#9aa39c"], "fill-opacity": 0.22 },
+      });
+      map.addLayer({
+        id: "nws-line", type: "line", source: "nws", layout: { visibility: "none" },
+        paint: { "line-color": ["match", ["get", "severity"], "Extreme", "#c0392b", "Severe", "#e06a5a", "Moderate", "#e0992a", "Minor", "#e0b24a", "#9aa39c"], "line-width": 1, "line-opacity": 0.6 },
+      });
+      map.on("click", "nws-fill", (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        new maplibregl.Popup({ offset: 4 }).setLngLat(e.lngLat).setHTML(nwsPopup(f.properties as NwsAlert["properties"])).addTo(map);
+      });
+      map.on("mouseenter", "nws-fill", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "nws-fill", () => { map.getCanvas().style.cursor = ""; });
       setReady(true);
     });
 
@@ -379,9 +408,9 @@ export function MapView({ markers }: { markers: Marker[] }) {
   }, [markers, layers.base, ready]);
 
   // ---- toggle a live layer: also enable/disable the underlying connection ----
-  async function setLayer(key: "cameras" | "aircraft" | "quakes" | "disasters", on: boolean) {
+  async function setLayer(key: MarkerLayer, on: boolean) {
     setLayers((s) => ({ ...s, [key]: on }));
-    const apiId = key === "cameras" ? "overpass" : key === "aircraft" ? "adsb" : key === "quakes" ? "usgs" : "gdacs";
+    const apiId = MARKER_LAYER_API[key];
     await fetch("/api/toggles", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ api_id: apiId, enabled: on }),
@@ -390,7 +419,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
     else clearLayer(key);
   }
 
-  function clearLayer(key: "cameras" | "aircraft" | "quakes" | "disasters") {
+  function clearLayer(key: MarkerLayer) {
     const map = mapRef.current;
     // Invalidate any in-flight fetch for this layer (it'll bail on resolve).
     fetchGen.current[key] = (fetchGen.current[key] ?? 0) + 1;
@@ -409,13 +438,34 @@ export function MapView({ markers }: { markers: Marker[] }) {
     setNotes((n) => ({ ...n, [key]: "" }));
   }
 
-  function refreshLayer(key: "cameras" | "aircraft" | "quakes" | "disasters") {
+  function refreshLayer(key: MarkerLayer) {
     if (key === "aircraft") {
       fetchAircraft();
       if (!pollRef.current) pollRef.current = setInterval(fetchAircraft, 20_000);
     } else if (key === "cameras") fetchCameras();
     else if (key === "disasters") fetchDisasters();
+    else if (key === "emsc") fetchEmsc();
     else fetchQuakes();
+  }
+
+  async function fetchEmsc() {
+    const map = mapRef.current;
+    if (!map) return;
+    const res = await fetch("/api/map/emsc");
+    if (res.status === 503) { setNotes((n) => ({ ...n, emsc: "off" })); return; }
+    setNotes((n) => ({ ...n, emsc: "" }));
+    const { quakes } = (await res.json()) as { quakes: EmscQuake[] };
+    layerMarkers.current.emsc.forEach((m) => m.remove());
+    layerMarkers.current.emsc = [];
+    for (const q of quakes ?? []) {
+      const mag = q.properties.mag ?? 0;
+      // Violet hue distinguishes EMSC from the red/amber USGS dots on the same map.
+      const size = Math.max(8, Math.min(34, mag * 6));
+      const mk = new maplibregl.Marker({ element: dot("#9b6dd6", size) }).setLngLat([q.geometry.coordinates[0], q.geometry.coordinates[1]])
+        .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(`<div style="font:600 13px system-ui">M${mag.toFixed(1)} <span style="font-weight:400;color:#888">EMSC</span></div><div style="font:11px system-ui;color:#888;text-transform:capitalize">${escapeHtml((q.properties.flynn_region ?? "").toLowerCase())}</div>`))
+        .addTo(map);
+      layerMarkers.current.emsc.push(mk);
+    }
   }
 
   async function fetchAircraft() {
@@ -560,6 +610,35 @@ export function MapView({ markers }: { markers: Marker[] }) {
     }
   }
 
+  // US NWS weather alerts — connector-gated live polygons. Enabling toggles the
+  // connector, fetches active alerts, and shows the fill+line layers.
+  async function setNws(on: boolean) {
+    setLayers((s) => ({ ...s, nws: on }));
+    const map = mapRef.current;
+    await fetch("/api/toggles", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_id: "nws-alerts", enabled: on }),
+    }).catch(() => {});
+    if (!map) return;
+    const vis = on ? "visible" : "none";
+    if (map.getLayer("nws-fill")) map.setLayoutProperty("nws-fill", "visibility", vis);
+    if (map.getLayer("nws-line")) map.setLayoutProperty("nws-line", "visibility", vis);
+    if (!on) return;
+    const res = await fetch("/api/map/nws-alerts");
+    if (res.status === 503) { setNotes((n) => ({ ...n, nws: "off" })); return; }
+    setNotes((n) => ({ ...n, nws: "" }));
+    const { alerts } = (await res.json()) as { alerts: NwsAlert[] };
+    const src = map.getSource("nws") as maplibregl.GeoJSONSource | undefined;
+    src?.setData({
+      type: "FeatureCollection",
+      features: (alerts ?? []).map((a) => ({
+        type: "Feature" as const,
+        properties: { ...a.properties, severity: a.properties.severity || "Unknown" },
+        geometry: a.geometry as GeoJSON.Geometry,
+      })),
+    });
+  }
+
   // refetch viewport-bound layers on pan/zoom
   useEffect(() => {
     const map = mapRef.current;
@@ -628,7 +707,9 @@ export function MapView({ markers }: { markers: Marker[] }) {
         <p className="label-caps mb-2 mt-3 text-white/50">Layers</p>
         <LayerRow icon={MapPin} color="#74b277" label="Your points" on={layers.base} onToggle={(v) => setLayers((s) => ({ ...s, base: v }))} />
         <LayerRow icon={Plane} color="#7fb2ff" label="Live aircraft" on={layers.aircraft} onToggle={(v) => setLayer("aircraft", v)} note={notes.aircraft} />
-        <LayerRow icon={Activity} color="#e06a5a" label="Earthquakes" on={layers.quakes} onToggle={(v) => setLayer("quakes", v)} note={notes.quakes} />
+        <LayerRow icon={Activity} color="#e06a5a" label="Earthquakes (USGS)" on={layers.quakes} onToggle={(v) => setLayer("quakes", v)} note={notes.quakes} />
+        <LayerRow icon={Activity} color="#9b6dd6" label="Earthquakes (EMSC)" on={layers.emsc} onToggle={(v) => setLayer("emsc", v)} note={notes.emsc} />
+        <LayerRow icon={Wind} color="#e0992a" label="US weather alerts (NWS)" on={layers.nws} onToggle={setNws} note={notes.nws} />
         <LayerRow icon={TriangleAlert} color="#e0992a" label="Disasters (GDACS)" on={layers.disasters} onToggle={(v) => setLayer("disasters", v)} note={notes.disasters} />
         <LayerRow icon={Swords} color="#e06a5a" label="Armed conflict (UCDP)" on={layers.conflict} onToggle={setConflict} />
         <LayerRow icon={Cctv} color="#e0b24a" label="Cameras & ALPR" on={layers.cameras} onToggle={(v) => setLayer("cameras", v)} note={notes.cameras} />
@@ -838,6 +919,15 @@ function conflictPopup(e: ConflictEvent): string {
     <div style="font-size:12px;color:#b04030;font-weight:600">${deaths.toLocaleString()} ${deaths === 1 ? "death" : "deaths"} <span style="font-weight:400;color:#999">(UCDP best estimate)</span></div>
     <div style="font-size:11px;color:#888;margin-top:3px">${escapeHtml(e.country || "")}${e.date_start ? ` · ${escapeHtml(String(e.date_start))}` : ""}</div>
     <div style="margin-top:5px;font-size:10px;color:#aaa">© UCDP GED (CC BY)</div>
+  </div>`;
+}
+function nwsPopup(p: NwsAlert["properties"]): string {
+  const color = NWS_SEVERITY_COLOR[p.severity] ?? "#9aa39c";
+  return `<div style="min-width:180px;max-width:260px;font-family:system-ui">
+    <div style="font:600 13px system-ui;margin-bottom:3px">${escapeHtml(p.event || "Weather alert")}</div>
+    <div style="font-size:11px;margin-bottom:4px"><span style="color:${color};font-weight:600">${escapeHtml(p.severity || "Unknown")}</span><span style="color:#888"> · ${escapeHtml(p.areaDesc || "")}</span></div>
+    ${p.headline ? `<div style="font-size:11px;color:#444;line-height:1.4">${escapeHtml(p.headline)}</div>` : ""}
+    <div style="margin-top:5px;font-size:10px;color:#aaa">© NOAA / US National Weather Service</div>
   </div>`;
 }
 function boundsRadiusNm(map: maplibregl.Map): number {

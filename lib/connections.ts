@@ -81,6 +81,20 @@ export const CONNECTIONS: ConnectionMeta[] = [
     category: "map",
   },
   {
+    id: "emsc",
+    label: "Earthquakes (EMSC)",
+    description: "European-Mediterranean Seismological Centre — denser quake coverage for Europe and the Mediterranean. Complements USGS.",
+    host: "www.seismicportal.eu",
+    category: "map",
+  },
+  {
+    id: "nws-alerts",
+    label: "US weather alerts (NWS)",
+    description: "Active US National Weather Service warnings — tornado, flood, hurricane, winter storm — as map zones. US coverage only.",
+    host: "api.weather.gov",
+    category: "map",
+  },
+  {
     id: "gdacs",
     label: "Disasters (GDACS)",
     description: "Live global disaster alerts — cyclones, floods, volcanoes, wildfires.",
