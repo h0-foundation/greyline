@@ -136,7 +136,7 @@ The app has **14 user-facing routes** plus **32 local API handlers**. Every rout
 
 | Route | What it does | Pulls from |
 |---|---|---|
-| `/map` | **Offline-first OSINT map.** Renders air-gapped by default on a committed PMTiles world basemap (Natural Earth, z0–6); drop a regional `.pmtiles` street pack into `data/bundles/maps/` + register it ("Map packs" dialog) for full street detail in that region. Opt-in layers on top: detailed online tiles (CARTO), satellite (NASA GIBS), radar (RainViewer), aircraft (ADS-B), earthquakes (USGS), disasters (GDACS), surveillance cameras (OSM Overpass). **Draw route** mode (SDR / extraction / variation / normal) reuses the offline waypoint planner — great-circle metrics, saved to `saved_routes` locally, nothing sent anywhere. Click-to-place rally points. | destinations, sightings, rally points, saved routes + opt-in overlays |
+| `/map` | **Offline-first OSINT map** with a **Felt-style docked panel** — a collapsible, resizable side panel with tabs: **Layers**, **Features** (saved routes: fit / delete / show-hide), **Search** (offline gazetteer place lookup → fly there), and **Packs** (register offline street tiles). Renders air-gapped by default on a committed PMTiles world basemap (Natural Earth, z0–6); drop a regional `.pmtiles` street pack into `data/bundles/maps/` for full detail. Opt-in layers: detailed online tiles (CARTO), satellite (NASA GIBS), radar (RainViewer), aircraft (ADS-B), earthquakes (USGS **+ EMSC**), disasters (GDACS), **US weather alerts (NWS)**, **active fires (NASA FIRMS, key)**, **air quality (OpenAQ, key)**, surveillance cameras (OSM Overpass), and the bundled **armed-conflict (UCDP)** layer. **Draw route** mode (SDR / extraction / variation / normal) reuses the offline waypoint planner. | destinations, sightings, rally points, saved routes, bundled UCDP + opt-in overlays |
 | `/surveillance` | **TEDD-principle counter-surveillance log.** Sightings + repeat-pattern detection + rally-point manager. | counter_surveillance_log, rally_points |
 
 ### Vault & settings
@@ -179,8 +179,11 @@ All tools are server-rendered + run computation locally. Anything that needs a l
 | **Image fingerprint** | `/tools/image-hash` | Perceptual hash (aHash + dHash) to detect near-duplicate / recycled images; compare two images for a Hamming-distance verdict. In-browser; images never leave the machine. | Offline (client-only) |
 | **Chronolocation lab** | `/tools/chrono` | Date and place a daytime photo from its shadows — sun azimuth/altitude + reverse time-of-day (Bellingcat method, NOAA/Meeus solar math). | Offline |
 | **Emergency card** | `/tools/emergency` | Per-country emergency numbers + first-actions + a printable panic card, from bundled data. | Offline |
+| **Sanctions screening** | `/tools/sanctions` | Screen a person / company / vessel against the bundled OFAC SDN + Consolidated lists (incl. aliases). On-device; the name never leaves the machine. A screening aid, not legal advice. | Offline |
 
-> The country dossier (`/countries/[code]`) also surfaces the open-methodology **Greyline Risk Score** and a **road-safety** panel (road crashes are the leading cause of traveller injury death — CDC Yellow Book). `/disclosure` adds a **pattern-of-life self-audit** (de Montjoye unicity). `/surveillance` runs the **TEDD** scorer. `/map` draws **CCTV/ALPR coverage cones**.
+> The country dossier (`/countries/[code]`) also surfaces the open-methodology **Greyline Risk Score**, a **road-safety** panel (road crashes are the leading cause of traveller injury death — CDC Yellow Book), and an **armed-conflict trend** (UCDP) where there's a record. `/disclosure` adds a **pattern-of-life self-audit** (de Montjoye unicity). `/surveillance` runs the **TEDD** scorer. `/map` draws **CCTV/ALPR coverage cones**.
+>
+> A **pillar focus mode** in the top bar narrows the sidebar + tools catalog to *Travel risk*, *Counter-surveillance*, or *Investigation* — or **All** (default), the full surface. It's a focus aid, not access control.
 
 ---
 
@@ -219,12 +222,12 @@ Auto-generated from `packing_templates` filtered by climate (inferred from desti
 
 ## Data layer — every table, every bundle
 
-### Schema (SQLite, 16 migrations)
+### Schema (SQLite, 21 migrations)
 
 | Table | Purpose | Size |
 |---|---|---|
-| `settings` | User preferences + master offline switch | ~10 rows |
-| `api_toggles` | Per-connector enable + use-Tor flag | 9 rows |
+| `settings` | User preferences + master offline switch + pillar focus mode | ~12 rows |
+| `api_toggles` | Per-connector enable + use-Tor flag + optional API key (for key-required connectors; never returned to the client) | ~14 rows |
 | `api_cache` | Server-proxied response cache with TTL | grows |
 | `data_sources` | Attribution registry — every bundled dataset's name, license, URL, row count, downloaded_at | ~12 rows |
 | `offline_bundles` | Registered offline map bundles — the committed world basemap + any regional `.pmtiles` street packs dropped into `data/bundles/maps/` (type, region, path, size, checksum). Served range-aware at `app/api/tiles/[id]`. | user + 1 |
@@ -245,6 +248,9 @@ Auto-generated from `packing_templates` filtered by climate (inferred from desti
 | `country_factbook` | Full CIA World Factbook JSON per country (~10–20 KB each) | ~236 rows |
 | `airports` | OurAirports master — IATA / ICAO / name / coords / runway / scheduled flag | ~45,000 |
 | `visas` | Passport × destination matrix from ilyankou/passport-index-dataset | ~50,000 rows |
+| `geonames_cities` | Offline GeoNames gazetteer (places ≥ 5,000 pop) — name → coords for search + geocode fallback | ~69,000 rows |
+| `sanctions_entries` / `sanctions_names` | OFAC SDN + Consolidated listed entities + every searchable name/alias — offline screening | ~19k / ~40k rows |
+| `ucdp_events` / `ucdp_country_year` | UCDP armed-conflict: deadliest recent georeferenced events (map) + per-country-year fatalities (dossier trend) | ~15k / ~2k rows |
 | `packing_templates` | 50 packing items tagged by category / climate / activity / threat tier / iso2 | 50 |
 | `airline_rules` | Cabin / personal / checked / liquids / lithium per IATA carrier | 24 |
 | `opsec_templates` | OPSEC items by phase, threat tier, category, with source URLs | 50 |
@@ -265,6 +271,9 @@ Every dataset Greyline ships **runs offline**. Sources:
 | CIA World Factbook | [factbook/factbook.json](https://github.com/factbook/factbook.json) | Public domain | ~3 MB |
 | Airports | [OurAirports CSV](https://davidmegginson.github.io/ourairports-data/airports.csv) | Public domain | ~7 MB |
 | Visa matrix | [ilyankou/passport-index-dataset](https://github.com/ilyankou/passport-index-dataset) | MIT | ~1.5 MB |
+| GeoNames cities | [GeoNames cities5000](https://download.geonames.org/export/dump/) | CC-BY 4.0 | ~5.3 MB (gz) |
+| OFAC sanctions | [US Treasury OFAC](https://ofac.treasury.gov) SDN + Consolidated + aliases | Public domain (US Gov) | ~1.2 MB (gz) |
+| UCDP armed conflict | [Uppsala Conflict Data Program GED](https://ucdp.uu.se/downloads/) — derived compact slice | CC-BY 4.0 | ~210 KB (gz) |
 | Natural Earth (map) | [Natural Earth](https://www.naturalearthdata.com/) — 1:110m countries GeoJSON (scratch-map) + the committed `public/geo/world.pmtiles` z0–6 vector world basemap | Public domain | ~2.6 MB |
 | Packing / OPSEC / airline / docs templates | Curated from EFF SSD, REI, FAA 49 CFR 175.10, IATA, CBP / UK FCDO / AAA / CDC | AGPL-3.0 | ~60 KB |
 
@@ -282,7 +291,7 @@ Run any time. All idempotent (upsert).
 | `pnpm migrate` | apply DB migrations | <1s |
 | `pnpm seed` | seed default settings + toggles | <1s |
 | `pnpm build:countries` | fetch REST Countries → upsert ~250 country profiles | ~10s |
-| `pnpm build:data` | fetch OurAirports + visa matrix → upsert ~45k airports + 50k visa rows | ~30s |
+| `pnpm build:data` | fetch + bundle OurAirports, visa matrix, GeoNames cities, OFAC sanctions, and a derived UCDP conflict slice → upsert airports / visas / gazetteer / sanctions / conflict. **Bundle-first in CI** (reads committed gzipped snapshots, no network). | ~40s |
 | `pnpm build:dossier` | fetch OWID CPI + RSF, compute visa-free counts, fetch factbook per country | ~60s |
 | `pnpm build:advisories` | fetch US State Dept + UK FCDO advisories, upsert into `country_advisories` | ~40s |
 | `pnpm build:trip-data` | seed packing / airline / OPSEC / documents from `data/templates/*.json` | <1s |
@@ -302,9 +311,10 @@ All build scripts temporarily enable the API toggles they need (and restore the 
 When enabled, requests go through `server/services/api-gateway.ts`, which:
 
 - checks the master offline switch + the per-API toggle,
-- strips `User-Agent` (replaces with a generic `Greyline/1.0` identifier where the upstream requires one — Nominatim / Overpass / gov.uk),
+- sends a generic `Greyline/1.1` `User-Agent` where the upstream requires one (Nominatim / Overpass / gov.uk / NWS) — the software name only, never the user,
 - caches responses in `api_cache` with a per-call TTL,
-- never accepts cookies, never sets `Authorization` headers (no API keys exist).
+- refuses cross-host 3xx redirects (`redirect: 'error'`) so a compromised upstream can't pivot egress to an internal target (SSRF),
+- for the few **key-required** connectors, injects a locally-stored key as a header, query param, or URL path segment — gating the connector until its key is set, and keeping the key out of the cache key. The key never leaves the device and is never returned to the client (the toggles API exposes only `has_key`).
 
 | `api_id` | Source host | What it returns | Used by |
 |---|---|---|---|
@@ -316,11 +326,17 @@ When enabled, requests go through `server/services/api-gateway.ts`, which:
 | `overpass` | `overpass-api.de` | OSM POI queries (cameras, embassies, hospitals) | `/map` camera layer |
 | `adsb` | `api.adsb.lol` | Live ADS-B aircraft positions | `/map` aircraft layer |
 | `usgs` | `earthquake.usgs.gov` | M2.5+ earthquakes past day | `/map` quakes layer |
+| `emsc` | `www.seismicportal.eu` | European-Mediterranean seismic feed (complements USGS) | `/map` EMSC quakes layer |
+| `nws-alerts` | `api.weather.gov` | Active US weather alerts (GeoJSON zones) | `/map` US weather-alerts layer |
 | `gdacs` | `www.gdacs.org` | Global disaster alerts (cyclone / flood / volcano / wildfire) | `/map` disasters layer |
+| `nasa-firms` 🔑 | `firms.modaps.eosdis.nasa.gov` | VIIRS active-fire detections (bbox) | `/map` active-fires layer |
+| `openaq` 🔑 | `api.openaq.org` | Air-quality monitoring stations | `/map` air-quality layer |
+
+🔑 = needs a free personal API key (entered in Settings → Connections; stored locally, never returned to the client). **OFAC sanctions** and **UCDP armed conflict** are *bundled offline datasets*, not connectors — they make no runtime request and are always available. **NOTAM-US/EU** (now require multi-part developer credentials + carry EAD redistribution terms) and **AISStream** (websocket-only, outside this HTTP/cache proxy) are deferred, not shipped.
 
 The `/map` page renders offline by default from the committed PMTiles world basemap (and any registered street packs, streamed by the local range-aware `app/api/tiles/[id]` route). Only its **opt-in online layers** fetch **map tiles directly from the browser** (no proxy) — detailed CARTO tiles, NASA GIBS satellite, RainViewer radar. Those hosts are explicitly allow-listed in the CSP `img-src` + `connect-src` (because MapLibre v5 uses `fetch()` for tiles, not `<img>`). Documented in `next.config.ts`.
 
-No API keys are required for any connector. They're all free and open. Where a provider requires a User-Agent (Nominatim / Overpass usage policy), Greyline sends `Greyline/1.0 (privacy-first local travel app; self-hosted)` — the software name only, never the user.
+Most connectors need no key; two (FIRMS, OpenAQ) take a free personal key you paste in Settings. Where a provider requires a User-Agent (Nominatim / Overpass / NWS usage policy), Greyline sends `Greyline/1.1 (privacy-first local travel app; self-hosted)` — the software name only, never the user.
 
 ---
 

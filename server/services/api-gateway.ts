@@ -86,7 +86,7 @@ export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ 
   // Identify the app (required by OSM Nominatim/Overpass usage policy; an empty
   // UA gets a 403). It names the software, never the user — privacy intact.
   const headers: Record<string, string> = {
-    'User-Agent': 'Greyline/1.0 (privacy-first local travel app; self-hosted)',
+    'User-Agent': 'Greyline/1.1 (privacy-first local travel app; self-hosted)',
     'Accept': 'application/json',
   };
   const finalParams: Record<string, string> = { ...(params || {}) };
@@ -97,14 +97,24 @@ export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ 
     else finalParams[options.auth.name] = apiKey;
   }
 
-  const data = await ofetch<T>(finalUrl, {
-    params: finalParams,
-    headers,
-    timeout: 10000,
-    // Don't follow cross-host 3xx redirects: a compromised/MITM'd upstream could
-    // redirect to an internal/link-local target (SSRF), undermining egress control.
-    redirect: 'error'
-  });
+  let data: T;
+  try {
+    data = await ofetch<T>(finalUrl, {
+      params: finalParams,
+      headers,
+      timeout: 10000,
+      // Don't follow cross-host 3xx redirects: a compromised/MITM'd upstream could
+      // redirect to an internal/link-local target (SSRF), undermining egress control.
+      redirect: 'error'
+    });
+  } catch (err) {
+    // A stored key can ride in the request URL (auth.in:"path", e.g. FIRMS) or a
+    // param; ofetch embeds the full URL in FetchError.message/.request. Scrub the
+    // key out of any error before it escapes — otherwise a single upstream hiccup
+    // would persist the secret to server logs via the route's fail() handler.
+    if (apiKey) throw new Error(String((err as { message?: string })?.message ?? err).split(apiKey).join('***'));
+    throw err;
+  }
 
   // Cache result
   const expiresAt = new Date(Date.now() + cacheTtlSeconds * 1000).toISOString();

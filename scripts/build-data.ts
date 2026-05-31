@@ -9,7 +9,7 @@
  *   - ilyankou/passport-index-dataset tidy-iso2 (MIT)
  */
 import { getDb, closeDb } from "../server/db/index";
-import { writeFileSync, readFileSync, mkdirSync, existsSync } from "fs";
+import { writeFileSync, readFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
 import { gzipSync, gunzipSync } from "zlib";
 import { execFileSync } from "child_process";
 import { tmpdir } from "os";
@@ -215,7 +215,12 @@ async function resolveGeoNames(): Promise<string> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const zipPath = resolve(tmpdir(), `greyline-cities5000-${Date.now()}.zip`);
     writeFileSync(zipPath, Buffer.from(await res.arrayBuffer()));
-    const text = execFileSync("unzip", ["-p", zipPath, "cities5000.txt"], { maxBuffer: 64 * 1024 * 1024 }).toString("utf-8");
+    let text: string;
+    try {
+      text = execFileSync("unzip", ["-p", zipPath, "cities5000.txt"], { maxBuffer: 64 * 1024 * 1024 }).toString("utf-8");
+    } finally {
+      try { unlinkSync(zipPath); } catch { /* best-effort temp cleanup */ }
+    }
     if (!existsSync(BUNDLE_DIR)) mkdirSync(BUNDLE_DIR, { recursive: true });
     writeFileSync(snap, gzipSync(Buffer.from(text, "utf-8")));
     return text;
@@ -375,7 +380,12 @@ async function resolveUcdp(): Promise<{ events: UcdpEvent[]; countryYear: UcdpCo
     const zipPath = resolve(tmpdir(), `greyline-ged-${Date.now()}.zip`);
     writeFileSync(zipPath, Buffer.from(await res.arrayBuffer()));
     // The GED zip holds one big CSV; -p streams it to stdout (256MB buffer).
-    const csv = execFileSync("unzip", ["-p", zipPath], { maxBuffer: 512 * 1024 * 1024 }).toString("utf-8");
+    let csv: string;
+    try {
+      csv = execFileSync("unzip", ["-p", zipPath], { maxBuffer: 512 * 1024 * 1024 }).toString("utf-8");
+    } finally {
+      try { unlinkSync(zipPath); } catch { /* best-effort temp cleanup (the GED zip is ~30MB) */ }
+    }
     const derived = deriveUcdp(csv);
     if (!existsSync(BUNDLE_DIR)) mkdirSync(BUNDLE_DIR, { recursive: true });
     writeFileSync(evSnap, gzipSync(Buffer.from(JSON.stringify(derived.events))));

@@ -543,10 +543,12 @@ export function MapView({ markers }: { markers: Marker[] }) {
   async function fetchEmsc() {
     const map = mapRef.current;
     if (!map) return;
+    const gen = fetchGen.current.emsc ?? 0;
     const res = await fetch("/api/map/emsc");
     if (res.status === 503) { setNotes((n) => ({ ...n, emsc: "off" })); return; }
     setNotes((n) => ({ ...n, emsc: "" }));
     const { quakes } = (await res.json()) as { quakes: EmscQuake[] };
+    if ((fetchGen.current.emsc ?? 0) !== gen) return; // layer toggled off mid-fetch
     layerMarkers.current.emsc.forEach((m) => m.remove());
     layerMarkers.current.emsc = [];
     for (const q of quakes ?? []) {
@@ -715,7 +717,12 @@ export function MapView({ markers }: { markers: Marker[] }) {
     const vis = on ? "visible" : "none";
     if (map.getLayer("nws-fill")) map.setLayoutProperty("nws-fill", "visibility", vis);
     if (map.getLayer("nws-line")) map.setLayoutProperty("nws-line", "visibility", vis);
-    if (!on) return;
+    if (!on) {
+      // Clear the source so a later re-enable while the connector 503s can't
+      // re-show this now-stale data as if it were current.
+      (map.getSource("nws") as maplibregl.GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
     const res = await fetch("/api/map/nws-alerts");
     if (res.status === 503) { setNotes((n) => ({ ...n, nws: "off" })); return; }
     setNotes((n) => ({ ...n, nws: "" }));
@@ -735,22 +742,28 @@ export function MapView({ markers }: { markers: Marker[] }) {
   // the hotspot CSV small). Toggling enables the connector; 503 → "off" note.
   async function setFires(on: boolean) {
     setLayers((s) => ({ ...s, fires: on }));
+    // Bump the guard on every toggle so an in-flight fetch from a prior enable
+    // can't paint onto a layer the user has since turned off.
+    fetchGen.current.fires = (fetchGen.current.fires ?? 0) + 1;
     const map = mapRef.current;
     await fetch("/api/toggles", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_id: "nasa-firms", enabled: on }) }).catch(() => {});
     if (!map) return;
     if (map.getLayer("fire-pts")) map.setLayoutProperty("fire-pts", "visibility", on ? "visible" : "none");
     if (on) fetchFires();
+    else (map.getSource("fires") as maplibregl.GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [] });
   }
 
   async function fetchFires() {
     const map = mapRef.current;
     if (!map) return;
+    const gen = fetchGen.current.fires ?? 0;
     const b = map.getBounds();
     const res = await fetch(`/api/map/fires?west=${b.getWest().toFixed(3)}&south=${b.getSouth().toFixed(3)}&east=${b.getEast().toFixed(3)}&north=${b.getNorth().toFixed(3)}`);
     if (res.status === 503) { setNotes((n) => ({ ...n, fires: "off" })); return; }
     if (!res.ok) { setNotes((n) => ({ ...n, fires: "err" })); return; }
     setNotes((n) => ({ ...n, fires: "" }));
     const { fires } = (await res.json()) as { fires: FirePoint[] };
+    if ((fetchGen.current.fires ?? 0) !== gen) return; // layer toggled off mid-fetch
     (map.getSource("fires") as maplibregl.GeoJSONSource | undefined)?.setData({
       type: "FeatureCollection",
       features: (fires ?? []).map((f) => ({ type: "Feature" as const, properties: { ...f }, geometry: { type: "Point" as const, coordinates: [f.lng, f.lat] } })),
@@ -760,6 +773,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
   // OpenAQ air-quality stations — live, key-gated. Markers near the map centre.
   async function setAir(on: boolean) {
     setLayers((s) => ({ ...s, air: on }));
+    fetchGen.current.air = (fetchGen.current.air ?? 0) + 1; // invalidate any in-flight fetch
     await fetch("/api/toggles", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_id: "openaq", enabled: on }) }).catch(() => {});
     if (on) fetchAir();
     else { layerMarkers.current.air.forEach((m) => m.remove()); layerMarkers.current.air = []; setNotes((n) => ({ ...n, air: "" })); }
@@ -768,12 +782,14 @@ export function MapView({ markers }: { markers: Marker[] }) {
   async function fetchAir() {
     const map = mapRef.current;
     if (!map) return;
+    const gen = fetchGen.current.air ?? 0;
     const c = map.getCenter();
     const res = await fetch(`/api/map/air?lat=${c.lat.toFixed(4)}&lng=${c.lng.toFixed(4)}`);
     if (res.status === 503) { setNotes((n) => ({ ...n, air: "off" })); return; }
     if (!res.ok) { setNotes((n) => ({ ...n, air: "err" })); return; }
     setNotes((n) => ({ ...n, air: "" }));
     const { stations } = (await res.json()) as { stations: AirStation[] };
+    if ((fetchGen.current.air ?? 0) !== gen) return; // layer toggled off mid-fetch
     layerMarkers.current.air.forEach((m) => m.remove());
     layerMarkers.current.air = [];
     for (const s of (stations ?? []).slice(0, 200)) {
