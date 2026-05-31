@@ -1,4 +1,5 @@
 import { getWeather } from "$server/api-clients/open-meteo";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,6 @@ export async function GET(req: Request) {
     }
     return Response.json({ ok: true, weather: data });
   } catch (err) {
-    return Response.json({ ok: false, error: err instanceof Error ? err.message : "Weather fetch failed" }, { status: 502 });
+    return fail("GET /api/weather", err, "Weather fetch failed.", 502);
   }
 }

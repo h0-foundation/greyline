@@ -1,4 +1,5 @@
 import { getAllSettings, setSetting } from "$server/db/repositories/settings";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +19,6 @@ export async function PATCH(req: Request) {
     }
     return Response.json({ ok: true });
   } catch (err) {
-    return Response.json(
-      { ok: false, error: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    );
+    return fail("PATCH /api/settings", err, "Could not save settings.");
   }
 }

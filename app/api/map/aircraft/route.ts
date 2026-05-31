@@ -1,4 +1,5 @@
 import { getAircraftInArea } from "$server/api-clients/adsb";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,6 @@ export async function GET(req: Request) {
     if (!aircraft) return Response.json({ ok: false, disabled: true }, { status: 503 });
     return Response.json({ ok: true, aircraft });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 502 });
+    return fail("GET /api/map/aircraft", err, "Could not load aircraft data.", 502);
   }
 }

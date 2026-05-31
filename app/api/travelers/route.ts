@@ -1,4 +1,5 @@
 import { listTravelers, createTraveler } from "$server/db/repositories/roster";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,6 @@ export async function POST(req: Request) {
     });
     return Response.json({ ok: true, traveler }, { status: 201 });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/travelers", err, "Could not save the traveller.");
   }
 }

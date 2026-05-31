@@ -1,4 +1,5 @@
 import { getCase, getItems, addTextItem, removeItem } from "$server/db/repositories/cases";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
     return Response.json({ ok: true, item }, { status: 201 });
   } catch (err) {
-    console.error("POST /api/cases/[id]/items", err);
-    return Response.json({ ok: false, error: String(err) }, { status: 400 });
+    return fail("POST /api/cases/[id]/items", err, "Could not add the item.", 400);
   }
 }
 

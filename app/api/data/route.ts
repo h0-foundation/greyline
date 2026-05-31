@@ -1,5 +1,6 @@
 import { getDb } from "$server/db/index";
 import { rateLimit, tooManyRequests } from "$server/http/rate-limit";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
     tx();
     return Response.json({ ok: true, restored });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/data", err, "Could not complete the data operation.");
   }
 }
 

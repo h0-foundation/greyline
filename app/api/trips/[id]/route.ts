@@ -6,6 +6,7 @@ import {
 } from "$server/db/repositories/trip";
 import { getChecklistsByTrip } from "$server/db/repositories/checklist";
 import { getThreatModelByTrip } from "$server/db/repositories/threat";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
     return Response.json({ ok: true, trip });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("PATCH /api/trips/[id]", err, "Could not update the trip.");
   }
 }
 

@@ -1,4 +1,5 @@
 import { getAllTrips, createTrip } from "$server/db/repositories/trip";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,6 @@ export async function POST(req: Request) {
     });
     return Response.json({ ok: true, trip }, { status: 201 });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/trips", err, "Could not save the trip.");
   }
 }

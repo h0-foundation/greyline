@@ -1,4 +1,5 @@
 import { getDestinationsByTrip, createDestination } from "$server/db/repositories/trip";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
     return Response.json({ ok: true, destination: dest }, { status: 201 });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/trips/[id]/destinations", err, "Could not update destinations.");
   }
 }

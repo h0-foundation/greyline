@@ -1,4 +1,5 @@
 import { getApiToggles, setApiToggle } from "$server/db/repositories/settings";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +21,6 @@ export async function PATCH(req: Request) {
     setApiToggle(apiId, body.enabled, body.use_tor === true);
     return Response.json({ ok: true });
   } catch (err) {
-    return Response.json(
-      { ok: false, error: err instanceof Error ? err.message : String(err) },
-      { status: 500 },
-    );
+    return fail("PATCH /api/toggles", err, "Could not update the connection.");
   }
 }
