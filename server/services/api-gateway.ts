@@ -65,7 +65,7 @@ export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ 
   const data = await ofetch<T>(url, {
     params,
     headers: {
-      'User-Agent': 'Greyline/0.1 (privacy-first local travel app; self-hosted)',
+      'User-Agent': 'Greyline/1.0 (privacy-first local travel app; self-hosted)',
       'Accept': 'application/json'
     },
     timeout: 10000,

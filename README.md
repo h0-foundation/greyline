@@ -83,7 +83,7 @@ Open **http://localhost:3000**. That's it.
 ┌─────────────────────────────────────────────────────────────────┐
 │  Browser (single tab, localhost)                                │
 │  ─ React 19 + shadcn/ui (Radix), Tailwind 4, motion/react       │
-│  ─ MapLibre GL 5 (offline scratch-map + online OSINT layer)     │
+│  ─ MapLibre GL 5 + PMTiles (offline basemap + scratch-map)      │
 │  ─ View Transitions API (cross-route shared elements)           │
 └─────────────────────────────────────────────────────────────────┘
                               │ HTTP (loopback only)
@@ -99,7 +99,7 @@ Open **http://localhost:3000**. That's it.
 ┌──────────────┐   ┌──────────────────────┐   ┌──────────────────┐
 │ SQLite (WAL) │   │ Vault (AES-256-GCM)  │   │ External proxies │
 │ better-sqlite3│  │ Argon2id KDF         │   │ (gateway)         │
-│ ─ 22 tables  │   │ per-doc nonce + tag  │   │ ─ disabled by     │
+│ ─ 32 tables  │   │ per-doc nonce + tag  │   │ ─ disabled by     │
 │ ─ migrations │   │ no recovery          │   │   default          │
 │ ─ data_sources│  └──────────────────────┘   │ ─ user-toggled    │
 └──────────────┘                              │ ─ all responses   │
@@ -119,10 +119,10 @@ The app has **14 user-facing routes** plus **32 local API handlers**. Every rout
 
 | Route | What it does | Pulls from |
 |---|---|---|
-| `/` | The **cockpit**. Status hairline (date · privacy posture) → cockpit tile for the trip needing attention now (Fraunces lede, four 44×44 instruments) → Up Next + Recent columns → six-KPI numbers strip → scratch map → On-this-day → conditional Hotspots panel → four primary actions. Built from 47 sources of primary research. | trips, destinations, flights, checklists, dossier, indices, advisories, vault, settings |
+| `/` | The **cockpit**. Status hairline (date · privacy posture) → cockpit tile for the trip needing attention now (Fraunces lede, four 44×44 instruments) → Up Next + Recent columns → six-KPI numbers strip → scratch map → On-this-day → conditional Hotspots panel → four primary actions. An empty cockpit shows **first-run orientation** signposts so a fresh install isn't a dead end. The **Cmd+K** palette searches pages, tools, actions **and trips by name** (entity search — jump straight to a trip). Built from 47 sources of primary research. | trips, destinations, flights, checklists, dossier, indices, advisories, vault, settings |
 | `/trips` | **Planning focus.** Lists active + planning trips only with rich row cards (destinations, flights, carriers, packing %, docs %, peak advisory). New-trip dialog. | trips (filtered), checklists, flights, peak advisories |
 | `/logbook` | **The archive.** Wrapped trips index, the full lifetime atlas with the animated scratch-map, year-by-year Wrapped recaps. Read-only. | trips (wrapped), travel stats, visited |
-| `/trips/[id]` | **Trip detail.** Threat dial, destinations, flights + layover analysis, trip-limits card (tightest carry-on/lithium/liquids across carriers), auto-generated briefing per destination, documents checklist, packing list. | trips, destinations, flights, airline rules, dossier, intel, practical, visa, exchange rates |
+| `/trips/[id]` | **Trip workspace** — a tabbed hub (Overview / Flights / Briefing / Documents / Packing) instead of one long scroll. Threat dial, destinations, flights + layover analysis, trip-limits card (tightest carry-on/lithium/liquids across carriers), auto-generated briefing per destination, documents checklist, packing list. | trips, destinations, flights, airline rules, dossier, intel, practical, visa, exchange rates |
 | `/disclosure` | **SF-86-style export.** 7-year rolling window, per-country day totals, Schengen 90/180. Markdown + JSON download. | trips, destinations |
 
 ### Country intelligence
@@ -136,7 +136,7 @@ The app has **14 user-facing routes** plus **32 local API handlers**. Every rout
 
 | Route | What it does | Pulls from |
 |---|---|---|
-| `/map` | **Online OSINT layer.** MapLibre raster basemap (CARTO dark), optional toggles for satellite (NASA GIBS), radar (RainViewer), aircraft (ADS-B), earthquakes (USGS), disasters (GDACS), surveillance cameras (OSM Overpass). Click-to-place rally points. | destinations, sightings, rally points + live overlays |
+| `/map` | **Offline-first OSINT map.** Renders air-gapped by default on a committed PMTiles world basemap (Natural Earth, z0–6); drop a regional `.pmtiles` street pack into `data/bundles/maps/` + register it ("Map packs" dialog) for full street detail in that region. Opt-in layers on top: detailed online tiles (CARTO), satellite (NASA GIBS), radar (RainViewer), aircraft (ADS-B), earthquakes (USGS), disasters (GDACS), surveillance cameras (OSM Overpass). **Draw route** mode (SDR / extraction / variation / normal) reuses the offline waypoint planner — great-circle metrics, saved to `saved_routes` locally, nothing sent anywhere. Click-to-place rally points. | destinations, sightings, rally points, saved routes + opt-in overlays |
 | `/surveillance` | **TEDD-principle counter-surveillance log.** Sightings + repeat-pattern detection + rally-point manager. | counter_surveillance_log, rally_points |
 
 ### Vault & settings
@@ -219,14 +219,15 @@ Auto-generated from `packing_templates` filtered by climate (inferred from desti
 
 ## Data layer — every table, every bundle
 
-### Schema (SQLite, 13 migrations)
+### Schema (SQLite, 16 migrations)
 
 | Table | Purpose | Size |
 |---|---|---|
 | `settings` | User preferences + master offline switch | ~10 rows |
-| `api_toggles` | Per-connector enable + use-Tor flag | 10 rows |
+| `api_toggles` | Per-connector enable + use-Tor flag | 9 rows |
 | `api_cache` | Server-proxied response cache with TTL | grows |
 | `data_sources` | Attribution registry — every bundled dataset's name, license, URL, row count, downloaded_at | ~12 rows |
+| `offline_bundles` | Registered offline map bundles — the committed world basemap + any regional `.pmtiles` street packs dropped into `data/bundles/maps/` (type, region, path, size, checksum). Served range-aware at `app/api/tiles/[id]`. | user + 1 |
 | `trips` | User-created trips (name, status, dates, date_precision, notes) | user |
 | `destinations` | Per-trip stops (country, city, lat/lng, dates, sort_order) | user |
 | `trip_flights` | Flights belonging to a trip (carrier_iata, flight_number, dep/arr IATA + times, seat, status) | user |
@@ -264,7 +265,7 @@ Every dataset Greyline ships **runs offline**. Sources:
 | CIA World Factbook | [factbook/factbook.json](https://github.com/factbook/factbook.json) | Public domain | ~3 MB |
 | Airports | [OurAirports CSV](https://davidmegginson.github.io/ourairports-data/airports.csv) | Public domain | ~7 MB |
 | Visa matrix | [ilyankou/passport-index-dataset](https://github.com/ilyankou/passport-index-dataset) | MIT | ~1.5 MB |
-| Natural Earth (map) | [Natural Earth 1:110m](https://www.naturalearthdata.com/) | Public domain | 248 KB |
+| Natural Earth (map) | [Natural Earth](https://www.naturalearthdata.com/) — 1:110m countries GeoJSON (scratch-map) + the committed `public/geo/world.pmtiles` z0–6 vector world basemap | Public domain | ~2.6 MB |
 | Packing / OPSEC / airline / docs templates | Curated from EFF SSD, REI, FAA 49 CFR 175.10, IATA, CBP / UK FCDO / AAA / CDC | AGPL-3.0 | ~60 KB |
 
 The full registry is queryable at `/about/data-sources`.
@@ -285,6 +286,7 @@ Run any time. All idempotent (upsert).
 | `pnpm build:dossier` | fetch OWID CPI + RSF, compute visa-free counts, fetch factbook per country | ~60s |
 | `pnpm build:advisories` | fetch US State Dept + UK FCDO advisories, upsert into `country_advisories` | ~40s |
 | `pnpm build:trip-data` | seed packing / airline / OPSEC / documents from `data/templates/*.json` | <1s |
+| `pnpm build:tiles` | (maintainer-only; requires the `tippecanoe` binary) builds the committed `public/geo/world.pmtiles` world basemap from Natural Earth. Not run in CI. | ~30s |
 | `pnpm typecheck` | `tsc --noEmit` | ~5s |
 | `pnpm lint` | ESLint | ~5s |
 | `pnpm e2e` | build + Playwright | ~90s |
@@ -295,12 +297,12 @@ All build scripts temporarily enable the API toggles they need (and restore the 
 
 ## External connectors
 
-**Every connector is OFF by default.** Each is a discrete toggle in Settings → Connections. A master "Fully offline" switch blocks them all instantly.
+**Every connector is OFF by default.** Each is a discrete toggle in the Settings → Connections hub, grouped under **Travel intelligence** (weather, exchange rates, US/UK advisories) and **Live map layers** (geocoding, OSM POIs, ADS-B, earthquakes, disasters). A master "Fully offline" switch blocks them all instantly. (The orphaned `gdelt` and the HTTP-only `ip-api` connectors were pruned in migration 016.)
 
 When enabled, requests go through `server/services/api-gateway.ts`, which:
 
 - checks the master offline switch + the per-API toggle,
-- strips `User-Agent` (replaces with a generic `Greyline/0.1` identifier where the upstream requires one — Nominatim / Overpass / gov.uk),
+- strips `User-Agent` (replaces with a generic `Greyline/1.0` identifier where the upstream requires one — Nominatim / Overpass / gov.uk),
 - caches responses in `api_cache` with a per-call TTL,
 - never accepts cookies, never sets `Authorization` headers (no API keys exist).
 
@@ -316,9 +318,9 @@ When enabled, requests go through `server/services/api-gateway.ts`, which:
 | `usgs` | `earthquake.usgs.gov` | M2.5+ earthquakes past day | `/map` quakes layer |
 | `gdacs` | `www.gdacs.org` | Global disaster alerts (cyclone / flood / volcano / wildfire) | `/map` disasters layer |
 
-The `/map` page additionally fetches **map tiles directly from the browser** (no proxy) — CARTO basemap, NASA GIBS satellite, RainViewer radar. These are explicitly allow-listed in the CSP `img-src` + `connect-src` (because MapLibre v5 uses `fetch()` for tiles, not `<img>`). Documented in `next.config.ts`.
+The `/map` page renders offline by default from the committed PMTiles world basemap (and any registered street packs, streamed by the local range-aware `app/api/tiles/[id]` route). Only its **opt-in online layers** fetch **map tiles directly from the browser** (no proxy) — detailed CARTO tiles, NASA GIBS satellite, RainViewer radar. Those hosts are explicitly allow-listed in the CSP `img-src` + `connect-src` (because MapLibre v5 uses `fetch()` for tiles, not `<img>`). Documented in `next.config.ts`.
 
-No API keys are required for any connector. They're all free and open. Where a provider requires a User-Agent (Nominatim / Overpass usage policy), Greyline sends `Greyline/0.1 (privacy-first local travel app; self-hosted)` — the software name only, never the user.
+No API keys are required for any connector. They're all free and open. Where a provider requires a User-Agent (Nominatim / Overpass usage policy), Greyline sends `Greyline/1.0 (privacy-first local travel app; self-hosted)` — the software name only, never the user.
 
 ---
 
@@ -381,6 +383,7 @@ Content-Security-Policy:
 - **Telemetry** — none. No analytics, no error reporting, no remote fonts, no images from third parties (except map tiles when `/map` is loaded).
 - **Identity at upstream APIs** — generic UA, no cookies, no auth, no referrer.
 - **Site-level XSS** — CSP enforces same-origin scripts (with the noted `'unsafe-inline'` caveat).
+- **Error-message leakage** — every API route returns a standardized generic error envelope (`{ ok: false, error }`); the real exception is logged server-side, never sent to the client, so SQL fragments / file paths / upstream URLs can't leak.
 - **Clickjacking / iframe attacks** — `frame-ancestors 'none'`.
 - **Permission surface** — every browser permission API is denied (`Permissions-Policy`).
 - **Data destruction** — `rm -rf data/` is *the* delete. There is no copy elsewhere.
@@ -392,7 +395,7 @@ Content-Security-Policy:
 - **Single-factor vault.** No hardware-key second factor yet (Yubikey + WebAuthn is on the roadmap).
 - **No anti-forensic / duress passphrase.** A second-passphrase plausible-deniability volume is on the roadmap.
 - **`'unsafe-inline'` on `script-src`.** Required by Next 16's RSC streaming. The upgrade path is nonce-based CSP via middleware — not a fundamental blocker, just hasn't been built yet.
-- **Map tile hosts are CSP-allow-listed.** Loading `/map` reveals to CARTO / GIBS / RainViewer that *some* browser fetched their tiles (IP + timing). The trade-off was conscious — the alternative is bundling 7+ GB of PMTiles for the world. **`/map` doesn't load unless you navigate to it; the rest of the app is fully offline.**
+- **Opt-in online map tiles are CSP-allow-listed.** `/map` is air-gapped by default (committed PMTiles world basemap + optional regional street packs). Only if you *enable* an online layer (detailed CARTO tiles / GIBS satellite / RainViewer radar) does the browser reveal to that host that *some* client fetched its tiles (IP + timing). The base map — and the rest of the app — stays fully offline.
 - **No Tor proxy yet.** Each `api_toggles` row has a `use_tor` flag, but no SOCKS proxy is wired through. Roadmap.
 - **No tamper-evident logging.** The incident log is regular SQLite; an attacker who edits the DB can rewrite history. Roadmap: Merkle-chained log rows.
 - **Self-doxxing tool generates queries you can paste into public search engines.** That's by design — you copy them and run them against the engine of your choice — but the resulting searches are not anonymous unless you take care.
@@ -417,7 +420,7 @@ Content-Security-Policy:
 | UI | **React 19** + **shadcn/ui** (Radix primitives, vendored under `components/ui/`) | Vendored — no design lock-in, full control. |
 | Styling | **Tailwind CSS 4** + OKLCH design tokens + `@plugin "@tailwindcss/typography"` | "Oak & Gold" palette (deep oak-green + gold spark) + warm-neutral stone surfaces. Dark by default. Editorial Fraunces + JetBrains-ish mono pairing. |
 | Motion | **motion** (Matt Perry's post-Framer fork) + `lib/motion.ts` token system | Single source of truth for durations + easings; honors `prefers-reduced-motion`. View Transitions API used for `/countries` → `/countries/[code]`. |
-| Maps | **MapLibre GL JS v5** + bundled Natural Earth 1:110m | Offline scratch-map on `/`, `/trips`, `/logbook`. Online raster basemap on `/map`. |
+| Maps | **MapLibre GL JS v5** + the `pmtiles` protocol + bundled Natural Earth | Offline scratch-map on `/`, `/trips`, `/logbook`. `/map` renders air-gapped on a committed PMTiles world basemap (`public/geo/world.pmtiles`); regional street packs and online tiles (CARTO / GIBS / RainViewer) are opt-in on top. |
 | DB | **better-sqlite3** in WAL mode | One file. Zero config. Backup = copy a file. Native addon, marked as `serverExternalPackages`. |
 | Vault crypto | **AES-256-GCM** (Node `crypto`) + **Argon2id** (`argon2` package) | 256-bit AEAD; memory-hard KDF tuned to ~1s per attempt. |
 | Form runtime | Zod absent — small hand-rolled validators in `/api/*` route handlers. | Keeps surface tiny. |
@@ -474,7 +477,7 @@ greyline/
 ├── server/
 │   ├── db/
 │   │   ├── index.ts                  better-sqlite3 connection
-│   │   ├── migrations/               13 SQL migrations
+│   │   ├── migrations/               16 SQL migrations
 │   │   └── repositories/             trip, flight, dossier, templates,
 │   │                                 knowledge, intel, airports, settings,
 │   │                                 vault, threat, checklist, travel, …
@@ -565,10 +568,9 @@ These are concrete, scoped extensions — every one is something we already have
 - **Climate calendars** — best-time-to-visit + monsoon windows from open climate data.
 
 ### Map & field
-- **Offline tile bundle** (PMTiles) for the user's home region so `/map` works fully air-gapped.
+- **Offline maps + offline routing — shipped.** `/map` renders air-gapped on the committed PMTiles world basemap; regional `.pmtiles` street packs add street detail; the offline waypoint planner draws SDR / extraction / variation routes with great-circle metrics. (Whole-world *street-level* offline isn't feasible — that's what the regional packs cover. Online turn-by-turn directions are intentionally NOT offered: sending waypoints to a routing service would leak your planned movements, a misfeature for a counter-surveillance tool.)
 - **Surveillance heatmap** — density layer generated from OSM cameras across destination cities.
 - **Drone route avoidance** — OpenDroneID feed overlay.
-- **OSINT-route SDR generator** — given two points, suggest a surveillance-detection route through the city's geometry.
 - **ADS-B route reconstruction** — given a trip's flight numbers, replay the historical ADS-B trail from the trip ledger.
 - **Photo geofence sanity check** — given a photo's EXIF and your itinerary, flag inconsistencies before you share.
 
