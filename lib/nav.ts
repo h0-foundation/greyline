@@ -13,12 +13,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import type { Pillar } from "./pillars";
+
 export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
   /** Plain-language description — used in tooltips and the command palette. */
   description: string;
+  /** Which pillar(s) this belongs to. Omit for cross-cutting items (Home, Map,
+   *  Tools, Vault, Settings) that show in every mode. */
+  pillar?: Pillar[];
 };
 
 export type NavGroup = {
@@ -40,24 +45,24 @@ export const navGroups: NavGroup[] = [
   {
     heading: "Plan & brief",
     items: [
-      { label: "Trips", href: "/trips", icon: Compass, description: "Plan and operate active trips" },
-      { label: "Countries", href: "/countries", icon: Globe, description: "Briefings and what's captured about you" },
+      { label: "Trips", href: "/trips", icon: Compass, description: "Plan and operate active trips", pillar: ["travel"] },
+      { label: "Countries", href: "/countries", icon: Globe, description: "Briefings and what's captured about you", pillar: ["travel"] },
       { label: "Map", href: "/map", icon: Map, description: "Offline map and live overlays" },
     ],
   },
   {
     heading: "Field",
     items: [
-      { label: "Surveillance", href: "/surveillance", icon: Eye, description: "Counter-surveillance log and rally points" },
-      { label: "Cases", href: "/cases", icon: FolderSearch, description: "Investigation case-files with chain-of-custody" },
-      { label: "Roster", href: "/roster", icon: Users, description: "Team duty-of-care: travellers, check-ins, and SOS" },
+      { label: "Surveillance", href: "/surveillance", icon: Eye, description: "Counter-surveillance log and rally points", pillar: ["counter-surveillance"] },
+      { label: "Cases", href: "/cases", icon: FolderSearch, description: "Investigation case-files with chain-of-custody", pillar: ["journalism"] },
+      { label: "Roster", href: "/roster", icon: Users, description: "Team duty-of-care: travellers, check-ins, and SOS", pillar: ["travel"] },
       { label: "Tools", href: "/tools", icon: Wrench, description: "Privacy, field, and verification tools" },
     ],
   },
   {
     heading: "Record",
     items: [
-      { label: "Logbook", href: "/logbook", icon: BookText, description: "Your lifetime atlas and wrapped trips" },
+      { label: "Logbook", href: "/logbook", icon: BookText, description: "Your lifetime atlas and wrapped trips", pillar: ["travel"] },
       { label: "Vault", href: "/vault", icon: Lock, description: "Encrypted document vault" },
     ],
   },

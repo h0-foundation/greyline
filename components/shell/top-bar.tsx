@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { PillarSwitcher } from "@/components/shell/pillar-switcher";
 import { allNav, isActive } from "@/lib/nav";
 
 export function TopBar({
@@ -52,6 +53,7 @@ export function TopBar({
         >
           <Search className="size-5" />
         </Button>
+        <div className="hidden sm:block"><PillarSwitcher /></div>
         <ThemeToggle />
       </div>
     </header>

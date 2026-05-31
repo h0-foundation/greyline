@@ -12,6 +12,7 @@ import { SidebarContent } from "@/components/shell/sidebar-content";
 import { TopBar } from "@/components/shell/top-bar";
 import { CommandMenu } from "@/components/shell/command-menu";
 import { PageTransition } from "@/components/shell/page-transition";
+import { PillarModeProvider } from "@/components/shell/pillar-mode";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -31,6 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <MotionConfig reducedMotion="user">
+    <PillarModeProvider>
     <div className="flex min-h-svh">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex print:!hidden">
@@ -64,6 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
     </div>
+    </PillarModeProvider>
     </MotionConfig>
   );
 }

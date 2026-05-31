@@ -16,11 +16,16 @@ export type Tool = {
   offline?: boolean;
 };
 
-export type ToolGroup = { title: string; tools: Tool[] };
+import type { Pillar } from "./pillars";
+
+/** Tools are grouped; each group belongs to one pillar so the pillar-mode
+ *  switcher can narrow the catalog. Omit `pillar` for a cross-cutting group. */
+export type ToolGroup = { title: string; tools: Tool[]; pillar?: Pillar };
 
 export const TOOL_GROUPS: ToolGroup[] = [
   {
     title: "On the ground",
+    pillar: "travel",
     tools: [
       { href: "/tools/airports", label: "Airports", description: "Search 85k airports; codes, runways, nearest alternatives.", icon: PlaneTakeoff, offline: true },
       { href: "/tools/currency", label: "Currency", description: "Convert with live rates (cached). Connection optional.", icon: Banknote },
@@ -31,6 +36,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     title: "Before you go",
+    pillar: "travel",
     tools: [
       { href: "/tools/visa", label: "Visa checker", description: "Your passport → any destination, from the offline matrix.", icon: Stamp, offline: true },
       { href: "/tools/metadata", label: "Metadata stripper", description: "Scan & losslessly strip EXIF/GPS/XMP/IPTC from JPEG, PNG & WebP — see exactly what's removed. On-device.", icon: FileScan, offline: true },
@@ -40,6 +46,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     title: "Security",
+    pillar: "counter-surveillance",
     tools: [
       { href: "/tools/threat-model", label: "Threat-model wizard", description: "Device + risk-level signature plan: IMSI catchers, Wi-Fi/BLE, ALPR, trackers, FRT — with sources.", icon: ShieldAlert, offline: true },
       { href: "/tools/ble-tracker", label: "Bluetooth tracker defense", description: "Find an unwanted AirTag/Tile/SmartTag — per-phone detection, physical sweep, safety-first.", icon: Radar, offline: true },
@@ -52,6 +59,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     title: "Verify & investigate",
+    pillar: "journalism",
     tools: [
       { href: "/tools/verify", label: "Verify & protect sources", description: "SIFT + lateral reading, image/video verification, and source-protection playbooks.", icon: Search, offline: true },
       { href: "/tools/image-hash", label: "Image fingerprint", description: "Perceptual hash (aHash/dHash) to detect near-duplicate or recycled images. In-browser.", icon: Fingerprint, offline: true },
