@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize, Route as RouteIcon, Swords, Wind, Flame, Gauge } from "lucide-react";
+import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize, Route as RouteIcon, Swords, Wind, Flame, Gauge, Search, PanelLeftClose, PanelLeftOpen, Crosshair } from "lucide-react";
 import { PMTiles } from "pmtiles";
+import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from "react-resizable-panels";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cameraCones, cameraCounts, classifyCamera, type CameraKind } from "@/lib/camera-coverage";
 import { registerPmtiles, worldBaseStyle, streetPackLayers, CARTO_DARK_TILES } from "@/lib/map-style";
 import { routeMetrics, ROUTE_TYPES, formatDistance, type RouteType, type LngLat } from "@/lib/route-planning";
@@ -27,6 +28,8 @@ type EmscQuake = { geometry: { coordinates: [number, number, number] }; properti
 type NwsAlert = { geometry: unknown; properties: { event: string; severity: string; headline?: string; areaDesc?: string; expires?: string } };
 type FirePoint = { lat: number; lng: number; frp: number; confidence: string; acq_date: string; acq_time: string; daynight: string };
 type AirStation = { id: number; name: string; locality: string | null; country: string | null; lat: number; lng: number; parameters: string[] };
+type SavedRoute = { id: string; type: string; distance_m: number | null; waypoints: LngLat[] };
+type SearchResult = { label: string; sub: string; lat: number; lng: number };
 
 // NWS alert severity → CVD-safe fill (paired with the severity word in the popup).
 const NWS_SEVERITY_COLOR: Record<string, string> = { Extreme: "#c0392b", Severe: "#e06a5a", Moderate: "#e0992a", Minor: "#e0b24a", Unknown: "#9aa39c" };
@@ -100,8 +103,19 @@ export function MapView({ markers }: { markers: Marker[] }) {
   // Conflict is bundled offline data (no connector), loaded once into a native
   // circle layer — toggling just flips its visibility.
   const conflictLoaded = useRef(false);
+  // Felt-style docked panel: resizable/collapsible. A single transient marker
+  // marks the last search hit.
+  const panelRef = useRef<ImperativePanelHandle>(null);
+  const searchMarker = useRef<maplibregl.Marker | null>(null);
 
   const [ready, setReady] = useState(false);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [tab, setTab] = useState("layers");
+  const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
+  const [showRoutes, setShowRoutes] = useState(true);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false, conflict: false, emsc: false, nws: false, fires: false, air: false });
   const [satellite, setSatellite] = useState(false);
   const [radar, setRadar] = useState(false);
@@ -110,7 +124,6 @@ export function MapView({ markers }: { markers: Marker[] }) {
   const [placing, setPlacing] = useState(false);
   const [cameraStats, setCameraStats] = useState<{ total: number; alpr: number } | null>(null);
   const [packs, setPacks] = useState<Pack[]>([]);
-  const [packsOpen, setPacksOpen] = useState(false);
   const [packFile, setPackFile] = useState("");
   const [packName, setPackName] = useState("");
   const [packErr, setPackErr] = useState<string | null>(null);
@@ -180,7 +193,6 @@ export function MapView({ markers }: { markers: Marker[] }) {
     try {
       const h = await new PMTiles(`/api/tiles/${b.id}`).getHeader();
       mapRef.current?.fitBounds([[h.minLon, h.minLat], [h.maxLon, h.maxLat]], { padding: 40, animate: true });
-      setPacksOpen(false);
     } catch {
       setPackErr("Couldn't read this pack's bounds.");
     }
@@ -211,17 +223,78 @@ export function MapView({ markers }: { markers: Marker[] }) {
     const map = mapRef.current;
     if (!map) return;
     try {
-      const data = (await (await fetch("/api/routes")).json()) as { routes?: { type: string; waypoints: string }[] };
-      const features = (data.routes ?? [])
-        .map((r) => {
-          let pts: LngLat[] = [];
-          try { pts = JSON.parse(r.waypoints) as LngLat[]; } catch { pts = []; }
-          const coords = pts.filter((p) => Number.isFinite(p?.lng) && Number.isFinite(p?.lat)).map((p) => [p.lng, p.lat]);
-          return coords.length >= 2 ? { type: "Feature" as const, properties: { type: r.type }, geometry: { type: "LineString" as const, coordinates: coords } } : null;
-        })
-        .filter((f): f is NonNullable<typeof f> => f !== null);
+      const data = (await (await fetch("/api/routes")).json()) as { routes?: { id: string; type: string; waypoints: string; distance_m: number | null }[] };
+      const parsed: SavedRoute[] = (data.routes ?? []).map((r) => {
+        let pts: LngLat[] = [];
+        try { pts = (JSON.parse(r.waypoints) as LngLat[]).filter((p) => Number.isFinite(p?.lng) && Number.isFinite(p?.lat)); } catch { pts = []; }
+        return { id: r.id, type: r.type, distance_m: r.distance_m, waypoints: pts };
+      });
+      setSavedRoutes(parsed);
+      const features = parsed
+        .filter((r) => r.waypoints.length >= 2)
+        .map((r) => ({ type: "Feature" as const, properties: { type: r.type }, geometry: { type: "LineString" as const, coordinates: r.waypoints.map((p) => [p.lng, p.lat]) } }));
       (map.getSource("saved-routes") as maplibregl.GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features });
     } catch { /* offline-first — leave empty */ }
+  }
+
+  // ---- Felt panel: collapse, resize, fit/delete routes, offline search ----
+  function resizeMap() { requestAnimationFrame(() => mapRef.current?.resize()); }
+
+  function togglePanel() {
+    const p = panelRef.current;
+    if (!p) return;
+    if (p.isCollapsed()) p.expand();
+    else p.collapse();
+  }
+
+  function fitRoute(pts: LngLat[]) {
+    const map = mapRef.current;
+    if (!map || pts.length === 0) return;
+    const b = new maplibregl.LngLatBounds();
+    pts.forEach((p) => b.extend([p.lng, p.lat]));
+    map.fitBounds(b, { padding: 80, maxZoom: 14, animate: true });
+  }
+
+  async function deleteRoute(id: string) {
+    setSavedRoutes((rs) => rs.filter((r) => r.id !== id));
+    await fetch(`/api/routes/${id}`, { method: "DELETE" }).catch(() => {});
+    loadSavedRoutes();
+  }
+
+  function toggleRoutesVisibility(on: boolean) {
+    setShowRoutes(on);
+    mapRef.current?.setLayoutProperty("saved-routes", "visibility", on ? "visible" : "none");
+  }
+
+  function flyToResult(r: SearchResult) {
+    const map = mapRef.current;
+    if (!map) return;
+    map.flyTo({ center: [r.lng, r.lat], zoom: 11, essential: true });
+    searchMarker.current?.remove();
+    searchMarker.current = new maplibregl.Marker({ element: dot("#e0b24a", 13) })
+      .setLngLat([r.lng, r.lat])
+      .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(`<div style="font:600 13px system-ui">${escapeHtml(r.label)}</div><div style="font:11px system-ui;color:#888">${escapeHtml(r.sub)}</div>`))
+      .addTo(map);
+  }
+
+  // Offline place search over the bundled GeoNames gazetteer (/api/cities) — no
+  // network, no connector. The same data backs /api/geocode's offline fallback.
+  async function doSearch(e?: React.FormEvent) {
+    e?.preventDefault();
+    const q = query.trim();
+    if (q.length < 2) { setResults([]); return; }
+    setSearching(true);
+    try {
+      const data = (await (await fetch(`/api/cities?q=${encodeURIComponent(q)}`)).json()) as {
+        cities?: { name: string; admin1_code: string | null; country_code: string | null; lat: number; lng: number }[];
+      };
+      setResults((data.cities ?? []).slice(0, 12).map((c) => ({
+        label: c.name,
+        sub: [c.admin1_code, c.country_code].filter(Boolean).join(" · "),
+        lat: c.lat, lng: c.lng,
+      })));
+    } catch { setResults([]); }
+    setSearching(false);
   }
 
   async function saveRoute() {
@@ -762,128 +835,206 @@ export function MapView({ markers }: { markers: Marker[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
+  const ROUTE_META = (type: string) => ROUTE_TYPES.find((t) => t.value === type);
+
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border">
-      <div ref={ref} className="h-[72vh] w-full" />
-
-      <div className="pointer-events-none absolute left-3 top-3 max-w-xs rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-xs text-white/80 backdrop-blur">
-        Toggle live OSINT layers at right. Use <span className="text-white">Add a point</span> then click the map to drop your own marker. Data is fetched only when a layer is on. © OpenStreetMap
-      </div>
-
-      <div className="absolute right-3 top-3 w-60 rounded-xl border border-white/10 bg-black/80 p-3 text-white shadow-lg backdrop-blur">
-        <p className="label-caps mb-2 text-white/50">Basemap</p>
-        <LayerRow icon={MapIcon} color="#9aa39c" label="Detailed online tiles" on={detail} onToggle={toggleDetail} />
-        <LayerRow icon={Satellite} color="#9fd3ff" label="Satellite imagery" on={satellite} onToggle={toggleSatellite} />
-        <LayerRow icon={CloudRain} color="#7fb2ff" label="Weather radar" on={radar} onToggle={toggleRadar} note={notes.radar} />
-        <p className="label-caps mb-2 mt-3 text-white/50">Layers</p>
-        <LayerRow icon={MapPin} color="#74b277" label="Your points" on={layers.base} onToggle={(v) => setLayers((s) => ({ ...s, base: v }))} />
-        <LayerRow icon={Plane} color="#7fb2ff" label="Live aircraft" on={layers.aircraft} onToggle={(v) => setLayer("aircraft", v)} note={notes.aircraft} />
-        <LayerRow icon={Activity} color="#e06a5a" label="Earthquakes (USGS)" on={layers.quakes} onToggle={(v) => setLayer("quakes", v)} note={notes.quakes} />
-        <LayerRow icon={Activity} color="#9b6dd6" label="Earthquakes (EMSC)" on={layers.emsc} onToggle={(v) => setLayer("emsc", v)} note={notes.emsc} />
-        <LayerRow icon={Wind} color="#e0992a" label="US weather alerts (NWS)" on={layers.nws} onToggle={setNws} note={notes.nws} />
-        <LayerRow icon={Flame} color="#e0662a" label="Active fires (FIRMS)" on={layers.fires} onToggle={setFires} note={notes.fires} />
-        <LayerRow icon={Gauge} color="#4aa3c9" label="Air quality (OpenAQ)" on={layers.air} onToggle={setAir} note={notes.air} />
-        <LayerRow icon={TriangleAlert} color="#e0992a" label="Disasters (GDACS)" on={layers.disasters} onToggle={(v) => setLayer("disasters", v)} note={notes.disasters} />
-        <LayerRow icon={Swords} color="#e06a5a" label="Armed conflict (UCDP)" on={layers.conflict} onToggle={setConflict} />
-        <LayerRow icon={Cctv} color="#e0b24a" label="Cameras & ALPR" on={layers.cameras} onToggle={(v) => setLayer("cameras", v)} note={notes.cameras} />
-        {layers.cameras && cameraStats && cameraStats.total > 0 && (
-          <div className="ml-6 mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-white/55">
-            <span className="flex items-center gap-1"><span className="inline-block size-2 rounded-full" style={{ background: "#e0b24a" }} />{cameraStats.total - cameraStats.alpr} CCTV</span>
-            <span className="flex items-center gap-1"><span className="inline-block size-2" style={{ background: "#e06a5a" }} />{cameraStats.alpr} ALPR</span>
-            <span className="text-white/40">cones = field of view</span>
-          </div>
-        )}
-        <Button size="sm" variant={placing ? "default" : "outline"} className="mt-3 w-full" onClick={() => { setPlacing((p) => !p); setDrawingRoute(false); }}>
-          {placing ? <><X className="size-4" /> Cancel</> : <><Plus className="size-4" /> Add a point</>}
-        </Button>
-
-        <Button size="sm" variant={drawingRoute ? "default" : "outline"} className="mt-2 w-full" onClick={() => { setDrawingRoute((d) => !d); setPlacing(false); }}>
-          {drawingRoute ? <><X className="size-4" /> Stop drawing</> : <><RouteIcon className="size-4" /> Draw route</>}
-        </Button>
-        {drawingRoute && (
-          <div className="mt-2 space-y-2">
-            <div className="flex flex-wrap gap-1">
-              {ROUTE_TYPES.map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  aria-pressed={routeType === t.value}
-                  title={t.hint}
-                  onClick={() => setRouteType(t.value)}
-                  className={cn("rounded-md border px-2 py-1 text-xs", routeType === t.value ? "border-white/40 bg-white/15 text-white" : "border-white/15 text-white/60 hover:text-white")}
-                >
-                  <span className="mr-1 inline-block size-2 rounded-full align-middle" style={{ background: t.color }} />
-                  {t.label}
+    <div className="overflow-hidden rounded-xl border border-border">
+      <PanelGroup direction="horizontal" autoSaveId="greyline-map-panel" className="h-[72vh]">
+        {/* Docked, resizable, collapsible control panel (Felt-style). */}
+        <Panel
+          ref={panelRef}
+          order={1}
+          defaultSize={26}
+          minSize={16}
+          maxSize={42}
+          collapsible
+          collapsedSize={0}
+          onResize={resizeMap}
+          onCollapse={() => { setPanelCollapsed(true); resizeMap(); }}
+          onExpand={() => { setPanelCollapsed(false); resizeMap(); }}
+          className="min-w-0"
+        >
+          <div className="flex h-full flex-col bg-black/85 text-white backdrop-blur">
+            <Tabs value={tab} onValueChange={setTab} className="flex h-full min-h-0 flex-col gap-0">
+              <div className="flex items-center gap-1 border-b border-white/10 p-2">
+                <TabsList className="h-8 bg-white/5">
+                  <TabsTrigger value="layers" className="px-2 text-xs">Layers</TabsTrigger>
+                  <TabsTrigger value="features" className="px-2 text-xs">Features</TabsTrigger>
+                  <TabsTrigger value="search" className="px-2 text-xs">Search</TabsTrigger>
+                  <TabsTrigger value="packs" className="px-2 text-xs">Packs</TabsTrigger>
+                </TabsList>
+                <button type="button" onClick={togglePanel} aria-label="Collapse panel" className="ml-auto rounded p-1 text-white/50 transition-colors hover:text-white">
+                  <PanelLeftClose className="size-4" />
                 </button>
-              ))}
-            </div>
-            {draftRoute.length >= 2 && (
-              <p className="text-[11px] text-white/60">{formatDistance(routeMetrics(draftRoute).totalM)} · {draftRoute.length} waypoints</p>
-            )}
-            <div className="flex gap-1.5">
-              <Button size="sm" className="flex-1" onClick={saveRoute} disabled={draftRoute.length < 2}>Save route</Button>
-              <Button size="sm" variant="outline" onClick={clearDraftRoute} disabled={draftRoute.length === 0}>Clear</Button>
-            </div>
-            <p className="text-[11px] text-white/45">Click the map to drop waypoints. Stays on your device.</p>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                {/* ---- Layers ---- */}
+                <TabsContent value="layers" className="mt-0">
+                  <p className="label-caps mb-2 text-white/50">Basemap</p>
+                  <LayerRow icon={MapIcon} color="#9aa39c" label="Detailed online tiles" on={detail} onToggle={toggleDetail} />
+                  <LayerRow icon={Satellite} color="#9fd3ff" label="Satellite imagery" on={satellite} onToggle={toggleSatellite} />
+                  <LayerRow icon={CloudRain} color="#7fb2ff" label="Weather radar" on={radar} onToggle={toggleRadar} note={notes.radar} />
+                  <p className="label-caps mb-2 mt-3 text-white/50">Layers</p>
+                  <LayerRow icon={MapPin} color="#74b277" label="Your points" on={layers.base} onToggle={(v) => setLayers((s) => ({ ...s, base: v }))} />
+                  <LayerRow icon={Plane} color="#7fb2ff" label="Live aircraft" on={layers.aircraft} onToggle={(v) => setLayer("aircraft", v)} note={notes.aircraft} />
+                  <LayerRow icon={Activity} color="#e06a5a" label="Earthquakes (USGS)" on={layers.quakes} onToggle={(v) => setLayer("quakes", v)} note={notes.quakes} />
+                  <LayerRow icon={Activity} color="#9b6dd6" label="Earthquakes (EMSC)" on={layers.emsc} onToggle={(v) => setLayer("emsc", v)} note={notes.emsc} />
+                  <LayerRow icon={Wind} color="#e0992a" label="US weather alerts (NWS)" on={layers.nws} onToggle={setNws} note={notes.nws} />
+                  <LayerRow icon={Flame} color="#e0662a" label="Active fires (FIRMS)" on={layers.fires} onToggle={setFires} note={notes.fires} />
+                  <LayerRow icon={Gauge} color="#4aa3c9" label="Air quality (OpenAQ)" on={layers.air} onToggle={setAir} note={notes.air} />
+                  <LayerRow icon={TriangleAlert} color="#e0992a" label="Disasters (GDACS)" on={layers.disasters} onToggle={(v) => setLayer("disasters", v)} note={notes.disasters} />
+                  <LayerRow icon={Swords} color="#e06a5a" label="Armed conflict (UCDP)" on={layers.conflict} onToggle={setConflict} />
+                  <LayerRow icon={Cctv} color="#e0b24a" label="Cameras & ALPR" on={layers.cameras} onToggle={(v) => setLayer("cameras", v)} note={notes.cameras} />
+                  {layers.cameras && cameraStats && cameraStats.total > 0 && (
+                    <div className="ml-6 mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-white/55">
+                      <span className="flex items-center gap-1"><span className="inline-block size-2 rounded-full" style={{ background: "#e0b24a" }} />{cameraStats.total - cameraStats.alpr} CCTV</span>
+                      <span className="flex items-center gap-1"><span className="inline-block size-2" style={{ background: "#e06a5a" }} />{cameraStats.alpr} ALPR</span>
+                      <span className="text-white/40">cones = field of view</span>
+                    </div>
+                  )}
+                  <Button size="sm" variant={placing ? "default" : "outline"} className="mt-3 w-full" onClick={() => { setPlacing((p) => !p); setDrawingRoute(false); }}>
+                    {placing ? <><X className="size-4" /> Cancel</> : <><Plus className="size-4" /> Add a point</>}
+                  </Button>
+                  <Button size="sm" variant={drawingRoute ? "default" : "outline"} className="mt-2 w-full" onClick={() => { setDrawingRoute((d) => !d); setPlacing(false); }}>
+                    {drawingRoute ? <><X className="size-4" /> Stop drawing</> : <><RouteIcon className="size-4" /> Draw route</>}
+                  </Button>
+                  {drawingRoute && (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex flex-wrap gap-1">
+                        {ROUTE_TYPES.map((t) => (
+                          <button
+                            key={t.value}
+                            type="button"
+                            aria-pressed={routeType === t.value}
+                            title={t.hint}
+                            onClick={() => setRouteType(t.value)}
+                            className={cn("rounded-md border px-2 py-1 text-xs", routeType === t.value ? "border-white/40 bg-white/15 text-white" : "border-white/15 text-white/60 hover:text-white")}
+                          >
+                            <span className="mr-1 inline-block size-2 rounded-full align-middle" style={{ background: t.color }} />
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                      {draftRoute.length >= 2 && (
+                        <p className="text-[11px] text-white/60">{formatDistance(routeMetrics(draftRoute).totalM)} · {draftRoute.length} waypoints</p>
+                      )}
+                      <div className="flex gap-1.5">
+                        <Button size="sm" className="flex-1" onClick={saveRoute} disabled={draftRoute.length < 2}>Save route</Button>
+                        <Button size="sm" variant="outline" onClick={clearDraftRoute} disabled={draftRoute.length === 0}>Clear</Button>
+                      </div>
+                      <p className="text-[11px] text-white/45">Click the map to drop waypoints. Stays on your device.</p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* ---- Features: saved routes ---- */}
+                <TabsContent value="features" className="mt-0 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="label-caps text-white/50">Saved routes</span>
+                    <Switch checked={showRoutes} onCheckedChange={toggleRoutesVisibility} aria-label="Show saved routes" />
+                  </div>
+                  {savedRoutes.length === 0 ? (
+                    <p className="text-[12px] text-white/45">No saved routes yet. Switch to the <span className="text-white/70">Layers</span> tab and use <span className="text-white/70">Draw route</span>.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {savedRoutes.map((r) => {
+                        const meta = ROUTE_META(r.type);
+                        return (
+                          <li key={r.id} className="flex items-center gap-2 rounded-md border border-white/10 px-2 py-1.5 text-sm">
+                            <span className="inline-block size-2.5 shrink-0 rounded-full" style={{ background: meta?.color ?? "#9aa39c" }} />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-white/90">{meta?.label ?? r.type}</span>
+                              <span className="block text-[11px] text-white/45">{r.distance_m != null ? formatDistance(r.distance_m) : `${r.waypoints.length} waypoints`}</span>
+                            </span>
+                            <button type="button" onClick={() => fitRoute(r.waypoints)} aria-label="Fit route" className="shrink-0 text-white/50 hover:text-white"><Maximize className="size-4" /></button>
+                            <button type="button" onClick={() => deleteRoute(r.id)} aria-label="Delete route" className="shrink-0 text-white/50 hover:text-destructive"><Trash2 className="size-4" /></button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <p className="text-[11px] text-white/40">Routes stay on your device. Draw new ones on the Layers tab or at <Link href="/tools/route-planner" className="underline">Route planner</Link>.</p>
+                </TabsContent>
+
+                {/* ---- Search: offline gazetteer ---- */}
+                <TabsContent value="search" className="mt-0 space-y-3">
+                  <form onSubmit={doSearch} className="flex gap-1.5">
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search places…"
+                      aria-label="Search places"
+                      className="min-w-0 flex-1 rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
+                    />
+                    <Button type="submit" size="sm" aria-label="Search" disabled={query.trim().length < 2}><Search className="size-4" /></Button>
+                  </form>
+                  {searching && <p className="text-[12px] text-white/50">Searching…</p>}
+                  {!searching && results.length > 0 && (
+                    <ul className="space-y-1">
+                      {results.map((r, i) => (
+                        <li key={`${r.label}-${i}`}>
+                          <button type="button" onClick={() => flyToResult(r)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/10">
+                            <Crosshair className="size-3.5 shrink-0 text-white/40" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-white/90">{r.label}</span>
+                              {r.sub && <span className="block truncate text-[11px] text-white/45">{r.sub}</span>}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {!searching && query.trim().length >= 2 && results.length === 0 && (
+                    <p className="text-[12px] text-white/45">No matches in the offline gazetteer.</p>
+                  )}
+                  <p className="text-[11px] text-white/40">Offline GeoNames gazetteer — no network, no connector.</p>
+                </TabsContent>
+
+                {/* ---- Packs: offline street tiles ---- */}
+                <TabsContent value="packs" className="mt-0 space-y-3">
+                  <p className="text-[12px] leading-relaxed text-white/55">
+                    Add a regional street-level <code className="text-[11px]">.pmtiles</code> for full detail offline. Draw an area at{" "}
+                    <a href="https://app.protomaps.com" target="_blank" rel="noopener noreferrer" className="underline">app.protomaps.com</a>, save it into{" "}
+                    <code className="text-[11px]">data/bundles/maps/</code>, then register it by filename. Nothing is uploaded.
+                  </p>
+                  {packs.length > 0 && (
+                    <ul className="divide-y divide-white/10 rounded-lg border border-white/10">
+                      {packs.map((p) => (
+                        <li key={p.id} className="flex items-center gap-2 px-2.5 py-2 text-sm">
+                          <Layers className="size-4 shrink-0 text-white/40" />
+                          <span className="min-w-0 flex-1 truncate text-white/90">{p.region || p.id}</span>
+                          <button type="button" onClick={() => fitPack(p)} aria-label={`Zoom to ${p.region || "pack"}`} className="shrink-0 text-white/50 hover:text-white"><Maximize className="size-4" /></button>
+                          <button type="button" onClick={() => unregisterPack(p.id)} aria-label={`Remove ${p.region || "pack"}`} className="shrink-0 text-white/50 hover:text-destructive"><Trash2 className="size-4" /></button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="space-y-2">
+                    <input value={packFile} onChange={(e) => setPackFile(e.target.value)} placeholder="filename.pmtiles" aria-label="Pack filename" className="w-full rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/30" />
+                    <input value={packName} onChange={(e) => setPackName(e.target.value)} placeholder="Label (optional, e.g. Berlin)" aria-label="Pack label" className="w-full rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/30" />
+                    <Button size="sm" className="w-full" onClick={registerPack} disabled={!packFile.trim()}><Plus className="size-4" /> Register pack</Button>
+                    {packErr && <p role="alert" className="text-[11px] text-destructive">{packErr}</p>}
+                  </div>
+                </TabsContent>
+              </div>
+            </Tabs>
           </div>
-        )}
+        </Panel>
 
-        <Dialog open={packsOpen} onOpenChange={setPacksOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="outline" className="mt-2 w-full">
-              <Layers className="size-4" /> Map packs{packs.length ? ` (${packs.length})` : ""}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="text-foreground sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Offline map packs</DialogTitle>
-              <DialogDescription>
-                Add a regional street-level <code className="text-xs">.pmtiles</code> for full detail offline. Draw an area at{" "}
-                <a href="https://app.protomaps.com" target="_blank" rel="noopener noreferrer" className="underline">app.protomaps.com</a>, save it into{" "}
-                <code className="text-xs">data/bundles/maps/</code>, then register it by filename. Nothing is uploaded or sent anywhere.
-              </DialogDescription>
-            </DialogHeader>
+        <PanelResizeHandle className="w-1.5 bg-border transition-colors hover:bg-primary/50 data-[resize-handle-state=drag]:bg-primary" />
 
-            {packs.length > 0 && (
-              <ul className="divide-y divide-border rounded-lg border border-border">
-                {packs.map((p) => (
-                  <li key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                    <Layers className="size-4 shrink-0 text-faint" />
-                    <span className="min-w-0 flex-1 truncate">{p.region || p.id}</span>
-                    <button type="button" onClick={() => fitPack(p)} aria-label={`Zoom to ${p.region || "pack"}`} className="shrink-0 text-faint transition-colors hover:text-foreground">
-                      <Maximize className="size-4" />
-                    </button>
-                    <button type="button" onClick={() => unregisterPack(p.id)} aria-label={`Remove ${p.region || "pack"}`} className="shrink-0 text-faint transition-colors hover:text-destructive">
-                      <Trash2 className="size-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="space-y-2">
-              <input
-                value={packFile}
-                onChange={(e) => setPackFile(e.target.value)}
-                placeholder="filename.pmtiles"
-                aria-label="Pack filename"
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <input
-                value={packName}
-                onChange={(e) => setPackName(e.target.value)}
-                placeholder="Label (optional, e.g. Berlin)"
-                aria-label="Pack label"
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <Button size="sm" className="w-full" onClick={registerPack} disabled={!packFile.trim()}>
-                <Plus className="size-4" /> Register pack
-              </Button>
-              {packErr && <p role="alert" className="text-[11px] text-destructive">{packErr}</p>}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+        {/* Map fills the remainder. */}
+        <Panel order={2} onResize={resizeMap} className="relative min-w-0">
+          <div ref={ref} className="h-full w-full" />
+          {panelCollapsed && (
+            <button type="button" onClick={togglePanel} aria-label="Open panel" className="absolute left-3 top-3 z-10 flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/80 px-2.5 py-1.5 text-xs text-white backdrop-blur transition-colors hover:bg-black/90">
+              <PanelLeftOpen className="size-4" /> Panel
+            </button>
+          )}
+          <div className="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/60 backdrop-blur">© OpenStreetMap</div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }
