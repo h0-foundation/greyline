@@ -4,13 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize } from "lucide-react";
+import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize, Route as RouteIcon } from "lucide-react";
 import { PMTiles } from "pmtiles";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { cameraCones, cameraCounts, classifyCamera, type CameraKind } from "@/lib/camera-coverage";
 import { registerPmtiles, worldBaseStyle, streetPackLayers, CARTO_DARK_TILES } from "@/lib/map-style";
+import { routeMetrics, ROUTE_TYPES, formatDistance, type RouteType, type LngLat } from "@/lib/route-planning";
+import { cn } from "@/lib/utils";
 
 type Pack = { id: string; region: string | null; path: string };
 
@@ -48,6 +50,14 @@ function dot(color: string, size = 12) {
   return el;
 }
 
+// Numbered amber pin for an ordered route waypoint (mirrors the route planner).
+function numDot(n: number) {
+  const el = document.createElement("div");
+  el.textContent = String(n);
+  el.style.cssText = "width:18px;height:18px;border-radius:50%;background:#e0b24a;color:#1a1a1a;font:600 11px system-ui;display:grid;place-items:center;box-shadow:0 0 0 2px rgba(0,0,0,.45);cursor:default";
+  return el;
+}
+
 // ALPR plate-readers are a crimson SQUARE; ordinary CCTV an amber dot. The
 // shape difference is the colour-blind-safe redundant cue (it survives
 // grayscale), per research/UX_INTELLIGENCE_DASHBOARDS.md.
@@ -68,6 +78,8 @@ export function MapView({ markers }: { markers: Marker[] }) {
   const trails = useRef<Map<string, [number, number][]>>(new Map());
   const rafRef = useRef<number>(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const draftRouteRef = useRef<LngLat[]>([]);
+  const draftRouteMarkers = useRef<maplibregl.Marker[]>([]);
 
   const [ready, setReady] = useState(false);
   const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false });
@@ -82,6 +94,9 @@ export function MapView({ markers }: { markers: Marker[] }) {
   const [packFile, setPackFile] = useState("");
   const [packName, setPackName] = useState("");
   const [packErr, setPackErr] = useState<string | null>(null);
+  const [drawingRoute, setDrawingRoute] = useState(false);
+  const [draftRoute, setDraftRoute] = useState<LngLat[]>([]);
+  const [routeType, setRouteType] = useState<RouteType>("sdr");
 
   function clearCones() {
     const src = mapRef.current?.getSource("camera-cones") as maplibregl.GeoJSONSource | undefined;
@@ -148,6 +163,59 @@ export function MapView({ markers }: { markers: Marker[] }) {
       setPacksOpen(false);
     } catch {
       setPackErr("Couldn't read this pack's bounds.");
+    }
+  }
+
+  // ---- offline route drawing (SDR / egress) — waypoints stay on-device; the
+  // same planner lives at /tools/route-planner. Reuses lib/route-planning. ----
+  function updateDraftRouteLine() {
+    const src = mapRef.current?.getSource("draft-route") as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
+    const coords = draftRouteRef.current.map((p) => [p.lng, p.lat]);
+    src.setData(
+      coords.length >= 2
+        ? { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: coords } }] }
+        : { type: "FeatureCollection", features: [] },
+    );
+  }
+
+  function clearDraftRoute() {
+    draftRouteRef.current = [];
+    setDraftRoute([]);
+    draftRouteMarkers.current.forEach((mk) => mk.remove());
+    draftRouteMarkers.current = [];
+    updateDraftRouteLine();
+  }
+
+  async function loadSavedRoutes() {
+    const map = mapRef.current;
+    if (!map) return;
+    try {
+      const data = (await (await fetch("/api/routes")).json()) as { routes?: { type: string; waypoints: string }[] };
+      const features = (data.routes ?? [])
+        .map((r) => {
+          let pts: LngLat[] = [];
+          try { pts = JSON.parse(r.waypoints) as LngLat[]; } catch { pts = []; }
+          const coords = pts.filter((p) => Number.isFinite(p?.lng) && Number.isFinite(p?.lat)).map((p) => [p.lng, p.lat]);
+          return coords.length >= 2 ? { type: "Feature" as const, properties: { type: r.type }, geometry: { type: "LineString" as const, coordinates: coords } } : null;
+        })
+        .filter((f): f is NonNullable<typeof f> => f !== null);
+      (map.getSource("saved-routes") as maplibregl.GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features });
+    } catch { /* offline-first — leave empty */ }
+  }
+
+  async function saveRoute() {
+    const pts = draftRouteRef.current;
+    if (pts.length < 2) return;
+    const res = await fetch("/api/routes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: routeType, waypoints: pts, distance_m: routeMetrics(pts).totalM }),
+    });
+    if (res.ok) {
+      clearDraftRoute();
+      setDrawingRoute(false);
+      loadSavedRoutes();
     }
   }
 
@@ -218,6 +286,11 @@ export function MapView({ markers }: { markers: Marker[] }) {
       map.addSource("camera-cones", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({ id: "camera-cones-fill", type: "fill", source: "camera-cones", paint: { "fill-color": ["match", ["get", "kind"], "alpr", "#e06a5a", "#e0b24a"], "fill-opacity": 0.14 } });
       map.addLayer({ id: "camera-cones-line", type: "line", source: "camera-cones", paint: { "line-color": ["match", ["get", "kind"], "alpr", "#e06a5a", "#e0b24a"], "line-width": 1, "line-opacity": 0.5 } });
+      // Offline route layers: saved routes (coloured by type) + the in-progress draft.
+      map.addSource("saved-routes", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({ id: "saved-routes", type: "line", source: "saved-routes", layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": ["match", ["get", "type"], "sdr", "#e0b24a", "extraction", "#74b277", "variation", "#7fb2ff", "#9aa39c"], "line-width": 3, "line-opacity": 0.85 } });
+      map.addSource("draft-route", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({ id: "draft-route", type: "line", source: "draft-route", layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": "#f0f0f0", "line-width": 2, "line-dasharray": [2, 1.5], "line-opacity": 0.9 } });
       setReady(true);
     });
 
@@ -443,6 +516,16 @@ export function MapView({ markers }: { markers: Marker[] }) {
     const map = mapRef.current;
     if (!map || !ready) return;
     const onClick = async (e: maplibregl.MapMouseEvent) => {
+      if (drawingRoute) {
+        const p: LngLat = { lng: e.lngLat.lng, lat: e.lngLat.lat };
+        const next = [...draftRouteRef.current, p];
+        draftRouteRef.current = next;
+        setDraftRoute(next);
+        const mk = new maplibregl.Marker({ element: numDot(next.length) }).setLngLat([p.lng, p.lat]).addTo(map);
+        draftRouteMarkers.current.push(mk);
+        updateDraftRouteLine();
+        return;
+      }
       if (!placing) return;
       const name = window.prompt("Name this point");
       setPlacing(false);
@@ -458,11 +541,17 @@ export function MapView({ markers }: { markers: Marker[] }) {
       }
     };
     map.on("click", onClick);
-    map.getCanvas().style.cursor = placing ? "crosshair" : "";
-    const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape") setPlacing(false); };
+    map.getCanvas().style.cursor = placing || drawingRoute ? "crosshair" : "";
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape") { setPlacing(false); setDrawingRoute(false); } };
     window.addEventListener("keydown", onKey);
     return () => { map.off("click", onClick); window.removeEventListener("keydown", onKey); };
-  }, [placing, ready]);
+  }, [placing, drawingRoute, ready]);
+
+  // Load saved routes onto the map once it's ready.
+  useEffect(() => {
+    if (ready) loadSavedRoutes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-border">
@@ -490,9 +579,40 @@ export function MapView({ markers }: { markers: Marker[] }) {
             <span className="text-white/40">cones = field of view</span>
           </div>
         )}
-        <Button size="sm" variant={placing ? "default" : "outline"} className="mt-3 w-full" onClick={() => setPlacing((p) => !p)}>
+        <Button size="sm" variant={placing ? "default" : "outline"} className="mt-3 w-full" onClick={() => { setPlacing((p) => !p); setDrawingRoute(false); }}>
           {placing ? <><X className="size-4" /> Cancel</> : <><Plus className="size-4" /> Add a point</>}
         </Button>
+
+        <Button size="sm" variant={drawingRoute ? "default" : "outline"} className="mt-2 w-full" onClick={() => { setDrawingRoute((d) => !d); setPlacing(false); }}>
+          {drawingRoute ? <><X className="size-4" /> Stop drawing</> : <><RouteIcon className="size-4" /> Draw route</>}
+        </Button>
+        {drawingRoute && (
+          <div className="mt-2 space-y-2">
+            <div className="flex flex-wrap gap-1">
+              {ROUTE_TYPES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  aria-pressed={routeType === t.value}
+                  title={t.hint}
+                  onClick={() => setRouteType(t.value)}
+                  className={cn("rounded-md border px-2 py-1 text-xs", routeType === t.value ? "border-white/40 bg-white/15 text-white" : "border-white/15 text-white/60 hover:text-white")}
+                >
+                  <span className="mr-1 inline-block size-2 rounded-full align-middle" style={{ background: t.color }} />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            {draftRoute.length >= 2 && (
+              <p className="text-[11px] text-white/60">{formatDistance(routeMetrics(draftRoute).totalM)} · {draftRoute.length} waypoints</p>
+            )}
+            <div className="flex gap-1.5">
+              <Button size="sm" className="flex-1" onClick={saveRoute} disabled={draftRoute.length < 2}>Save route</Button>
+              <Button size="sm" variant="outline" onClick={clearDraftRoute} disabled={draftRoute.length === 0}>Clear</Button>
+            </div>
+            <p className="text-[11px] text-white/45">Click the map to drop waypoints. Stays on your device.</p>
+          </div>
+        )}
 
         <Dialog open={packsOpen} onOpenChange={setPacksOpen}>
           <DialogTrigger asChild>
