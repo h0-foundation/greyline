@@ -11,6 +11,8 @@
 import { getDb, closeDb } from "../server/db/index";
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from "fs";
 import { gzipSync, gunzipSync } from "zlib";
+import { execFileSync } from "child_process";
+import { tmpdir } from "os";
 import { resolve } from "path";
 
 const BUNDLE_DIR = resolve("data/bundles/data");
@@ -174,6 +176,67 @@ async function importVisas(db: ReturnType<typeof getDb>) {
   recordSource(db, { id: "passport-index", name: "Passport Index (ilyankou)", license: "MIT", url: VISAS_URL, category: "visas", rowCount: n });
 }
 
+const GEONAMES_URL = "https://download.geonames.org/export/dump/cities5000.zip";
+
+/**
+ * Resolve the GeoNames cities5000 dump as tab-delimited text. The source is a
+ * ZIP; locally we download + `unzip -p` it (maintainer build dep) and cache a
+ * gzipped snapshot. In CI the committed cities5000.txt.gz is authoritative — no
+ * network, no unzip.
+ */
+async function resolveGeoNames(): Promise<string> {
+  const snap = resolve(BUNDLE_DIR, "cities5000.txt.gz");
+  const readSnap = () => gunzipSync(readFileSync(snap)).toString("utf-8");
+  if (process.env.CI && existsSync(snap)) {
+    console.log("  CI: using committed cities5000.txt.gz (no network)");
+    return readSnap();
+  }
+  try {
+    const res = await fetch(GEONAMES_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const zipPath = resolve(tmpdir(), `greyline-cities5000-${Date.now()}.zip`);
+    writeFileSync(zipPath, Buffer.from(await res.arrayBuffer()));
+    const text = execFileSync("unzip", ["-p", zipPath, "cities5000.txt"], { maxBuffer: 64 * 1024 * 1024 }).toString("utf-8");
+    if (!existsSync(BUNDLE_DIR)) mkdirSync(BUNDLE_DIR, { recursive: true });
+    writeFileSync(snap, gzipSync(Buffer.from(text, "utf-8")));
+    return text;
+  } catch (err) {
+    if (existsSync(snap)) {
+      console.warn(`  cities5000 fetch failed (${String(err)}); using committed snapshot`);
+      return readSnap();
+    }
+    throw err;
+  }
+}
+
+async function importGeoNamesCities(db: ReturnType<typeof getDb>) {
+  console.log("Resolving GeoNames cities5000…");
+  const text = await resolveGeoNames();
+  const insert = db.prepare(
+    `INSERT INTO geonames_cities (geonameid, name, asciiname, lat, lng, country_code, admin1_code, population, timezone)
+     VALUES (?,?,?,?,?,?,?,?,?)
+     ON CONFLICT(geonameid) DO UPDATE SET name=excluded.name, population=excluded.population`,
+  );
+  db.exec("DELETE FROM geonames_cities");
+  let n = 0;
+  const run = db.transaction((lines: string[]) => {
+    for (const line of lines) {
+      if (!line) continue;
+      const c = line.split("\t"); // geonameid,name,asciiname,alt,lat,lng,fclass,fcode,cc,cc2,admin1,...,pop(14),...,tz(17)
+      if (c.length < 18) continue;
+      const id = parseInt(c[0], 10);
+      const lat = parseFloat(c[4]);
+      const lng = parseFloat(c[5]);
+      if (!Number.isFinite(id) || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      insert.run(id, c[1] || c[2] || "", c[2] || null, lat, lng, c[8] || null, c[10] || null, parseInt(c[14], 10) || 0, c[17] || null);
+      n++;
+    }
+  });
+  run(text.split("\n"));
+  console.log(`  geonames_cities: ${n} rows`);
+  recordSource(db, { id: "geonames-cities", name: "GeoNames cities (5000+)", license: "CC BY 4.0", url: GEONAMES_URL, category: "gazetteer", rowCount: n });
+}
+
 /** Load curated, hand-authored JSON (no download) into a table. */
 function importCuratedJson(
   db: ReturnType<typeof getDb>,
@@ -226,6 +289,7 @@ async function main() {
   // Keep a compact JSON bundle of scheduled-service airports for offline re-seed.
   writeFileSync(resolve(BUNDLE_DIR, "airports-count.json"), JSON.stringify({ total: airportRows.length }));
   await importVisas(db);
+  await importGeoNamesCities(db);
   importIntel(db);
   importPractical(db);
   closeDb();
