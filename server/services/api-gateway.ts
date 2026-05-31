@@ -6,6 +6,9 @@ interface ProxyOptions {
   url: string;
   params?: Record<string, string>;
   cacheTtlSeconds?: number;
+  // For key-required connectors: where to inject the stored api_key. If set and
+  // no key is stored, the request is refused (the connector stays gated).
+  auth?: { in: "header" | "query"; name: string };
 }
 
 interface ApiToggle {
@@ -30,7 +33,11 @@ export function getApiToggle(apiId: string): ApiToggle | undefined {
 
 export function setApiToggle(apiId: string, enabled: boolean, useTor: boolean = false): void {
   const db = getDb();
-  db.prepare('INSERT OR REPLACE INTO api_toggles (api_id, enabled, use_tor) VALUES (?, ?, ?)').run(apiId, enabled ? 1 : 0, useTor ? 1 : 0);
+  // ON CONFLICT (not REPLACE) so flipping a toggle never wipes a stored api_key.
+  db.prepare(
+    `INSERT INTO api_toggles (api_id, enabled, use_tor) VALUES (?, ?, ?)
+     ON CONFLICT(api_id) DO UPDATE SET enabled = excluded.enabled, use_tor = excluded.use_tor`,
+  ).run(apiId, enabled ? 1 : 0, useTor ? 1 : 0);
 }
 
 export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ data: T; cached: boolean } | null> {
@@ -49,6 +56,18 @@ export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ 
   }
 
   const db = getDb();
+
+  // Key-required connectors: a key must be present, else gate (treat as off).
+  let apiKey: string | null = null;
+  if (options.auth) {
+    const row = db.prepare('SELECT api_key FROM api_toggles WHERE api_id = ?').get(apiId) as { api_key: string | null } | undefined;
+    apiKey = row?.api_key ?? null;
+    if (!apiKey) {
+      console.warn(`proxyFetch: "${apiId}" requires an API key but none is set — refusing.`);
+      return null;
+    }
+  }
+
   const cacheKey = `${apiId}:${url}:${JSON.stringify(params || {})}`;
 
   // Check cache
@@ -62,12 +81,19 @@ export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ 
 
   // Identify the app (required by OSM Nominatim/Overpass usage policy; an empty
   // UA gets a 403). It names the software, never the user — privacy intact.
+  const headers: Record<string, string> = {
+    'User-Agent': 'Greyline/1.0 (privacy-first local travel app; self-hosted)',
+    'Accept': 'application/json',
+  };
+  const finalParams: Record<string, string> = { ...(params || {}) };
+  if (options.auth && apiKey) {
+    if (options.auth.in === 'header') headers[options.auth.name] = apiKey;
+    else finalParams[options.auth.name] = apiKey;
+  }
+
   const data = await ofetch<T>(url, {
-    params,
-    headers: {
-      'User-Agent': 'Greyline/1.0 (privacy-first local travel app; self-hosted)',
-      'Accept': 'application/json'
-    },
+    params: finalParams,
+    headers,
     timeout: 10000,
     // Don't follow cross-host 3xx redirects: a compromised/MITM'd upstream could
     // redirect to an internal/link-local target (SSRF), undermining egress control.

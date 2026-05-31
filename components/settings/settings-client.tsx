@@ -16,11 +16,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { CONNECTIONS, CONNECTION_CATEGORIES } from "@/lib/connections";
+import { CONNECTIONS, CONNECTION_CATEGORIES, type ConnectionMeta } from "@/lib/connections";
 
 type Country = { code: string; name: string };
 
-type Toggle = { api_id: string; enabled: boolean; use_tor: boolean };
+type Toggle = { api_id: string; enabled: boolean; use_tor: boolean; has_key?: boolean };
 
 function truthy(v: string | undefined): boolean {
   return String(v ?? "").replace(/"/g, "") === "true";
@@ -96,6 +96,18 @@ export function SettingsClient({ countries }: { countries: Country[] }) {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ api_id: apiId, enabled }),
+    });
+  }
+
+  // Save (or clear, with "") a connector's API key. The raw key is never read
+  // back — the toggles API returns only has_key — so we just track that boolean.
+  async function setKey(apiId: string, key: string) {
+    const has_key = key.trim().length > 0;
+    setToggles((prev) => prev.map((t) => (t.api_id === apiId ? { ...t, has_key } : t)));
+    await fetch("/api/toggles", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_id: apiId, api_key: key }),
     });
   }
 
@@ -233,21 +245,26 @@ export function SettingsClient({ countries }: { countries: Country[] }) {
                     const t = toggles.find((x) => x.api_id === conn.id);
                     const checked = !offline && (t?.enabled ?? false);
                     return (
-                      <li key={conn.id} className="flex items-center justify-between gap-4 py-3.5">
-                        <div className="min-w-0 space-y-0.5">
-                          <Label htmlFor={`conn-${conn.id}`} className="text-sm font-medium text-foreground">
-                            {conn.label}
-                          </Label>
-                          <p className="text-sm text-muted-foreground">{conn.description}</p>
-                          <p className="font-mono text-[11px] text-faint">{conn.host}</p>
+                      <li key={conn.id} className="py-3.5">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="min-w-0 space-y-0.5">
+                            <Label htmlFor={`conn-${conn.id}`} className="text-sm font-medium text-foreground">
+                              {conn.label}
+                            </Label>
+                            <p className="text-sm text-muted-foreground">{conn.description}</p>
+                            <p className="font-mono text-[11px] text-faint">{conn.host}</p>
+                          </div>
+                          <Switch
+                            id={`conn-${conn.id}`}
+                            checked={checked}
+                            disabled={offline}
+                            onCheckedChange={(v) => setConnection(conn.id, v)}
+                            aria-label={`Toggle ${conn.label}`}
+                          />
                         </div>
-                        <Switch
-                          id={`conn-${conn.id}`}
-                          checked={checked}
-                          disabled={offline}
-                          onCheckedChange={(v) => setConnection(conn.id, v)}
-                          aria-label={`Toggle ${conn.label}`}
-                        />
+                        {conn.needsKey && (
+                          <KeyField conn={conn} hasKey={Boolean(t?.has_key)} onSave={(k) => setKey(conn.id, k)} />
+                        )}
                       </li>
                     );
                   })}
@@ -298,6 +315,41 @@ function Segmented({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// Masked API-key field for a key-required connector. The key never leaves the
+// server once set (we only know has_key), so the input starts empty and we track
+// the saved state locally.
+function KeyField({ conn, hasKey, onSave }: { conn: ConnectionMeta; hasKey: boolean; onSave: (k: string) => void }) {
+  const [value, setValue] = useState("");
+  const [saved, setSaved] = useState(hasKey);
+  const trimmed = value.trim();
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <input
+        type="password"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={saved ? "Key saved — paste to replace" : "Paste API key"}
+        aria-label={`${conn.label} API key`}
+        autoComplete="off"
+        className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+      <button
+        type="button"
+        disabled={!trimmed && !saved}
+        onClick={() => {
+          if (trimmed) { onSave(trimmed); setSaved(true); setValue(""); }
+          else if (saved) { onSave(""); setSaved(false); }
+        }}
+        className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent-subtle disabled:opacity-40"
+      >
+        {trimmed ? "Save" : saved ? "Clear" : "Save"}
+      </button>
+      {saved && <span className="text-[11px] text-accent-text">Key saved</span>}
+      {conn.keyHint && <span className="w-full text-[11px] text-faint">{conn.keyHint}</span>}
     </div>
   );
 }
