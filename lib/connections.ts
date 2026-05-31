@@ -12,6 +12,10 @@ export type ConnectionMeta = {
   host: string;
   /** Grouping in the Settings → Connections hub. */
   category: ConnectionCategory;
+  /** Requires a free API key the user pastes in Settings; off until a key is set. */
+  needsKey?: boolean;
+  /** Where to get the key, shown next to the key field. */
+  keyHint?: string;
 };
 
 export const CONNECTION_CATEGORIES: { id: ConnectionCategory; label: string }[] = [
