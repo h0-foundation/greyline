@@ -35,13 +35,15 @@ import { FactbookPanel } from "@/components/intel/factbook-panel";
 import { RiskScoreCard } from "@/components/intel/risk-score";
 import { computeRiskScore } from "@/lib/risk-score";
 import { RoadSafetyCard } from "@/components/intel/road-safety";
+import { ConflictTrend } from "@/components/intel/conflict-trend";
+import { getConflictTrend } from "$server/db/repositories/conflict";
 import {
   toBriefing,
   buildNeighborIndex,
   formatPopulation,
   formatArea,
 } from "@/lib/countries";
-import { BookOpen, Gauge, ShieldAlert } from "lucide-react";
+import { BookOpen, Gauge, ShieldAlert, Swords } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +100,7 @@ export default async function CountryBriefingPage({
   const factbook = factbookRow ? decodeFactbook(factbookRow.data) : null;
   const peakAdvisory = advisories.length ? Math.max(...advisories.map((a) => a.level)) : null;
   const risk = computeRiskScore(indices, peakAdvisory);
+  const conflict = getConflictTrend(c.name);
   const emergency: Record<string, string> = (() => {
     try { return practical ? JSON.parse(practical.emergency_numbers) : {}; } catch { return {}; }
   })();
@@ -177,6 +180,14 @@ export default async function CountryBriefingPage({
       <Section title="Road safety" icon={Car} className="!p-5">
         <RoadSafetyCard code={profile.country_code} drivingSide={c.drivingSide} />
       </Section>
+
+      {/* Armed conflict — UCDP fatality trend, shown only where there is a record
+          of organised violence (so peaceful countries don't carry an empty card). */}
+      {conflict && (
+        <Section title="Armed conflict" icon={Swords} className="!p-5">
+          <ConflictTrend recent={conflict.recent} total={conflict.total} />
+        </Section>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Section title="At a glance" icon={MapPin}>

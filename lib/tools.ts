@@ -1,6 +1,6 @@
 import {
   ImageOff, Banknote, CloudSun, AlertTriangle, PlaneTakeoff, Stamp,
-  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, Route, Search, Siren, Fingerprint, Eraser, ScanText, MapPinned, FileScan, EyeOff, type LucideIcon,
+  Hotel, Luggage, ShieldCheck, Eye, Plane, Sun, ShieldAlert, Radar, Route, Search, Siren, Fingerprint, Eraser, ScanText, MapPinned, FileScan, EyeOff, Gavel, type LucideIcon,
 } from "lucide-react";
 
 /* Single source of truth for the tools catalog. Consumed by the /tools index
@@ -57,6 +57,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { href: "/tools/image-hash", label: "Image fingerprint", description: "Perceptual hash (aHash/dHash) to detect near-duplicate or recycled images. In-browser.", icon: Fingerprint, offline: true },
       { href: "/tools/sanitize", label: "Sanitize & redact", description: "Re-encode an image to strip all metadata, and burn redactions into the pixels. In-browser; never uploaded.", icon: Eraser, offline: true },
       { href: "/tools/entities", label: "Entity extractor", description: "Pull names, emails, phones, IBANs, handles, URLs and crypto out of pasted text — on-device. Feeds self-doxxing.", icon: ScanText, offline: true },
+      { href: "/tools/sanctions", label: "Sanctions screening", description: "Screen a name against the OFAC SDN + Consolidated lists from a bundled snapshot. On-device; the name never leaves your machine.", icon: Gavel, offline: true },
       { href: "/tools/geolocate", label: "Feature-cluster geolocation", description: "Place a photo by the landmarks in it — find where a mosque, petrol station and tram stop co-occur. Offline over an Overpass export.", icon: MapPinned, offline: true },
       { href: "/tools/chrono", label: "Chronolocation lab", description: "Date and place a photo from its shadows — sun position + reverse time-of-day, all local.", icon: Sun, offline: true },
     ],

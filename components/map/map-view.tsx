@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize, Route as RouteIcon } from "lucide-react";
+import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize, Route as RouteIcon, Swords } from "lucide-react";
 import { PMTiles } from "pmtiles";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ type Aircraft = { hex: string; flight?: string; lat?: number; lon?: number; alt_
 type Quake = { properties: { mag: number; place: string; url: string; tsunami: number }; geometry: { coordinates: [number, number, number] } };
 type Camera = { lat: number; lon: number } & Record<string, unknown>;
 type Disaster = { geometry: { coordinates: [number, number] }; properties: { eventtype: string; name: string; htmldescription: string; alertlevel?: string; url?: { report?: string } } };
+type ConflictEvent = { lat: number; lng: number; year: number; deaths: number; type_of_violence: number; country: string | null; conflict_name: string | null; date_start: string | null };
 
 const DISASTER_GLYPH: Record<string, string> = { EQ: "⊙", TC: "🌀", FL: "🌊", VO: "🌋", WF: "🔥", DR: "☀" };
 const ALERT_COLOR: Record<string, string> = { Red: "#e06a5a", Orange: "#e0992a", Green: "#74b277" };
@@ -83,9 +84,12 @@ export function MapView({ markers }: { markers: Marker[] }) {
   // Per-layer fetch generation. Bumped when a layer is cleared so an in-flight
   // request that resolves afterwards can detect it's stale and not re-add markers.
   const fetchGen = useRef<Record<string, number>>({});
+  // Conflict is bundled offline data (no connector), loaded once into a native
+  // circle layer — toggling just flips its visibility.
+  const conflictLoaded = useRef(false);
 
   const [ready, setReady] = useState(false);
-  const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false });
+  const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false, conflict: false });
   const [satellite, setSatellite] = useState(false);
   const [radar, setRadar] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -294,6 +298,26 @@ export function MapView({ markers }: { markers: Marker[] }) {
       map.addLayer({ id: "saved-routes", type: "line", source: "saved-routes", layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": ["match", ["get", "type"], "sdr", "#e0b24a", "extraction", "#74b277", "variation", "#7fb2ff", "#9aa39c"], "line-width": 3, "line-opacity": 0.85 } });
       map.addSource("draft-route", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({ id: "draft-route", type: "line", source: "draft-route", layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": "#f0f0f0", "line-width": 2, "line-dasharray": [2, 1.5], "line-opacity": 0.9 } });
+      // Armed-conflict events (UCDP, bundled offline). A native circle layer —
+      // thousands of points stay smooth where DOM markers would jank. Radius
+      // scales with the fatality count; click for the event detail.
+      map.addSource("conflict", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "conflict-pts", type: "circle", source: "conflict", layout: { visibility: "none" },
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["log10", ["max", 1, ["get", "deaths"]]], 0, 3, 1, 6, 2, 11, 3, 18, 4, 26],
+          "circle-color": "#c0392b", "circle-opacity": 0.45,
+          "circle-stroke-color": "#7d1f15", "circle-stroke-width": 0.75,
+        },
+      });
+      map.on("click", "conflict-pts", (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        if (f.geometry.type !== "Point") return;
+        new maplibregl.Popup({ offset: 8 }).setLngLat(f.geometry.coordinates as [number, number]).setHTML(conflictPopup(f.properties as ConflictEvent)).addTo(map);
+      });
+      map.on("mouseenter", "conflict-pts", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "conflict-pts", () => { map.getCanvas().style.cursor = ""; });
       setReady(true);
     });
 
@@ -510,6 +534,32 @@ export function MapView({ markers }: { markers: Marker[] }) {
     setCameraStats({ total: counts.total, alpr: counts.alpr });
   }
 
+  // Armed conflict (UCDP) — bundled offline, no connector toggle. Loads once
+  // into the native circle layer; toggling thereafter just flips visibility.
+  async function setConflict(on: boolean) {
+    setLayers((s) => ({ ...s, conflict: on }));
+    const map = mapRef.current;
+    if (!map) return;
+    if (map.getLayer("conflict-pts")) map.setLayoutProperty("conflict-pts", "visibility", on ? "visible" : "none");
+    if (on && !conflictLoaded.current) {
+      try {
+        const res = await fetch("/api/map/conflict");
+        if (!res.ok) return;
+        const { events } = (await res.json()) as { events: ConflictEvent[] };
+        const src = map.getSource("conflict") as maplibregl.GeoJSONSource | undefined;
+        src?.setData({
+          type: "FeatureCollection",
+          features: (events ?? []).map((ev) => ({
+            type: "Feature" as const,
+            properties: { ...ev },
+            geometry: { type: "Point" as const, coordinates: [ev.lng, ev.lat] },
+          })),
+        });
+        conflictLoaded.current = true;
+      } catch { /* offline-first — bundled data should always be present */ }
+    }
+  }
+
   // refetch viewport-bound layers on pan/zoom
   useEffect(() => {
     const map = mapRef.current;
@@ -580,6 +630,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
         <LayerRow icon={Plane} color="#7fb2ff" label="Live aircraft" on={layers.aircraft} onToggle={(v) => setLayer("aircraft", v)} note={notes.aircraft} />
         <LayerRow icon={Activity} color="#e06a5a" label="Earthquakes" on={layers.quakes} onToggle={(v) => setLayer("quakes", v)} note={notes.quakes} />
         <LayerRow icon={TriangleAlert} color="#e0992a" label="Disasters (GDACS)" on={layers.disasters} onToggle={(v) => setLayer("disasters", v)} note={notes.disasters} />
+        <LayerRow icon={Swords} color="#e06a5a" label="Armed conflict (UCDP)" on={layers.conflict} onToggle={setConflict} />
         <LayerRow icon={Cctv} color="#e0b24a" label="Cameras & ALPR" on={layers.cameras} onToggle={(v) => setLayer("cameras", v)} note={notes.cameras} />
         {layers.cameras && cameraStats && cameraStats.total > 0 && (
           <div className="ml-6 mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-white/55">
@@ -776,6 +827,17 @@ function cameraPopup(cam: Camera, kind: CameraKind): string {
     ${kind === "alpr" ? '<div style="font-size:11px;color:#b04030;margin-bottom:4px">Reads & logs your licence plate, time, and location.</div>' : ""}
     ${rows.length ? rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#888"><span>${k}</span><span style="color:#222;text-transform:capitalize">${escapeHtml(v ?? "")}</span></div>`).join("") : '<div style="font-size:11px;color:#888">No further details tagged in OpenStreetMap.</div>'}
     <div style="margin-top:5px;font-size:10px;color:#aaa">© OpenStreetMap</div>
+  </div>`;
+}
+function conflictPopup(e: ConflictEvent): string {
+  const TOV: Record<number, string> = { 1: "State-based", 2: "Non-state", 3: "One-sided violence" };
+  const deaths = Number(e.deaths) || 0;
+  return `<div style="min-width:170px;max-width:240px;font-family:system-ui">
+    <div style="font:600 13px system-ui;margin-bottom:3px">${escapeHtml(e.conflict_name || "Armed conflict")}</div>
+    <div style="font-size:11px;color:#888;margin-bottom:4px">${escapeHtml(TOV[e.type_of_violence] || "Conflict")} · ${escapeHtml(String(e.year ?? ""))}</div>
+    <div style="font-size:12px;color:#b04030;font-weight:600">${deaths.toLocaleString()} ${deaths === 1 ? "death" : "deaths"} <span style="font-weight:400;color:#999">(UCDP best estimate)</span></div>
+    <div style="font-size:11px;color:#888;margin-top:3px">${escapeHtml(e.country || "")}${e.date_start ? ` · ${escapeHtml(String(e.date_start))}` : ""}</div>
+    <div style="margin-top:5px;font-size:10px;color:#aaa">© UCDP GED (CC BY)</div>
   </div>`;
 }
 function boundsRadiusNm(map: maplibregl.Map): number {
