@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { CONNECTIONS } from "@/lib/connections";
+import { CONNECTIONS, CONNECTION_CATEGORIES } from "@/lib/connections";
 
 type Country = { code: string; name: string };
 
@@ -221,30 +221,41 @@ export function SettingsClient({ countries }: { countries: Country[] }) {
           </span>
         </div>
 
-        <ul className="mt-4 divide-y divide-border">
-          {CONNECTIONS.map((conn) => {
-            const t = toggles.find((x) => x.api_id === conn.id);
-            const checked = !offline && (t?.enabled ?? false);
+        <div className="mt-4 space-y-5">
+          {CONNECTION_CATEGORIES.map((cat) => {
+            const conns = CONNECTIONS.filter((c) => c.category === cat.id);
+            if (conns.length === 0) return null;
             return (
-              <li key={conn.id} className="flex items-center justify-between gap-4 py-3.5">
-                <div className="min-w-0 space-y-0.5">
-                  <Label htmlFor={`conn-${conn.id}`} className="text-sm font-medium text-foreground">
-                    {conn.label}
-                  </Label>
-                  <p className="text-sm text-muted-foreground">{conn.description}</p>
-                  <p className="font-mono text-[11px] text-faint">{conn.host}</p>
-                </div>
-                <Switch
-                  id={`conn-${conn.id}`}
-                  checked={checked}
-                  disabled={offline}
-                  onCheckedChange={(v) => setConnection(conn.id, v)}
-                  aria-label={`Toggle ${conn.label}`}
-                />
-              </li>
+              <div key={cat.id}>
+                <p className="label-caps mb-1 text-faint">{cat.label}</p>
+                <ul className="divide-y divide-border">
+                  {conns.map((conn) => {
+                    const t = toggles.find((x) => x.api_id === conn.id);
+                    const checked = !offline && (t?.enabled ?? false);
+                    return (
+                      <li key={conn.id} className="flex items-center justify-between gap-4 py-3.5">
+                        <div className="min-w-0 space-y-0.5">
+                          <Label htmlFor={`conn-${conn.id}`} className="text-sm font-medium text-foreground">
+                            {conn.label}
+                          </Label>
+                          <p className="text-sm text-muted-foreground">{conn.description}</p>
+                          <p className="font-mono text-[11px] text-faint">{conn.host}</p>
+                        </div>
+                        <Switch
+                          id={`conn-${conn.id}`}
+                          checked={checked}
+                          disabled={offline}
+                          onCheckedChange={(v) => setConnection(conn.id, v)}
+                          aria-label={`Toggle ${conn.label}`}
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             );
           })}
-        </ul>
+        </div>
         {offline && (
           <p className="mt-3 flex items-center gap-1.5 text-xs text-faint">
             <Info className="size-3" />
