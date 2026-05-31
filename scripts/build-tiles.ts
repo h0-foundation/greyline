@@ -11,7 +11,7 @@
  *   pnpm build:tiles
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync, statSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
 
@@ -118,8 +118,10 @@ async function main() {
   console.log(`\ntippecanoe ${args.join(" ")}\n`);
   execFileSync("tippecanoe", args, { stdio: "inherit" });
 
-  const size = statSync(OUT).size;
-  const sha256 = createHash("sha256").update(readFileSync(OUT)).digest("hex");
+  // Read once (no stat-then-read race): size + checksum from the same bytes.
+  const out = readFileSync(OUT);
+  const size = out.length;
+  const sha256 = createHash("sha256").update(out).digest("hex");
   const mb = (size / 1024 / 1024).toFixed(2);
   console.log(`\nworld.pmtiles → ${mb} MB · sha256 ${sha256}`);
   if (size > MAX_BYTES) {
