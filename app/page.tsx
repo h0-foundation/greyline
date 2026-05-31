@@ -542,6 +542,18 @@ export default function Home() {
         >
           <Plus className="size-4" /> Start a trip
         </Link>
+
+        {/* First-run orientation — the two other high-value opening moves, so a
+            brand-new install isn't a dead end. No wizard, just signposts. */}
+        <div className="mt-7 flex flex-col gap-2">
+          <p className="label-caps text-faint">Or get oriented</p>
+          <Link href="/settings" className="text-sm text-muted-foreground transition-colors hover:text-accent-text">
+            Set your home country&nbsp;→&nbsp;<span className="text-faint">tunes visa, currency, and advisory tools to you</span>
+          </Link>
+          <Link href="/countries" className="text-sm text-muted-foreground transition-colors hover:text-accent-text">
+            Explore a country briefing&nbsp;→&nbsp;<span className="text-faint">privacy posture, risk score, practical intel</span>
+          </Link>
+        </div>
       </section>
     );
   }

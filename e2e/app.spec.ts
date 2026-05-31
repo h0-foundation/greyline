@@ -17,6 +17,13 @@ test("home renders the cockpit", async ({ page }) => {
   await expect(kpi.getByText("Trips", { exact: true })).toBeVisible();
   await expect(kpi.getByText("Vault docs", { exact: true })).toBeVisible();
   await expect(kpi.getByText("Visa-free reach", { exact: true })).toBeVisible();
+
+  // First-run orientation: in the empty cockpit (CI fresh DB) the "get oriented"
+  // signposts appear. Guarded so the test also passes with an active trip locally.
+  if (await page.getByText("Nothing in flight").isVisible().catch(() => false)) {
+    await expect(page.getByRole("link", { name: /Set your home country/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Explore a country briefing/ })).toBeVisible();
+  }
 });
 
 test("countries: search and open a briefing with privacy posture", async ({ page }) => {
