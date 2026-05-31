@@ -76,3 +76,28 @@ test("tools: hazard alerts rationalize a pasted feed offline (EEMUA-191)", async
   await expect(page.getByText(/prioritised alert/i).first()).toBeVisible();
   await expect(page.getByText("Near coast").first()).toBeVisible();
 });
+
+test("maps: offline world basemap loads air-gapped (PMTiles) and is registered", async ({ page, request }) => {
+  // Block every cross-origin request to simulate an air-gap; the default
+  // basemap must still render from the committed public/geo/world.pmtiles.
+  await page.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1")) return route.continue();
+    return route.abort();
+  });
+  const pmtilesResponse = page.waitForResponse((r) => r.url().includes("/geo/world.pmtiles"), { timeout: 20_000 });
+  await page.goto("/map");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 15_000 });
+  // PMTiles issues a range read for the header; static serving answers 200/206.
+  const pm = await pmtilesResponse;
+  expect([200, 206]).toContain(pm.status());
+
+  // The basemap is registered in the offline-bundle manifest with a checksum.
+  const res = await request.get("/api/bundles");
+  expect(res.ok()).toBeTruthy();
+  const { bundles } = await res.json();
+  const world = bundles.find((b: { region: string; type: string }) => b.region === "world" && b.type === "map");
+  expect(world).toBeTruthy();
+  expect(world.checksum).toBeTruthy();
+  expect(world.path).toMatch(/world\.pmtiles$/);
+});

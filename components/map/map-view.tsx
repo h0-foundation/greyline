@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert } from "lucide-react";
+import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { cameraCones, cameraCounts, classifyCamera, type CameraKind } from "@/lib/camera-coverage";
+import { registerPmtiles, worldBaseStyle, CARTO_DARK_TILES } from "@/lib/map-style";
 
 export type MapMarker = { id: string; type: "destination" | "rally" | "sighting"; lat: number; lng: number; label: string };
 type Marker = MapMarker;
@@ -25,31 +26,10 @@ const MARKER_COLOR: Record<Marker["type"], string> = {
   sighting: "#e06a5a",
 };
 
-// Premium dark basemap with full detail (roads, cities, labels) from CARTO's
-// free, no-key dark tiles (OSM-derived). The OSINT map is inherently online, so
-// real tiles are appropriate here; falls back to a dark fill if tiles fail.
-function darkStyle(): maplibregl.StyleSpecification {
-  return {
-    version: 8,
-    sources: {
-      basemap: {
-        type: "raster",
-        tiles: [
-          "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        ],
-        tileSize: 256,
-        attribution: "© OpenStreetMap contributors © CARTO",
-      },
-    },
-    layers: [
-      { id: "bg", type: "background", paint: { "background-color": "#0c0f0e" } },
-      { id: "basemap", type: "raster", source: "basemap" },
-    ],
-  };
-}
+// The basemap is the committed offline vector world (lib/map-style →
+// public/geo/world.pmtiles), so the OSINT map renders fully air-gapped by
+// default. Online detail (CARTO), satellite, and radar are opt-in layers added
+// on top in map.on("load").
 
 // NASA GIBS true-color satellite imagery (free, no key). Added as a hidden layer
 // and toggled to visible. Uses yesterday's pass to guarantee availability.
@@ -89,6 +69,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
   const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false });
   const [satellite, setSatellite] = useState(false);
   const [radar, setRadar] = useState(false);
+  const [detail, setDetail] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState(false);
   const [cameraStats, setCameraStats] = useState<{ total: number; alpr: number } | null>(null);
@@ -102,6 +83,11 @@ export function MapView({ markers }: { markers: Marker[] }) {
   function toggleSatellite(on: boolean) {
     setSatellite(on);
     mapRef.current?.setLayoutProperty("satellite", "visibility", on ? "visible" : "none");
+  }
+
+  function toggleDetail(on: boolean) {
+    setDetail(on);
+    mapRef.current?.setLayoutProperty("carto", "visibility", on ? "visible" : "none");
   }
 
   async function toggleRadar(on: boolean) {
@@ -131,9 +117,10 @@ export function MapView({ markers }: { markers: Marker[] }) {
   // ---- init map ----
   useEffect(() => {
     if (!ref.current) return;
+    registerPmtiles();
     const map = new maplibregl.Map({
       container: ref.current,
-      style: darkStyle(),
+      style: worldBaseStyle(),
       center: markers[0] ? [markers[0].lng, markers[0].lat] : [10, 25],
       zoom: markers[0] ? 3 : 1.4,
       maxZoom: 18,
@@ -148,6 +135,10 @@ export function MapView({ markers }: { markers: Marker[] }) {
         markers.forEach((m) => b.extend([m.lng, m.lat]));
         map.fitBounds(b, { padding: 60, animate: false, maxZoom: 6 });
       }
+      // Optional detailed online raster tiles (CARTO), hidden until toggled —
+      // full road/label detail when connected; never fetched unless enabled.
+      map.addSource("carto", { type: "raster", tileSize: 256, tiles: CARTO_DARK_TILES, attribution: "© OpenStreetMap contributors © CARTO" });
+      map.addLayer({ id: "carto", type: "raster", source: "carto", layout: { visibility: "none" } });
       // Satellite imagery (NASA GIBS), hidden until toggled.
       map.addSource("satellite", {
         type: "raster", tileSize: 256, maxzoom: 8,
@@ -401,6 +392,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
 
       <div className="absolute right-3 top-3 w-60 rounded-xl border border-white/10 bg-black/80 p-3 text-white shadow-lg backdrop-blur">
         <p className="label-caps mb-2 text-white/50">Basemap</p>
+        <LayerRow icon={MapIcon} color="#9aa39c" label="Detailed online tiles" on={detail} onToggle={toggleDetail} />
         <LayerRow icon={Satellite} color="#9fd3ff" label="Satellite imagery" on={satellite} onToggle={toggleSatellite} />
         <LayerRow icon={CloudRain} color="#7fb2ff" label="Weather radar" on={radar} onToggle={toggleRadar} note={notes.radar} />
         <p className="label-caps mb-2 mt-3 text-white/50">Layers</p>

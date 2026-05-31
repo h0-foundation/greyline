@@ -15,6 +15,7 @@ import {
   type RouteType,
   type LngLat,
 } from "@/lib/route-planning";
+import { registerPmtiles, worldBaseStyle } from "@/lib/map-style";
 
 type SavedRoute = {
   id: string;
@@ -23,30 +24,6 @@ type SavedRoute = {
   waypoints: string;
   distance_m: number | null;
 };
-
-// Inlined dark raster style (same free CARTO tiles as the OSINT map) so this
-// focused planner is fully independent of components/map/map-view.tsx.
-function darkStyle(): maplibregl.StyleSpecification {
-  return {
-    version: 8,
-    sources: {
-      basemap: {
-        type: "raster",
-        tiles: [
-          "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        ],
-        tileSize: 256,
-        attribution: "© OpenStreetMap contributors © CARTO",
-      },
-    },
-    layers: [
-      { id: "bg", type: "background", paint: { "background-color": "#0c0f0e" } },
-      { id: "basemap", type: "raster", source: "basemap" },
-    ],
-  };
-}
 
 function numDot(n: number) {
   const el = document.createElement("div");
@@ -75,9 +52,10 @@ export function RoutePlanner() {
   // ---- init map ----
   useEffect(() => {
     if (!ref.current) return;
+    registerPmtiles();
     const map = new maplibregl.Map({
       container: ref.current,
-      style: darkStyle(),
+      style: worldBaseStyle(),
       center: [10, 25],
       zoom: 1.6,
       maxZoom: 19,

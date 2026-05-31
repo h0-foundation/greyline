@@ -79,6 +79,9 @@ jobs:
       - name: Build (cached if same SHA)
         run: pnpm build
 
+      # Note: the offline world basemap (public/geo/world.pmtiles) is committed
+      # in-repo and picked up by `pnpm seed`. It is NOT built here — `build:tiles`
+      # needs the tippecanoe binary (absent on runners) and is maintainer-only.
       - name: Migrate + seed local SQLite
         run: pnpm migrate && pnpm seed
 
