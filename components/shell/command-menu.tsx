@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  Monitor, Moon, Sun, Plus, FileDown, Lock, Eye, Database, HardDriveDownload,
+  Monitor, Moon, Sun, Plus, FileDown, Lock, Eye, Database, HardDriveDownload, Compass,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -25,6 +26,8 @@ const ACTIONS = [
   { label: "Data sources & licenses", hint: "what's bundled", href: "/about/data-sources", icon: Database },
 ] as const;
 
+type Trip = { id: string; name: string; status?: string };
+
 export function CommandMenu({
   open,
   onOpenChange,
@@ -34,6 +37,21 @@ export function CommandMenu({
 }) {
   const router = useRouter();
   const { setTheme } = useTheme();
+  const [trips, setTrips] = useState<Trip[]>([]);
+
+  // Load trips once each time the palette opens, so search can jump straight to
+  // a trip by name. cmdk's built-in filter scores each item's `value`; every
+  // trip gets a STABLE, UNIQUE value (name + id) so duplicate names can't desync
+  // cmdk's internal selection from the DOM (the bug a prior attempt hit).
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/trips")
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled && Array.isArray(data)) setTrips(data as Trip[]); })
+      .catch(() => { /* offline / no trips — the palette still works for pages */ });
+    return () => { cancelled = true; };
+  }, [open]);
 
   const run = (fn: () => void) => {
     onOpenChange(false);
@@ -47,7 +65,7 @@ export function CommandMenu({
       title="Command menu"
       description="Search and jump to anywhere in Greyline"
     >
-      <CommandInput placeholder="Search pages, tools, actions…" />
+      <CommandInput placeholder="Search pages, tools, trips, actions…" />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Go to">
@@ -72,6 +90,21 @@ export function CommandMenu({
             </CommandItem>
           ))}
         </CommandGroup>
+        {trips.length > 0 && (
+          <CommandGroup heading="Trips">
+            {trips.map((t) => (
+              <CommandItem
+                key={t.id}
+                value={`${t.name}__${t.id}`}
+                onSelect={() => run(() => router.push(`/trips/${t.id}`))}
+              >
+                <Compass />
+                <span>{t.name}</span>
+                {t.status && <span className="ml-2 truncate text-xs text-faint">{t.status}</span>}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
         <CommandGroup heading="Tools">
           {allTools.map((t) => (
             <CommandItem
