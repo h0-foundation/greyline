@@ -1,4 +1,5 @@
 import { getTravelAdvisories } from "$server/api-clients/travel-advisory";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,6 @@ export async function GET() {
     return Response.json({ ok: true, advisories: data });
   } catch (err) {
     // Never return a non-JSON body — the client parses JSON unconditionally.
-    return Response.json(
-      { ok: false, error: err instanceof Error ? err.message : "Advisory fetch failed" },
-      { status: 502 },
-    );
+    return fail("GET /api/advisories", err, "Advisory fetch failed.", 502);
   }
 }

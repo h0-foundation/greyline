@@ -1,4 +1,5 @@
 import { getChecklistsByTrip, createChecklist } from "$server/db/repositories/checklist";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
     return Response.json({ ok: true, checklist }, { status: 201 });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/trips/[id]/checklists", err, "Could not update the checklist.");
   }
 }

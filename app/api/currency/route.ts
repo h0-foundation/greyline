@@ -1,4 +1,5 @@
 import { getExchangeRates } from "$server/api-clients/exchange-rates";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,6 @@ export async function GET(req: Request) {
     }
     return Response.json({ ok: true, base: base.toUpperCase(), rates: rates[base.toLowerCase()] ?? {} });
   } catch (err) {
-    return Response.json({ ok: false, error: err instanceof Error ? err.message : "Rate fetch failed" }, { status: 502 });
+    return fail("GET /api/currency", err, "Rate fetch failed.", 502);
   }
 }

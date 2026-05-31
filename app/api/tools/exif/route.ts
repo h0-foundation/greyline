@@ -1,4 +1,5 @@
 import { analyzeJpegExif, stripJpegExif } from "$server/services/exif";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,6 @@ export async function POST(req: Request) {
       stripped: stripped.toString("base64"),
     });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/tools/exif", err, "Could not read the file's metadata.");
   }
 }

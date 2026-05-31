@@ -4,6 +4,7 @@ import {
   verifyPassphrase,
 } from "$server/services/vault";
 import { rateLimit, tooManyRequests } from "$server/http/rate-limit";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,6 @@ export async function POST(req: Request) {
     if (!valid) return Response.json({ ok: false, error: "Wrong passphrase" }, { status: 401 });
     return Response.json({ ok: true, initialized: true });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/vault/unlock", err, "Could not unlock the vault.");
   }
 }

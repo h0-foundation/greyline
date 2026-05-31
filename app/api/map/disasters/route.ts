@@ -1,4 +1,5 @@
 import { getDisasters } from "$server/api-clients/gdacs";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,6 @@ export async function GET() {
     if (!disasters) return Response.json({ ok: false, disabled: true }, { status: 503 });
     return Response.json({ ok: true, disasters });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 502 });
+    return fail("GET /api/map/disasters", err, "Could not load disaster data.", 502);
   }
 }

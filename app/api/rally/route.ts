@@ -1,4 +1,5 @@
 import { getRallyPoints, createRallyPoint } from "$server/db/repositories/field";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,6 @@ export async function POST(req: Request) {
     });
     return Response.json({ ok: true, point }, { status: 201 });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/rally", err, "Could not save the point.");
   }
 }

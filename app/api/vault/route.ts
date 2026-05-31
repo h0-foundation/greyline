@@ -4,6 +4,7 @@ import {
   verifyPassphrase,
   encryptAndStore,
 } from "$server/services/vault";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,6 @@ export async function POST(req: Request) {
     });
     return Response.json({ ok: true, doc }, { status: 201 });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/vault", err, "Could not access the vault.");
   }
 }

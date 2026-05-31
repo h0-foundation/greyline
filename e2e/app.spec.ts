@@ -226,6 +226,24 @@ test("security: destination update ignores injected column keys (SQLi regression
   await request.delete(`/api/trips/${trip.id}`);
 });
 
+test("security: API errors return a generic envelope, never a raw exception", async ({ request }) => {
+  // A malformed JSON body makes req.json() throw; the handler must return the
+  // generic envelope (lib/api `fail`), never echo the exception string — which
+  // can carry SQL fragments, file paths, or upstream URLs.
+  // Buffer (not a string) so Playwright sends the bytes verbatim rather than
+  // re-encoding them as a JSON string — req.json() must actually throw.
+  const res = await request.post("/api/trips", {
+    headers: { "content-type": "application/json" },
+    data: Buffer.from("{ this is not valid json"),
+  });
+  expect(res.status()).toBe(500);
+  const body = await res.json();
+  expect(body.ok).toBe(false);
+  expect(body.error).toBe("Could not save the trip."); // exact generic copy
+  // Defence in depth: no exception name, stack frame, or SQL token leaks.
+  expect(body.error).not.toMatch(/Error|SyntaxError|JSON|\bat \b|SELECT|sqlite/i);
+});
+
 test("surveillance: TEDD analysis flags a recurring party across distance", async ({ page, request }) => {
   // Two sightings of the same person ~390 km apart -> a real TEDD signal
   // (Pattern or stronger), unlike the old string-only repeat counter.

@@ -1,4 +1,5 @@
 import { updateChecklistItems, deleteChecklist } from "$server/db/repositories/checklist";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const checklist = updateChecklistItems(id, body.items);
     return Response.json({ ok: true, checklist });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("PATCH /api/checklists/[id]", err, "Could not update the checklist.");
   }
 }
 

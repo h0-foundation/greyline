@@ -1,5 +1,6 @@
 import { getTraveler, updateTraveler, setCheckin, deleteTraveler } from "$server/db/repositories/roster";
 import type { CheckinStatus } from "@/lib/roster";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!traveler) return Response.json({ ok: false, error: "not found" }, { status: 404 });
     return Response.json({ ok: true, traveler });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("PATCH /api/travelers/[id]", err, "Could not update the traveller.");
   }
 }
 

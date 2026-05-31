@@ -1,4 +1,5 @@
 import { getThreatModelByTrip, upsertThreatModel } from "$server/db/repositories/threat";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
     return Response.json({ ok: true, threatModel: model });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
+    return fail("POST /api/trips/[id]/threat-model", err, "Could not save the threat model.");
   }
 }

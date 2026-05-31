@@ -1,4 +1,5 @@
 import { getEarthquakes } from "$server/api-clients/usgs";
+import { fail } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,6 @@ export async function GET() {
     if (!quakes) return Response.json({ ok: false, disabled: true }, { status: 503 });
     return Response.json({ ok: true, quakes });
   } catch (err) {
-    return Response.json({ ok: false, error: String(err) }, { status: 502 });
+    return fail("GET /api/map/earthquakes", err, "Could not load earthquake data.", 502);
   }
 }
