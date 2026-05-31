@@ -38,6 +38,36 @@ export const CARTO_DARK_TILES = [
  * lakes/rivers/places. Cities are circle dots (no glyph dependency) so the
  * basemap stays fully air-gapped. `registerPmtiles()` must run first.
  */
+/**
+ * Dark street layers for a regional Protomaps-schema pack served as `sourceId`
+ * (a vector source over pmtiles:///api/tiles/<id>). Rendered above the world
+ * base; MapLibre only requests tiles where the pack has data, so streets appear
+ * inside the pack's bbox and the world base shows everywhere else. Layer ids are
+ * namespaced by sourceId so multiple packs coexist. No symbol/glyph layers —
+ * stays air-gapped.
+ */
+export function streetPackLayers(sourceId: string): maplibregl.LayerSpecification[] {
+  return [
+    { id: `${sourceId}-earth`, type: "fill", source: sourceId, "source-layer": "earth", paint: { "fill-color": "#15181a" } },
+    { id: `${sourceId}-landuse`, type: "fill", source: sourceId, "source-layer": "landuse", paint: { "fill-color": "#171b1d", "fill-opacity": 0.5 } },
+    { id: `${sourceId}-water`, type: "fill", source: sourceId, "source-layer": "water", paint: { "fill-color": "#0e1416" } },
+    {
+      id: `${sourceId}-roads`,
+      type: "line",
+      source: sourceId,
+      "source-layer": "roads",
+      minzoom: 6,
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: {
+        "line-color": ["match", ["get", "kind"], "highway", "#6a5f3a", "major_road", "#3f463f", "medium_road", "#363b36", "#2c302c"],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.4, 14, 2.6, 17, 5],
+      },
+    },
+    { id: `${sourceId}-buildings`, type: "fill", source: sourceId, "source-layer": "buildings", minzoom: 13, paint: { "fill-color": "#1b1f22", "fill-opacity": 0.6 } },
+    { id: `${sourceId}-boundaries`, type: "line", source: sourceId, "source-layer": "boundaries", paint: { "line-color": "#3a4a3f", "line-width": 0.6, "line-opacity": 0.6 } },
+  ];
+}
+
 export function worldBaseStyle(): maplibregl.StyleSpecification {
   return {
     version: 8,

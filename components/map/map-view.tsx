@@ -4,11 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon } from "lucide-react";
+import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize } from "lucide-react";
+import { PMTiles } from "pmtiles";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { cameraCones, cameraCounts, classifyCamera, type CameraKind } from "@/lib/camera-coverage";
-import { registerPmtiles, worldBaseStyle, CARTO_DARK_TILES } from "@/lib/map-style";
+import { registerPmtiles, worldBaseStyle, streetPackLayers, CARTO_DARK_TILES } from "@/lib/map-style";
+
+type Pack = { id: string; region: string | null; path: string };
 
 export type MapMarker = { id: string; type: "destination" | "rally" | "sighting"; lat: number; lng: number; label: string };
 type Marker = MapMarker;
@@ -73,6 +77,11 @@ export function MapView({ markers }: { markers: Marker[] }) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState(false);
   const [cameraStats, setCameraStats] = useState<{ total: number; alpr: number } | null>(null);
+  const [packs, setPacks] = useState<Pack[]>([]);
+  const [packsOpen, setPacksOpen] = useState(false);
+  const [packFile, setPackFile] = useState("");
+  const [packName, setPackName] = useState("");
+  const [packErr, setPackErr] = useState<string | null>(null);
 
   function clearCones() {
     const src = mapRef.current?.getSource("camera-cones") as maplibregl.GeoJSONSource | undefined;
@@ -88,6 +97,58 @@ export function MapView({ markers }: { markers: Marker[] }) {
   function toggleDetail(on: boolean) {
     setDetail(on);
     mapRef.current?.setLayoutProperty("carto", "visibility", on ? "visible" : "none");
+  }
+
+  // ---- regional street packs (offline .pmtiles in the data dir) ----
+  // Each pack is a vector source over /api/tiles/<id>; MapLibre only requests
+  // tiles where the pack has data, so streets render inside its bbox and the
+  // world base shows elsewhere. Pack layers sit under the online raster overlays
+  // (carto/satellite) so toggling those still composites correctly.
+  function addPackLayers(map: maplibregl.Map, b: Pack) {
+    if (map.getSource(b.id)) return;
+    map.addSource(b.id, { type: "vector", url: `pmtiles:///api/tiles/${b.id}` });
+    const before = map.getLayer("carto") ? "carto" : undefined;
+    for (const layer of streetPackLayers(b.id)) map.addLayer(layer, before);
+  }
+
+  function removePackLayers(map: maplibregl.Map, id: string) {
+    for (const layer of streetPackLayers(id)) if (map.getLayer(layer.id)) map.removeLayer(layer.id);
+    if (map.getSource(id)) map.removeSource(id);
+  }
+
+  async function registerPack() {
+    setPackErr(null);
+    const res = await fetch("/api/bundles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file: packFile.trim(), name: packName.trim() || undefined }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      setPackErr(data.error || "Could not register the pack.");
+      return;
+    }
+    const b = data.bundle as Pack;
+    setPacks((p) => [b, ...p.filter((x) => x.id !== b.id)]);
+    if (mapRef.current) addPackLayers(mapRef.current, b);
+    setPackFile("");
+    setPackName("");
+  }
+
+  async function unregisterPack(id: string) {
+    setPacks((p) => p.filter((x) => x.id !== id));
+    if (mapRef.current) removePackLayers(mapRef.current, id);
+    await fetch(`/api/bundles/${id}`, { method: "DELETE" }).catch(() => {});
+  }
+
+  async function fitPack(b: Pack) {
+    try {
+      const h = await new PMTiles(`/api/tiles/${b.id}`).getHeader();
+      mapRef.current?.fitBounds([[h.minLon, h.minLat], [h.maxLon, h.maxLat]], { padding: 40, animate: true });
+      setPacksOpen(false);
+    } catch {
+      setPackErr("Couldn't read this pack's bounds.");
+    }
   }
 
   async function toggleRadar(on: boolean) {
@@ -179,6 +240,27 @@ export function MapView({ markers }: { markers: Marker[] }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- load + render registered street packs when ready ----
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/bundles");
+        const data = (await res.json()) as { bundles?: Pack[] };
+        if (cancelled) return;
+        const street = (data.bundles ?? []).filter((b) => b.id !== "map-world");
+        setPacks(street);
+        for (const b of street) addPackLayers(map, b);
+      } catch {
+        /* offline-first — no packs is fine */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   // ---- base markers ----
   useEffect(() => {
@@ -411,6 +493,62 @@ export function MapView({ markers }: { markers: Marker[] }) {
         <Button size="sm" variant={placing ? "default" : "outline"} className="mt-3 w-full" onClick={() => setPlacing((p) => !p)}>
           {placing ? <><X className="size-4" /> Cancel</> : <><Plus className="size-4" /> Add a point</>}
         </Button>
+
+        <Dialog open={packsOpen} onOpenChange={setPacksOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="mt-2 w-full">
+              <Layers className="size-4" /> Map packs{packs.length ? ` (${packs.length})` : ""}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="text-foreground sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Offline map packs</DialogTitle>
+              <DialogDescription>
+                Add a regional street-level <code className="text-xs">.pmtiles</code> for full detail offline. Draw an area at{" "}
+                <a href="https://app.protomaps.com" target="_blank" rel="noopener noreferrer" className="underline">app.protomaps.com</a>, save it into{" "}
+                <code className="text-xs">data/bundles/maps/</code>, then register it by filename. Nothing is uploaded or sent anywhere.
+              </DialogDescription>
+            </DialogHeader>
+
+            {packs.length > 0 && (
+              <ul className="divide-y divide-border rounded-lg border border-border">
+                {packs.map((p) => (
+                  <li key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                    <Layers className="size-4 shrink-0 text-faint" />
+                    <span className="min-w-0 flex-1 truncate">{p.region || p.id}</span>
+                    <button type="button" onClick={() => fitPack(p)} aria-label={`Zoom to ${p.region || "pack"}`} className="shrink-0 text-faint transition-colors hover:text-foreground">
+                      <Maximize className="size-4" />
+                    </button>
+                    <button type="button" onClick={() => unregisterPack(p.id)} aria-label={`Remove ${p.region || "pack"}`} className="shrink-0 text-faint transition-colors hover:text-destructive">
+                      <Trash2 className="size-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="space-y-2">
+              <input
+                value={packFile}
+                onChange={(e) => setPackFile(e.target.value)}
+                placeholder="filename.pmtiles"
+                aria-label="Pack filename"
+                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <input
+                value={packName}
+                onChange={(e) => setPackName(e.target.value)}
+                placeholder="Label (optional, e.g. Berlin)"
+                aria-label="Pack label"
+                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <Button size="sm" className="w-full" onClick={registerPack} disabled={!packFile.trim()}>
+                <Plus className="size-4" /> Register pack
+              </Button>
+              {packErr && <p role="alert" className="text-[11px] text-destructive">{packErr}</p>}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
