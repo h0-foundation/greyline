@@ -69,17 +69,24 @@ async function main() {
 	// this — CI stays green offline / when the upstream API is down.
 	let countries: any[] = [];
 	let fromNetwork = false;
-	try {
-		countries = await fetchFresh();
-		fromNetwork = true;
-		console.log(`Merged ${countries.length} country profiles (live)`);
-	} catch (err) {
-		console.warn(`REST Countries unavailable (${String(err)}); falling back to the committed bundle.`);
+	if (process.env.CI && existsSync(BUNDLE_FILE)) {
+		// CI: use the committed bundle directly — never touch the network, so a REST
+		// Countries outage can't red the pipeline and e2e runs are reproducible.
 		countries = loadBundle();
-		if (countries.length === 0) {
-			throw new Error('REST Countries fetch failed and no committed rest-countries.json bundle is present to fall back to.');
+		console.log(`CI: loaded ${countries.length} country profiles from the committed bundle (no network).`);
+	} else {
+		try {
+			countries = await fetchFresh();
+			fromNetwork = true;
+			console.log(`Merged ${countries.length} country profiles (live)`);
+		} catch (err) {
+			console.warn(`REST Countries unavailable (${String(err)}); falling back to the committed bundle.`);
+			countries = loadBundle();
+			if (countries.length === 0) {
+				throw new Error('REST Countries fetch failed and no committed rest-countries.json bundle is present to fall back to.');
+			}
+			console.log(`Loaded ${countries.length} country profiles from the committed bundle.`);
 		}
-		console.log(`Loaded ${countries.length} country profiles from the committed bundle.`);
 	}
 
 	// Only refresh the on-disk bundle when we actually fetched live data, so a

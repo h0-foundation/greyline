@@ -86,14 +86,16 @@ jobs:
         run: pnpm migrate && pnpm seed
 
       # The e2e suite asserts against bundled data (REST Countries, OurAirports,
-      # passport-index, and the trip-data templates). Build these against the
-      # public sources before tests. The dossier + advisories scripts hit
-      # external APIs and are intentionally skipped — features depending on
-      # them gracefully no-op when their tables are empty.
-      - name: Bundle countries (REST Countries)
+      # passport-index, trip-data templates). In CI these steps use the COMMITTED
+      # snapshots (rest-countries.json, airports.csv.gz, passport-index.csv.gz) and
+      # do NOT touch the network — `process.env.CI` makes build:countries/build:data
+      # bundle-first, so an upstream outage can't red the pipeline. The dossier +
+      # advisories scripts hit external APIs and are intentionally skipped —
+      # features depending on them gracefully no-op when their tables are empty.
+      - name: Bundle countries (committed snapshot in CI)
         run: pnpm build:countries
 
-      - name: Bundle airports + visa matrix (OurAirports + passport-index)
+      - name: Bundle airports + visa matrix (committed snapshots in CI)
         run: pnpm build:data
 
       - name: Bundle trip-data templates (packing / airlines / opsec / docs)

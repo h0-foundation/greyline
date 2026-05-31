@@ -10,6 +10,7 @@
  */
 import { getDb, closeDb } from "../server/db/index";
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from "fs";
+import { gzipSync, gunzipSync } from "zlib";
 import { resolve } from "path";
 
 const BUNDLE_DIR = resolve("data/bundles/data");
@@ -41,10 +42,46 @@ function parseCsv(text: string): string[][] {
   return rows;
 }
 
-async function fetchText(url: string): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Fetch failed ${res.status}: ${url}`);
-  return res.text();
+async function fetchTextRetry(url: string, attempts = 4): Promise<string> {
+  let last: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.text();
+    } catch (err) {
+      last = err;
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 1000 * 2 ** i)); // 1s,2s,4s
+    }
+  }
+  throw new Error(`Fetch failed after ${attempts} attempts (${url}): ${String(last)}`);
+}
+
+/**
+ * Fetch a source, caching a gzipped snapshot under data/bundles/data so CI never
+ * depends on the live host. In CI the committed snapshot is authoritative (no
+ * network); locally we fetch fresh, refresh the snapshot, and fall back to it if
+ * the upstream is down. This is what keeps `pnpm build:data` reproducible in CI.
+ */
+async function cachedFetch(url: string, snapshotFile: string): Promise<string> {
+  const snap = resolve(BUNDLE_DIR, `${snapshotFile}.gz`);
+  const readSnap = () => gunzipSync(readFileSync(snap)).toString("utf-8");
+  if (process.env.CI && existsSync(snap)) {
+    console.log(`  CI: using committed ${snapshotFile}.gz (no network)`);
+    return readSnap();
+  }
+  try {
+    const text = await fetchTextRetry(url);
+    if (!existsSync(BUNDLE_DIR)) mkdirSync(BUNDLE_DIR, { recursive: true });
+    writeFileSync(snap, gzipSync(Buffer.from(text, "utf-8")));
+    return text;
+  } catch (err) {
+    if (existsSync(snap)) {
+      console.warn(`  fetch failed (${String(err)}); using committed ${snapshotFile}.gz`);
+      return readSnap();
+    }
+    throw err;
+  }
 }
 
 function recordSource(db: ReturnType<typeof getDb>, s: {
@@ -75,8 +112,8 @@ function normalizeVisa(raw: string): { requirement: string; detail: string | nul
 }
 
 async function importAirports(db: ReturnType<typeof getDb>) {
-  console.log("Downloading OurAirports…");
-  const csv = await fetchText(AIRPORTS_URL);
+  console.log("Resolving OurAirports…");
+  const csv = await cachedFetch(AIRPORTS_URL, "airports.csv");
   const rows = parseCsv(csv);
   const header = rows.shift()!;
   const col = (name: string) => header.indexOf(name);
@@ -113,8 +150,8 @@ async function importAirports(db: ReturnType<typeof getDb>) {
 }
 
 async function importVisas(db: ReturnType<typeof getDb>) {
-  console.log("Downloading passport-index visa matrix…");
-  const csv = await fetchText(VISAS_URL);
+  console.log("Resolving passport-index visa matrix…");
+  const csv = await cachedFetch(VISAS_URL, "passport-index.csv");
   const rows = parseCsv(csv);
   rows.shift(); // header: Passport,Destination,Requirement
   const insert = db.prepare(
