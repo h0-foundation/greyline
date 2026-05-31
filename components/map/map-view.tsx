@@ -80,6 +80,9 @@ export function MapView({ markers }: { markers: Marker[] }) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const draftRouteRef = useRef<LngLat[]>([]);
   const draftRouteMarkers = useRef<maplibregl.Marker[]>([]);
+  // Per-layer fetch generation. Bumped when a layer is cleared so an in-flight
+  // request that resolves afterwards can detect it's stale and not re-add markers.
+  const fetchGen = useRef<Record<string, number>>({});
 
   const [ready, setReady] = useState(false);
   const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false });
@@ -365,6 +368,8 @@ export function MapView({ markers }: { markers: Marker[] }) {
 
   function clearLayer(key: "cameras" | "aircraft" | "quakes" | "disasters") {
     const map = mapRef.current;
+    // Invalidate any in-flight fetch for this layer (it'll bail on resolve).
+    fetchGen.current[key] = (fetchGen.current[key] ?? 0) + 1;
     if (key === "aircraft") {
       planes.current.forEach((p) => p.marker.remove());
       planes.current.clear();
@@ -392,12 +397,14 @@ export function MapView({ markers }: { markers: Marker[] }) {
   async function fetchAircraft() {
     const map = mapRef.current;
     if (!map) return;
+    const gen = fetchGen.current.aircraft ?? 0;
     const c = map.getCenter();
     const r = Math.min(250, Math.round(boundsRadiusNm(map)));
     const res = await fetch(`/api/map/aircraft?lat=${c.lat.toFixed(3)}&lon=${c.lng.toFixed(3)}&dist=${r}`);
     if (res.status === 503) { setNotes((n) => ({ ...n, aircraft: "off" })); return; }
     setNotes((n) => ({ ...n, aircraft: "" }));
     const { aircraft } = (await res.json()) as { aircraft: Aircraft[] };
+    if ((fetchGen.current.aircraft ?? 0) !== gen) return; // layer toggled off mid-fetch
     const seen = new Set<string>();
     for (const a of (aircraft ?? []).slice(0, 250)) {
       if (a.lat == null || a.lon == null) continue;
@@ -470,6 +477,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
   async function fetchCameras() {
     const map = mapRef.current;
     if (!map) return;
+    const gen = fetchGen.current.cameras ?? 0;
     // Surveillance cameras are sparse; a world-size bbox times out on Overpass.
     if (map.getZoom() < 8) {
       layerMarkers.current.cameras.forEach((m) => m.remove());
@@ -483,6 +491,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
     if (res.status === 503) { setNotes((n) => ({ ...n, cameras: "off" })); return; }
     setNotes((n) => ({ ...n, cameras: "" }));
     const { cameras } = (await res.json()) as { cameras: Camera[] };
+    if ((fetchGen.current.cameras ?? 0) !== gen) return; // layer toggled off mid-fetch
     layerMarkers.current.cameras?.forEach((m) => m.remove());
     layerMarkers.current.cameras = [];
     const shown = (cameras ?? []).filter((c) => c.lat != null && c.lon != null).slice(0, 400);
