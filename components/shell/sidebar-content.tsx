@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import { footerNav, isActive, navGroups, type NavItem } from "@/lib/nav";
+import { visibleInPillar } from "@/lib/pillars";
+import { usePillarMode } from "@/components/shell/pillar-mode";
 import { cn } from "@/lib/utils";
 import { OfflineBadge } from "@/components/shell/offline-badge";
 import { Lauburu } from "@/components/brand/logo";
@@ -68,28 +70,33 @@ export function SidebarContent({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const { mode } = usePillarMode();
   return (
     <div className="flex h-full flex-col gap-1 p-3">
       <div className="px-1 py-2">
         <Brand />
       </div>
       <nav className="flex flex-1 flex-col gap-0.5 pt-2">
-        {navGroups.map((group, gi) => (
-          <div key={group.heading ?? `group-${gi}`} className="flex flex-col gap-0.5">
-            {group.heading && (
-              <span className="label-caps mt-3 mb-1 px-4">{group.heading}</span>
-            )}
-            {group.items.map((item) => (
-              <NavLink
-                key={item.href}
-                item={item}
-                active={isActive(pathname, item.href)}
-                idPrefix={idPrefix}
-                onNavigate={onNavigate}
-              />
-            ))}
-          </div>
-        ))}
+        {navGroups.map((group, gi) => {
+          const items = group.items.filter((item) => visibleInPillar(item.pillar, mode));
+          if (items.length === 0) return null; // hide a heading when its whole group is filtered out
+          return (
+            <div key={group.heading ?? `group-${gi}`} className="flex flex-col gap-0.5">
+              {group.heading && (
+                <span className="label-caps mt-3 mb-1 px-4">{group.heading}</span>
+              )}
+              {items.map((item) => (
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  active={isActive(pathname, item.href)}
+                  idPrefix={idPrefix}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          );
+        })}
       </nav>
       <div className="flex flex-col gap-2">
         {footerNav.map((item) => (
