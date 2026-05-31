@@ -312,7 +312,6 @@ When enabled, requests go through `server/services/api-gateway.ts`, which:
 | `uk-fcdo` | `www.gov.uk` (Content API) | UK Foreign Office travel advice with structured `alert_status` | `country_advisories.source='uk_fcdo'` |
 | `nominatim` | `nominatim.openstreetmap.org` | Geocoding + reverse | place picker |
 | `overpass` | `overpass-api.de` | OSM POI queries (cameras, embassies, hospitals) | `/map` camera layer |
-| `gdelt` | `api.gdeltproject.org` | Recent events / news signals | reserved for trip briefing news |
 | `adsb` | `api.adsb.lol` | Live ADS-B aircraft positions | `/map` aircraft layer |
 | `usgs` | `earthquake.usgs.gov` | M2.5+ earthquakes past day | `/map` quakes layer |
 | `gdacs` | `www.gdacs.org` | Global disaster alerts (cyclone / flood / volcano / wildfire) | `/map` disasters layer |
@@ -486,7 +485,7 @@ greyline/
 │   ├── crypto/                       AES-GCM, Argon2id wrappers
 │   └── api-clients/                  open-meteo, exchange-rates,
 │                                      travel-advisory, advisories-multi,
-│                                      nominatim, overpass, gdelt,
+│                                      nominatim, overpass,
 │                                      adsb, gdacs
 ├── scripts/
 │   ├── migrate.ts                    apply migrations
