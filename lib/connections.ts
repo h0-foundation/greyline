@@ -48,12 +48,6 @@ export const CONNECTIONS: ConnectionMeta[] = [
     host: "overpass-api.de",
   },
   {
-    id: "gdelt",
-    label: "News & events",
-    description: "Recent news and event signals for a region.",
-    host: "api.gdeltproject.org",
-  },
-  {
     id: "adsb",
     label: "Live aircraft (ADS-B)",
     description: "Real-time aircraft positions near a point, for the map OSINT layer.",
@@ -71,6 +65,7 @@ export const CONNECTIONS: ConnectionMeta[] = [
     description: "Live global disaster alerts — cyclones, floods, volcanoes, wildfires.",
     host: "www.gdacs.org",
   },
-  // ip-api intentionally omitted: HTTP-only on the free tier (would leak your IP
-  // in plaintext) and unused — dropped rather than ship a privacy regression.
+  // gdelt + ip-api intentionally omitted: gdelt had no callers; ip-api was
+  // HTTP-only on the free tier (a plaintext-IP leak). Both pruned (migration 016)
+  // rather than ship an orphaned or privacy-regressing connector.
 ];

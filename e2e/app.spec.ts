@@ -136,6 +136,8 @@ test("settings: connection toggles render and offline switch is present", async 
   await expect(page.getByText("Master offline switch")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Optional data connections")).toBeVisible();
   await expect(page.getByText("Weather").first()).toBeVisible();
+  // Pruned connectors must not resurface in the list (#40 cleanup).
+  await expect(page.getByText("News & events")).toHaveCount(0);
 });
 
 test("vault: shows lock screen", async ({ page }) => {
