@@ -8,6 +8,56 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-05-31
+
+Greyline 1.1 — the opt-in **connector & intelligence** release. Six new data
+sources (two bundled and fully offline, four live and gated), an offline
+sanctions screen, an offline gazetteer behind search, a pillar **focus mode**,
+and a Felt-style resizable map workspace. Everything stays offline-first:
+connectors are OFF by default, bundled datasets need no network, and no telemetry.
+
+### Added
+- **OFAC sanctions screening** (`/tools/sanctions`) — screen a name against the
+  bundled US Treasury **SDN + Consolidated** lists (incl. a.k.a. aliases) entirely
+  on-device; the name never leaves the machine. Honest "screening aid, not legal
+  advice" posture.
+- **UCDP armed-conflict** — a compact slice derived at build time from the Uppsala
+  GED: the deadliest recent georeferenced events power an **Armed conflict** map
+  layer, and per-country-year fatalities drive a trend card on the country dossier.
+  Fully offline (the 350 MB raw GED never enters the repo).
+- **Offline GeoNames gazetteer** — `geonames_cities` (~69 k places) backs
+  `/api/cities`, the map's **Search** tab, and an offline fallback for
+  `/api/geocode`, so place lookup works air-gapped.
+- **Live map connectors** (opt-in, no key): **EMSC** seismic (complements USGS),
+  **NWS** US weather alerts (severity-tinted zones).
+- **Key-required map connectors** (opt-in, free personal key): **NASA FIRMS**
+  active fires, **OpenAQ** air-quality stations. Keys are entered in
+  Settings → Connections and stored locally; the toggles API never returns them
+  (only `has_key`).
+- **Per-connector API keys** — `proxyFetch` injects a stored key as a header,
+  query param, or URL path segment (FIRMS), gating a key-required connector until
+  its key is set. Keys are kept out of the response cache key.
+- **Pillar focus mode** — a top-bar switch narrows the sidebar + tools catalog to
+  one of *Travel risk · Counter-surveillance · Investigation*, or All (default,
+  the full surface). Persisted via settings; a focus aid, not access control.
+- **Felt-style map workspace** — the floating control box on `/map` is now a
+  docked, **collapsible, resizable** panel with tabs: **Layers**, **Features**
+  (saved routes — fit / delete / show-hide), **Search** (offline gazetteer), and
+  **Packs** (offline street tiles). Panel size persists.
+
+### Changed
+- **CI/e2e fully decoupled from live APIs.** `build:countries` and `build:data`
+  are bundle-first under `process.env.CI`, seeding from committed gzipped
+  snapshots (REST Countries, OurAirports, passport-index, GeoNames, OFAC, UCDP) —
+  an upstream outage can no longer red the pipeline.
+- User-Agent bumped to `Greyline/1.1`.
+
+### Deferred (within #84)
+- **NOTAM-US / NOTAM-EU** (now require multi-part developer credentials; EAD
+  redistribution terms) and **AISStream** (websocket-only, outside the
+  `proxyFetch` HTTP/cache + offline-first egress model) are intentionally not
+  shipped this release.
+
 ## [1.0.0] — 2026-05-30
 
 Greyline 1.0 — a professional, **offline-first** travel & field-intelligence
