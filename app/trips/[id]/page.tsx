@@ -43,6 +43,7 @@ import { ItineraryPanel } from "@/components/trip/itinerary-panel";
 import { TripLimitsCard } from "@/components/trip/trip-limits";
 import { TripPacking } from "@/components/trip/trip-packing";
 import { TripDocuments } from "@/components/trip/trip-documents";
+import { TripTabs } from "@/components/trip/trip-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -295,105 +296,112 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="space-y-6">
-      <Link href="/trips" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-accent-text">
-        <ArrowLeft className="size-4" /> All trips
-      </Link>
-      <TripDetail
-        trip={trip}
-        destinations={destinations}
-        checklists={checklists}
-        threatModel={threatModel ?? null}
-        countries={countries}
-        destIntel={destIntel}
-        suggestedLevel={suggestedLevel}
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/trips" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-accent-text">
+          <ArrowLeft className="size-4" /> All trips
+        </Link>
+        <Link
+          href={`/trips/${trip.id}/briefing/print`}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-accent-text print:hidden"
+        >
+          <Printer className="size-4" /> Print briefing
+        </Link>
+      </div>
+
+      <TripTabs
+        overview={
+          <>
+            <TripDetail
+              trip={trip}
+              destinations={destinations}
+              checklists={checklists}
+              threatModel={threatModel ?? null}
+              countries={countries}
+              destIntel={destIntel}
+              suggestedLevel={suggestedLevel}
+            />
+
+            {/* ISO 31030 itinerary readiness — the pre-departure lifecycle meter,
+                computed from everything already on this trip. */}
+            <section className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-xs">
+              <div className="flex items-baseline gap-2">
+                <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
+                  <ClipboardCheck className="size-4 text-faint" />
+                  Itinerary readiness
+                </h2>
+                <span className="font-mono text-xs text-faint">ISO 31030-aligned lifecycle</span>
+              </div>
+              <ItineraryReadiness readiness={readiness} />
+            </section>
+          </>
+        }
+        flights={
+          <section className="space-y-4">
+            <div className="flex items-baseline gap-2">
+              <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
+                <Plane className="size-4 text-faint" />
+                Flights &amp; layovers
+              </h2>
+              <span className="font-mono text-xs text-faint">optional — add tickets to compute layover risk</span>
+            </div>
+            <FlightsEditor tripId={trip.id} initial={flights} rules={flightRulesByIata} />
+            {carriers.length > 0 && (
+              <TripLimitsCard limits={tripLimits} carrierCount={carriers.length} />
+            )}
+            {layovers.length > 0 && (
+              <ItineraryPanel layovers={layovers} exposureScore={exposureScore} />
+            )}
+          </section>
+        }
+        briefing={
+          <section className="space-y-4">
+            <div className="flex items-baseline gap-2">
+              <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
+                <BookOpenText className="size-4 text-faint" />
+                Briefing
+              </h2>
+              <span className="font-mono text-xs text-faint">auto-generated from your dossier</span>
+            </div>
+            <TripBriefing payload={briefingPayload} />
+          </section>
+        }
+        documents={
+          <section className="space-y-4">
+            <div className="flex items-baseline gap-2">
+              <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
+                <FileBadge className="size-4 text-faint" />
+                Documents
+              </h2>
+              <span className="font-mono text-xs text-faint">auto-generated · per destination requirements</span>
+            </div>
+            <TripDocuments
+              tripId={trip.id}
+              groups={docsGroups}
+              checklistId={docsChecklistId}
+              storedItems={storedDocs}
+            />
+          </section>
+        }
+        packing={
+          <section className="space-y-4">
+            <div className="flex items-baseline gap-2">
+              <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
+                <ListChecks className="size-4 text-faint" />
+                Packing
+              </h2>
+              <span className="font-mono text-xs text-faint">
+                tier {tier} · {destInputs.flatMap((d) => d.climate_tags).join(", ") || "no climate inferred"}
+              </span>
+            </div>
+            <TripPacking
+              tripId={trip.id}
+              groups={packingGroups}
+              checklistId={packingChecklistId}
+              storedItems={storedPacking}
+            />
+          </section>
+        }
       />
-
-      {/* ISO 31030 itinerary readiness — the pre-departure lifecycle meter,
-          computed from everything already on this trip. */}
-      <section className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-xs">
-        <div className="flex items-baseline gap-2">
-          <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
-            <ClipboardCheck className="size-4 text-faint" />
-            Itinerary readiness
-          </h2>
-          <span className="font-mono text-xs text-faint">ISO 31030-aligned lifecycle</span>
-          <Link
-            href={`/trips/${trip.id}/briefing/print`}
-            className="ml-auto inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-accent-text print:hidden"
-          >
-            <Printer className="size-4" /> Print briefing
-          </Link>
-        </div>
-        <ItineraryReadiness readiness={readiness} />
-      </section>
-
-      {/* Flights + layover analysis — adding tickets lights up transit visa,
-          tight-connection, and posture checks for every stop on the route. */}
-      <section className="space-y-4">
-        <div className="flex items-baseline gap-2">
-          <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
-            <Plane className="size-4 text-faint" />
-            Flights &amp; layovers
-          </h2>
-          <span className="font-mono text-xs text-faint">optional — add tickets to compute layover risk</span>
-        </div>
-        <FlightsEditor tripId={trip.id} initial={flights} rules={flightRulesByIata} />
-        {carriers.length > 0 && (
-          <TripLimitsCard limits={tripLimits} carrierCount={carriers.length} />
-        )}
-        {layovers.length > 0 && (
-          <ItineraryPanel layovers={layovers} exposureScore={exposureScore} />
-        )}
-      </section>
-
-      {/* Auto-baked briefing — every tool's analysis, computed per destination,
-          surfaced right next to the trip. */}
-      <section className="space-y-4">
-        <div className="flex items-baseline gap-2">
-          <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
-            <BookOpenText className="size-4 text-faint" />
-            Briefing
-          </h2>
-          <span className="font-mono text-xs text-faint">auto-generated from your dossier</span>
-        </div>
-        <TripBriefing payload={briefingPayload} />
-      </section>
-
-      {/* Required documents — universal + per-destination (visas, vaccinations, IDP, customs). */}
-      <section className="space-y-4">
-        <div className="flex items-baseline gap-2">
-          <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
-            <FileBadge className="size-4 text-faint" />
-            Documents
-          </h2>
-          <span className="font-mono text-xs text-faint">auto-generated · per destination requirements</span>
-        </div>
-        <TripDocuments
-          tripId={trip.id}
-          groups={docsGroups}
-          checklistId={docsChecklistId}
-          storedItems={storedDocs}
-        />
-      </section>
-
-      {/* Auto-baked packing list — climate + activity + threat-tier aware. */}
-      <section className="space-y-4">
-        <div className="flex items-baseline gap-2">
-          <h2 className="font-display text-lg font-semibold text-foreground inline-flex items-center gap-2">
-            <ListChecks className="size-4 text-faint" />
-            Packing
-          </h2>
-          <span className="font-mono text-xs text-faint">
-            tier {tier} · {destInputs.flatMap((d) => d.climate_tags).join(", ") || "no climate inferred"}
-          </span>
-        </div>
-        <TripPacking
-          tripId={trip.id}
-          groups={packingGroups}
-          checklistId={packingChecklistId}
-          storedItems={storedPacking}
-        />
-      </section>
     </div>
   );
 }
