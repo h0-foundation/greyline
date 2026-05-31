@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { mkdirSync, copyFileSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
 
 // M5 — maps & platform pack. Own spec file so feature branches don't collide on
 // app.spec.ts. All offline / on-device.
@@ -100,4 +102,34 @@ test("maps: offline world basemap loads air-gapped (PMTiles) and is registered",
   expect(world).toBeTruthy();
   expect(world.checksum).toBeTruthy();
   expect(world.path).toMatch(/world\.pmtiles$/);
+});
+
+test("maps: register a regional street pack, serve it with range, then unregister", async ({ request }) => {
+  const dir = resolve("data/bundles/maps");
+  mkdirSync(dir, { recursive: true });
+  const file = "e2e-test-pack.pmtiles";
+  const dest = resolve(dir, file);
+  // The committed world basemap is a valid .pmtiles — reuse it as a fixture.
+  copyFileSync(resolve("public/geo/world.pmtiles"), dest);
+  try {
+    const reg = await request.post("/api/bundles", { data: { file, name: "E2E Pack" } });
+    expect(reg.ok()).toBeTruthy();
+    const { bundle } = await reg.json();
+    expect(bundle.region).toBe("E2E Pack");
+
+    const list = await (await request.get("/api/bundles")).json();
+    expect(list.bundles.some((b: { id: string }) => b.id === bundle.id)).toBeTruthy();
+
+    // Served with HTTP range support — PMTiles needs 206 partial reads.
+    const ranged = await request.get(`/api/tiles/${bundle.id}`, { headers: { Range: "bytes=0-99" } });
+    expect(ranged.status()).toBe(206);
+    expect(ranged.headers()["content-range"]).toMatch(/^bytes 0-99\//);
+
+    const del = await request.delete(`/api/bundles/${bundle.id}`);
+    expect(del.ok()).toBeTruthy();
+    const after = await (await request.get("/api/bundles")).json();
+    expect(after.bundles.some((b: { id: string }) => b.id === bundle.id)).toBeFalsy();
+  } finally {
+    rmSync(dest, { force: true });
+  }
 });
