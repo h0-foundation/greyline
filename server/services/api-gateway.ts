@@ -8,7 +8,11 @@ interface ProxyOptions {
   cacheTtlSeconds?: number;
   // For key-required connectors: where to inject the stored api_key. If set and
   // no key is stored, the request is refused (the connector stays gated).
-  auth?: { in: "header" | "query"; name: string };
+  //  - header/query: `name` is the header/param name.
+  //  - path: `name` is a placeholder substring in `url` (e.g. "{KEY}") replaced
+  //    with the key at fetch time — kept out of the cache key so it never lands
+  //    in api_cache (some APIs, e.g. FIRMS, carry the key as a URL path segment).
+  auth?: { in: "header" | "query" | "path"; name: string };
 }
 
 interface ApiToggle {
@@ -86,12 +90,14 @@ export async function proxyFetch<T = unknown>(options: ProxyOptions): Promise<{ 
     'Accept': 'application/json',
   };
   const finalParams: Record<string, string> = { ...(params || {}) };
+  let finalUrl = url;
   if (options.auth && apiKey) {
     if (options.auth.in === 'header') headers[options.auth.name] = apiKey;
+    else if (options.auth.in === 'path') finalUrl = url.split(options.auth.name).join(apiKey);
     else finalParams[options.auth.name] = apiKey;
   }
 
-  const data = await ofetch<T>(url, {
+  const data = await ofetch<T>(finalUrl, {
     params: finalParams,
     headers,
     timeout: 10000,

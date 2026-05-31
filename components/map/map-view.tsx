@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize, Route as RouteIcon, Swords, Wind } from "lucide-react";
+import { Plane, Activity, Cctv, MapPin, Plus, X, Satellite, CloudRain, TriangleAlert, Map as MapIcon, Layers, Trash2, Maximize, Route as RouteIcon, Swords, Wind, Flame, Gauge } from "lucide-react";
 import { PMTiles } from "pmtiles";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,8 @@ type Disaster = { geometry: { coordinates: [number, number] }; properties: { eve
 type ConflictEvent = { lat: number; lng: number; year: number; deaths: number; type_of_violence: number; country: string | null; conflict_name: string | null; date_start: string | null };
 type EmscQuake = { geometry: { coordinates: [number, number, number] }; properties: { mag: number; magtype?: string; flynn_region?: string; time?: string } };
 type NwsAlert = { geometry: unknown; properties: { event: string; severity: string; headline?: string; areaDesc?: string; expires?: string } };
+type FirePoint = { lat: number; lng: number; frp: number; confidence: string; acq_date: string; acq_time: string; daynight: string };
+type AirStation = { id: number; name: string; locality: string | null; country: string | null; lat: number; lng: number; parameters: string[] };
 
 // NWS alert severity → CVD-safe fill (paired with the severity word in the popup).
 const NWS_SEVERITY_COLOR: Record<string, string> = { Extreme: "#c0392b", Severe: "#e06a5a", Moderate: "#e0992a", Minor: "#e0b24a", Unknown: "#9aa39c" };
@@ -85,7 +87,7 @@ function cameraEl(kind: CameraKind) {
 export function MapView({ markers }: { markers: Marker[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const layerMarkers = useRef<Record<string, maplibregl.Marker[]>>({ base: [], cameras: [], quakes: [], disasters: [], emsc: [], custom: [] });
+  const layerMarkers = useRef<Record<string, maplibregl.Marker[]>>({ base: [], cameras: [], quakes: [], disasters: [], emsc: [], air: [], custom: [] });
   const planes = useRef<Map<string, { tlng: number; tlat: number; lng: number; lat: number; marker: maplibregl.Marker; el: HTMLDivElement }>>(new Map());
   const trails = useRef<Map<string, [number, number][]>>(new Map());
   const rafRef = useRef<number>(0);
@@ -100,7 +102,7 @@ export function MapView({ markers }: { markers: Marker[] }) {
   const conflictLoaded = useRef(false);
 
   const [ready, setReady] = useState(false);
-  const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false, conflict: false, emsc: false, nws: false });
+  const [layers, setLayers] = useState({ base: true, cameras: false, aircraft: false, quakes: false, disasters: false, conflict: false, emsc: false, nws: false, fires: false, air: false });
   const [satellite, setSatellite] = useState(false);
   const [radar, setRadar] = useState(false);
   const [detail, setDetail] = useState(false);
@@ -347,6 +349,23 @@ export function MapView({ markers }: { markers: Marker[] }) {
       });
       map.on("mouseenter", "nws-fill", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "nws-fill", () => { map.getCanvas().style.cursor = ""; });
+      // NASA FIRMS active fires (live, key-gated). Native circle layer — there can
+      // be tens of thousands of hotspots; radius scales with fire radiative power.
+      map.addSource("fires", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "fire-pts", type: "circle", source: "fires", layout: { visibility: "none" },
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["sqrt", ["max", 0, ["get", "frp"]]], 0, 2.5, 5, 5, 15, 9, 30, 14],
+          "circle-color": "#e0662a", "circle-opacity": 0.55, "circle-stroke-color": "#7d2f10", "circle-stroke-width": 0.4,
+        },
+      });
+      map.on("click", "fire-pts", (e) => {
+        const f = e.features?.[0];
+        if (!f || f.geometry.type !== "Point") return;
+        new maplibregl.Popup({ offset: 6 }).setLngLat(f.geometry.coordinates as [number, number]).setHTML(firePopup(f.properties as FirePoint)).addTo(map);
+      });
+      map.on("mouseenter", "fire-pts", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "fire-pts", () => { map.getCanvas().style.cursor = ""; });
       setReady(true);
     });
 
@@ -639,15 +658,67 @@ export function MapView({ markers }: { markers: Marker[] }) {
     });
   }
 
+  // NASA FIRMS active fires — live, key-gated. Viewport-scoped (the bbox keeps
+  // the hotspot CSV small). Toggling enables the connector; 503 → "off" note.
+  async function setFires(on: boolean) {
+    setLayers((s) => ({ ...s, fires: on }));
+    const map = mapRef.current;
+    await fetch("/api/toggles", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_id: "nasa-firms", enabled: on }) }).catch(() => {});
+    if (!map) return;
+    if (map.getLayer("fire-pts")) map.setLayoutProperty("fire-pts", "visibility", on ? "visible" : "none");
+    if (on) fetchFires();
+  }
+
+  async function fetchFires() {
+    const map = mapRef.current;
+    if (!map) return;
+    const b = map.getBounds();
+    const res = await fetch(`/api/map/fires?west=${b.getWest().toFixed(3)}&south=${b.getSouth().toFixed(3)}&east=${b.getEast().toFixed(3)}&north=${b.getNorth().toFixed(3)}`);
+    if (res.status === 503) { setNotes((n) => ({ ...n, fires: "off" })); return; }
+    if (!res.ok) { setNotes((n) => ({ ...n, fires: "err" })); return; }
+    setNotes((n) => ({ ...n, fires: "" }));
+    const { fires } = (await res.json()) as { fires: FirePoint[] };
+    (map.getSource("fires") as maplibregl.GeoJSONSource | undefined)?.setData({
+      type: "FeatureCollection",
+      features: (fires ?? []).map((f) => ({ type: "Feature" as const, properties: { ...f }, geometry: { type: "Point" as const, coordinates: [f.lng, f.lat] } })),
+    });
+  }
+
+  // OpenAQ air-quality stations — live, key-gated. Markers near the map centre.
+  async function setAir(on: boolean) {
+    setLayers((s) => ({ ...s, air: on }));
+    await fetch("/api/toggles", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_id: "openaq", enabled: on }) }).catch(() => {});
+    if (on) fetchAir();
+    else { layerMarkers.current.air.forEach((m) => m.remove()); layerMarkers.current.air = []; setNotes((n) => ({ ...n, air: "" })); }
+  }
+
+  async function fetchAir() {
+    const map = mapRef.current;
+    if (!map) return;
+    const c = map.getCenter();
+    const res = await fetch(`/api/map/air?lat=${c.lat.toFixed(4)}&lng=${c.lng.toFixed(4)}`);
+    if (res.status === 503) { setNotes((n) => ({ ...n, air: "off" })); return; }
+    if (!res.ok) { setNotes((n) => ({ ...n, air: "err" })); return; }
+    setNotes((n) => ({ ...n, air: "" }));
+    const { stations } = (await res.json()) as { stations: AirStation[] };
+    layerMarkers.current.air.forEach((m) => m.remove());
+    layerMarkers.current.air = [];
+    for (const s of (stations ?? []).slice(0, 200)) {
+      const mk = new maplibregl.Marker({ element: dot("#4aa3c9", 9) }).setLngLat([s.lng, s.lat])
+        .setPopup(new maplibregl.Popup({ offset: 10 }).setHTML(airPopup(s))).addTo(map);
+      layerMarkers.current.air.push(mk);
+    }
+  }
+
   // refetch viewport-bound layers on pan/zoom
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    const onMove = () => { if (layers.aircraft) fetchAircraft(); if (layers.cameras) fetchCameras(); };
+    const onMove = () => { if (layers.aircraft) fetchAircraft(); if (layers.cameras) fetchCameras(); if (layers.fires) fetchFires(); if (layers.air) fetchAir(); };
     map.on("moveend", onMove);
     return () => { map.off("moveend", onMove); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, layers.aircraft, layers.cameras]);
+  }, [ready, layers.aircraft, layers.cameras, layers.fires, layers.air]);
 
   // ---- custom point placement ----
   useEffect(() => {
@@ -710,6 +781,8 @@ export function MapView({ markers }: { markers: Marker[] }) {
         <LayerRow icon={Activity} color="#e06a5a" label="Earthquakes (USGS)" on={layers.quakes} onToggle={(v) => setLayer("quakes", v)} note={notes.quakes} />
         <LayerRow icon={Activity} color="#9b6dd6" label="Earthquakes (EMSC)" on={layers.emsc} onToggle={(v) => setLayer("emsc", v)} note={notes.emsc} />
         <LayerRow icon={Wind} color="#e0992a" label="US weather alerts (NWS)" on={layers.nws} onToggle={setNws} note={notes.nws} />
+        <LayerRow icon={Flame} color="#e0662a" label="Active fires (FIRMS)" on={layers.fires} onToggle={setFires} note={notes.fires} />
+        <LayerRow icon={Gauge} color="#4aa3c9" label="Air quality (OpenAQ)" on={layers.air} onToggle={setAir} note={notes.air} />
         <LayerRow icon={TriangleAlert} color="#e0992a" label="Disasters (GDACS)" on={layers.disasters} onToggle={(v) => setLayer("disasters", v)} note={notes.disasters} />
         <LayerRow icon={Swords} color="#e06a5a" label="Armed conflict (UCDP)" on={layers.conflict} onToggle={setConflict} />
         <LayerRow icon={Cctv} color="#e0b24a" label="Cameras & ALPR" on={layers.cameras} onToggle={(v) => setLayer("cameras", v)} note={notes.cameras} />
@@ -928,6 +1001,25 @@ function nwsPopup(p: NwsAlert["properties"]): string {
     <div style="font-size:11px;margin-bottom:4px"><span style="color:${color};font-weight:600">${escapeHtml(p.severity || "Unknown")}</span><span style="color:#888"> · ${escapeHtml(p.areaDesc || "")}</span></div>
     ${p.headline ? `<div style="font-size:11px;color:#444;line-height:1.4">${escapeHtml(p.headline)}</div>` : ""}
     <div style="margin-top:5px;font-size:10px;color:#aaa">© NOAA / US National Weather Service</div>
+  </div>`;
+}
+function firePopup(f: FirePoint): string {
+  const conf: Record<string, string> = { l: "low", n: "nominal", h: "high" };
+  const frp = Number(f.frp) || 0;
+  return `<div style="min-width:150px;font-family:system-ui">
+    <div style="font:600 13px system-ui;margin-bottom:3px">🔥 Active fire</div>
+    <div style="font-size:11px;color:#888">FRP <span style="color:#222;font-family:ui-monospace">${frp.toFixed(1)} MW</span> · confidence ${escapeHtml(conf[f.confidence] ?? f.confidence ?? "—")}</div>
+    <div style="font-size:11px;color:#888">${escapeHtml(String(f.acq_date ?? ""))} ${escapeHtml(String(f.acq_time ?? ""))} UTC · ${f.daynight === "N" ? "night" : "day"}</div>
+    <div style="margin-top:5px;font-size:10px;color:#aaa">© NASA FIRMS (VIIRS)</div>
+  </div>`;
+}
+function airPopup(s: AirStation): string {
+  const params = (s.parameters ?? []).map((p) => p.toUpperCase()).slice(0, 8).join(", ");
+  return `<div style="min-width:160px;font-family:system-ui">
+    <div style="font:600 13px system-ui;margin-bottom:3px">${escapeHtml(s.name || "Monitoring station")}</div>
+    <div style="font-size:11px;color:#888;margin-bottom:4px">${escapeHtml([s.locality, s.country].filter(Boolean).join(", "))}</div>
+    ${params ? `<div style="font-size:11px;color:#444">Measures: ${escapeHtml(params)}</div>` : ""}
+    <div style="margin-top:5px;font-size:10px;color:#aaa">© OpenAQ</div>
   </div>`;
 }
 function boundsRadiusNm(map: maplibregl.Map): number {
