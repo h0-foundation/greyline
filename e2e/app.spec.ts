@@ -201,11 +201,31 @@ test("navigation: sidebar is grouped and the command palette jumps to any tool",
 
   // Cmd+K / Ctrl+K opens the palette; it indexes every page, action, and tool.
   await page.keyboard.press("ControlOrMeta+k");
-  const input = page.getByPlaceholder("Search pages, tools, actions…");
+  const input = page.getByPlaceholder("Search pages, tools, trips, actions…");
   await expect(input).toBeVisible();
   await input.fill("chronolocation");
   await page.getByText("Chronolocation lab").click();
   await expect(page).toHaveURL(/\/tools\/chrono/);
+});
+
+test("palette: entity search jumps straight to a trip by name", async ({ page, request }) => {
+  // Seed a uniquely-named trip via the API (CI-safe, no external data).
+  const res = await request.post("/api/trips", { data: { name: "Palette Jump Probe" } });
+  expect(res.ok()).toBeTruthy();
+  const tripId = (await res.json()).trip.id;
+  try {
+    await page.goto("/");
+    await page.keyboard.press("ControlOrMeta+k");
+    const input = page.getByPlaceholder("Search pages, tools, trips, actions…");
+    await expect(input).toBeVisible();
+    await input.fill("Palette Jump Probe");
+    // Scope to the palette result (cmdk item = role "option"), not the cockpit
+    // headline that also shows the trip name behind the dialog.
+    await page.getByRole("option", { name: /Palette Jump Probe/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/trips/${tripId}`));
+  } finally {
+    await request.delete(`/api/trips/${tripId}`);
+  }
 });
 
 test("security: destination update ignores injected column keys (SQLi regression)", async ({ request }) => {
