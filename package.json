@@ -47,7 +47,7 @@
     "lucide-react": "latest",
     "maplibre-gl": "^5.18.0",
     "motion": "latest",
-    "next": "16.2.6",
+    "next": "16.2.11",
     "next-themes": "latest",
     "ofetch": "^1.4.0",
     "pmtiles": "^4.4.0",
